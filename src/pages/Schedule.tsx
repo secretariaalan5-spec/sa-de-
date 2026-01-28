@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useAppData } from '@/hooks/useAppData';
@@ -10,70 +10,90 @@ import { Calendar, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { DAYS_OF_WEEK, PERIODS, DayOfWeek, Period } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { ScheduleEntry } from '@/types';
 
 export default function Schedule() {
-  const { 
-    data, 
-    addScheduleEntry, 
-    deleteScheduleEntry, 
+  const {
+    data,
+    addScheduleEntry,
+    deleteScheduleEntry,
     validateScheduleEntry,
-    getWeeklyHoursUsed
+    getWeeklyHoursUsed,
   } = useAppData();
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedProfessional, setSelectedProfessional] = useState('');
-  const [form, setForm] = useState({
-    unitId: '',
-    dayOfWeek: '' as DayOfWeek | '',
-    period: '' as Period | '',
-  });
+  const [form, setForm] = useState<{
+    professionalId: string;
+    dayOfWeek: DayOfWeek | '';
+    unitId: string;
+    period: Period | '';
+  }>({ professionalId: '', dayOfWeek: '', unitId: '', period: '' });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [filterFunctionId, setFilterFunctionId] = useState<string>('');
 
-  const activeProfessionals = data.professionals.filter(p => p.active);
-  const activeUnits = data.units.filter(u => u.active);
+  const activeProfessionals = data.professionals.filter((p) => p.active);
+  const activeUnits = data.units.filter((u) => u.active);
 
-  const openNew = () => {
-    setForm({ unitId: '', dayOfWeek: '', period: '' });
+  const professionalsByFunction = useMemo(() => {
+    const grouped: Record<string, typeof activeProfessionals> = {};
+    const filtered =
+      filterFunctionId && filterFunctionId !== 'all'
+        ? activeProfessionals.filter((p) => p.functionId === filterFunctionId)
+        : activeProfessionals;
+    filtered.forEach((prof) => {
+      const fid = prof.functionId;
+      if (!grouped[fid]) grouped[fid] = [];
+      grouped[fid].push(prof);
+    });
+    return grouped;
+  }, [activeProfessionals, filterFunctionId]);
+
+  const openNew = (professionalId?: string, dayOfWeek?: DayOfWeek) => {
+    setForm({
+      professionalId: professionalId ?? '',
+      dayOfWeek: dayOfWeek ?? '',
+      unitId: '',
+      period: '',
+    });
     setValidationErrors([]);
     setDialogOpen(true);
   };
 
+  const openFromCell = (e: React.MouseEvent, professionalId: string, dayOfWeek: DayOfWeek) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    openNew(professionalId, dayOfWeek);
+  };
+
   const handleValidate = () => {
-    if (!selectedProfessional || !form.unitId || !form.dayOfWeek || !form.period) {
+    if (!form.professionalId || !form.unitId || !form.dayOfWeek || !form.period) {
       setValidationErrors(['Preencha todos os campos']);
       return false;
     }
-
     const errors = validateScheduleEntry({
-      professionalId: selectedProfessional,
+      professionalId: form.professionalId,
       unitId: form.unitId,
       dayOfWeek: form.dayOfWeek,
       period: form.period,
     });
-
     setValidationErrors(errors);
     return errors.length === 0;
   };
 
   const handleSave = () => {
-    if (!handleValidate()) {
-      return;
-    }
-
-    // Check if already exists
-    const exists = data.schedule.find(s =>
-      s.professionalId === selectedProfessional &&
-      s.dayOfWeek === form.dayOfWeek &&
-      s.period === form.period
+    if (!handleValidate()) return;
+    const exists = data.schedule.some(
+      (s) =>
+        s.professionalId === form.professionalId &&
+        s.dayOfWeek === form.dayOfWeek &&
+        s.period === form.period
     );
-
     if (exists) {
       toast.error('Já existe escala para este profissional neste dia/período');
       return;
     }
-
     addScheduleEntry({
-      professionalId: selectedProfessional,
+      professionalId: form.professionalId,
       unitId: form.unitId,
       dayOfWeek: form.dayOfWeek as DayOfWeek,
       period: form.period as Period,
@@ -82,138 +102,171 @@ export default function Schedule() {
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     deleteScheduleEntry(id);
     toast.success('Escala removida');
   };
 
-  const getProfessional = (id: string) => data.professionals.find(p => p.id === id);
-  const getUnit = (id: string) => data.units.find(u => u.id === id);
-  const getFunction = (id: string) => data.functions.find(f => f.id === id);
-  const getPeriodLabel = (key: Period) => PERIODS.find(p => p.key === key)?.label || key;
+  const getProfessional = (id: string) => data.professionals.find((p) => p.id === id);
+  const getUnit = (id: string) => data.units.find((u) => u.id === id);
+  const getFunction = (id: string) => data.functions.find((f) => f.id === id);
 
-  // Get schedule for selected professional
-  const professionalSchedule = selectedProfessional 
-    ? data.schedule.filter(s => s.professionalId === selectedProfessional)
-    : [];
+  const getEntriesForCell = (professionalId: string, day: DayOfWeek): ScheduleEntry[] =>
+    data.schedule.filter(
+      (s) => s.professionalId === professionalId && s.dayOfWeek === day
+    );
 
-  const currentProf = getProfessional(selectedProfessional);
-  const usedHours = currentProf ? getWeeklyHoursUsed(selectedProfessional) : 0;
+  const formatEntry = (entry: ScheduleEntry) => {
+    const unit = getUnit(entry.unitId)?.name ?? '';
+    const suffix =
+      entry.period === 'manha' ? ' - MANHÃ' : entry.period === 'tarde' ? ' - TARDE' : '';
+    return { text: `${unit}${suffix}`, id: entry.id };
+  };
+
+  const hasActiveProfs = activeProfessionals.length > 0;
 
   return (
     <div className="animate-fade-in">
-      <PageHeader 
-        title="Escala Base" 
-        description="Edite a escala semanal dos profissionais"
+      <PageHeader
+        title="Escala Base"
+        description="Edite a escala semanal na estrutura da tabela. Uma pessoa pode ficar vários dias no mesmo lugar ou repartido em vários."
       />
 
-      <div className="form-section mb-6">
-        <Label>Selecione o Profissional</Label>
-        <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-          <SelectTrigger className="bg-background max-w-md">
-            <SelectValue placeholder="Escolha um profissional" />
-          </SelectTrigger>
-          <SelectContent className="bg-popover">
-            {activeProfessionals.map((p) => {
-              const func = getFunction(p.functionId);
-              return (
-                <SelectItem key={p.id} value={p.id}>
-                  <span className="flex items-center gap-2">
-                    <span 
-                      className="w-2 h-2 rounded-full" 
-                      style={{ backgroundColor: func?.color || '#888' }}
-                    />
-                    {p.name} - {func?.name}
-                  </span>
+      <div className="form-section mb-6 flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-[200px]">
+          <Label>Filtrar por função</Label>
+          <Select
+            value={filterFunctionId || 'all'}
+            onValueChange={(v) => setFilterFunctionId(v === 'all' ? '' : v)}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Todas" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover">
+              <SelectItem value="all">Todas as funções</SelectItem>
+              {data.functions.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.name}
                 </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={() => openNew()}>
+          <Plus className="w-4 h-4 mr-2" />
+          Adicionar escala
+        </Button>
       </div>
 
-      {!selectedProfessional ? (
+      {!hasActiveProfs ? (
         <EmptyState
           icon={Calendar}
-          title="Selecione um profissional"
-          description="Escolha um profissional para visualizar e editar sua escala"
+          title="Nenhum profissional ativo"
+          description="Cadastre profissionais em Profissionais para montar a escala"
         />
       ) : (
-        <div className="space-y-6">
-          {/* Workload indicator */}
-          {currentProf && (
-            <div className="form-section p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Carga horária semanal</p>
-                  <p className="text-lg font-semibold">
-                    {usedHours}h / {currentProf.weeklyHours}h
-                  </p>
-                </div>
-                <div className="w-32 h-3 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all ${
-                      usedHours > currentProf.weeklyHours ? 'bg-destructive' :
-                      usedHours > currentProf.weeklyHours * 0.8 ? 'bg-warning' : 'bg-success'
-                    }`}
-                    style={{ width: `${Math.min((usedHours / currentProf.weeklyHours) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Schedule table */}
-          <div className="form-section">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">Escala Semanal</h3>
-              <Button size="sm" onClick={openNew}>
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar
-              </Button>
-            </div>
-
-            {professionalSchedule.length === 0 ? (
-              <p className="text-muted-foreground text-sm text-center py-8">
-                Nenhuma escala cadastrada para este profissional
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="schedule-table">
+        <div className="space-y-8">
+          {Object.entries(professionalsByFunction).map(([funcId, profs]) => {
+            const func = getFunction(funcId);
+            return (
+              <div key={funcId} className="form-section overflow-x-auto">
+                <h3
+                  className="font-bold text-lg mb-4 pb-2 border-b-2"
+                  style={{ borderColor: func?.color ?? '#888' }}
+                >
+                  PROFISSIONAL {func?.name?.toUpperCase() ?? 'Indefinido'}
+                </h3>
+                <table className="schedule-table schedule-grid">
                   <thead>
                     <tr>
-                      <th className="text-left">Dia</th>
-                      <th className="text-left">Período</th>
-                      <th className="text-left">Unidade</th>
-                      <th className="text-center">Ações</th>
+                      <th className="text-left w-48">PROFISSIONAL<br />{func?.name?.toUpperCase()}</th>
+                      <th className="text-center w-20">CARGA</th>
+                      {DAYS_OF_WEEK.map((day) => (
+                        <th key={day.key} className="text-center min-w-[140px]">
+                          {day.label.toUpperCase()}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {DAYS_OF_WEEK.map(day => {
-                      const dayEntries = professionalSchedule.filter(s => s.dayOfWeek === day.key);
-                      if (dayEntries.length === 0) return null;
-                      return dayEntries.map((entry, idx) => (
-                        <tr key={entry.id}>
-                          {idx === 0 && (
-                            <td rowSpan={dayEntries.length} className="font-medium border-r">
-                              {day.label}
-                            </td>
-                          )}
-                          <td>{getPeriodLabel(entry.period)}</td>
-                          <td>{getUnit(entry.unitId)?.name || '-'}</td>
-                          <td className="text-center">
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                    {profs.map((prof) => {
+                      const used = getWeeklyHoursUsed(prof.id);
+                      const limit = prof.weeklyHours;
+                      return (
+                        <tr key={prof.id}>
+                          <td className="font-semibold align-top">{prof.name.toUpperCase()}</td>
+                          <td className="text-center align-top text-xs">
+                            <span
+                              className={
+                                used > limit
+                                  ? 'text-destructive font-medium'
+                                  : used > limit * 0.8
+                                    ? 'text-warning'
+                                    : 'text-muted-foreground'
+                              }
+                            >
+                              {used}h/{limit}h
+                            </span>
                           </td>
+                          {DAYS_OF_WEEK.map((day) => {
+                            const entries = getEntriesForCell(prof.id, day.key);
+                            return (
+                              <td
+                                key={day.key}
+                                className="align-top p-2 schedule-cell cursor-pointer hover:bg-muted/50 transition-colors"
+                                onClick={(e) => openFromCell(e, prof.id, day.key)}
+                              >
+                                <div className="flex flex-col gap-1 min-h-[2.5rem]">
+                                  {entries.map((entry) => {
+                                    const { text, id } = formatEntry(entry);
+                                    return (
+                                      <div
+                                        key={id}
+                                        className="group flex items-center justify-between gap-1 rounded px-2 py-1 bg-muted/70 text-xs"
+                                      >
+                                        <span className="truncate">{text}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={(e) => handleDelete(e, id)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-full text-muted-foreground hover:text-foreground border border-dashed"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openNew(prof.id, day.key);
+                                    }}
+                                  >
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    Adicionar
+                                  </Button>
+                                </div>
+                              </td>
+                            );
+                          })}
                         </tr>
-                      ));
+                      );
                     })}
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+            );
+          })}
+
+          {Object.keys(professionalsByFunction).length === 0 && (
+            <div className="form-section text-center py-12 text-muted-foreground">
+              Nenhum profissional para a função selecionada
+            </div>
+          )}
         </div>
       )}
 
@@ -235,9 +288,37 @@ export default function Schedule() {
             )}
 
             <div>
+              <Label>Profissional *</Label>
+              <Select
+                value={form.professionalId}
+                onValueChange={(v) => setForm({ ...form, professionalId: v })}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {activeProfessionals.map((p) => {
+                    const f = getFunction(p.functionId);
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: f?.color ?? '#888' }}
+                          />
+                          {p.name} – {f?.name}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Dia da Semana *</Label>
-              <Select 
-                value={form.dayOfWeek} 
+              <Select
+                value={form.dayOfWeek}
                 onValueChange={(v) => setForm({ ...form, dayOfWeek: v as DayOfWeek })}
               >
                 <SelectTrigger className="bg-background">
@@ -245,7 +326,9 @@ export default function Schedule() {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   {DAYS_OF_WEEK.map((d) => (
-                    <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
+                    <SelectItem key={d.key} value={d.key}>
+                      {d.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -253,8 +336,8 @@ export default function Schedule() {
 
             <div>
               <Label>Período *</Label>
-              <Select 
-                value={form.period} 
+              <Select
+                value={form.period}
                 onValueChange={(v) => setForm({ ...form, period: v as Period })}
               >
                 <SelectTrigger className="bg-background">
@@ -262,7 +345,9 @@ export default function Schedule() {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   {PERIODS.map((p) => (
-                    <SelectItem key={p.key} value={p.key}>{p.label} ({p.hours}h)</SelectItem>
+                    <SelectItem key={p.key} value={p.key}>
+                      {p.label} ({p.hours}h)
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -270,8 +355,8 @@ export default function Schedule() {
 
             <div>
               <Label>Unidade *</Label>
-              <Select 
-                value={form.unitId} 
+              <Select
+                value={form.unitId}
                 onValueChange={(v) => setForm({ ...form, unitId: v })}
               >
                 <SelectTrigger className="bg-background">
@@ -279,14 +364,18 @@ export default function Schedule() {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   {activeUnits.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancelar
+              </Button>
               <Button onClick={handleSave}>Salvar</Button>
             </div>
           </div>

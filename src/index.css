@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 15%;
 
-    --primary: 210 100% 35%;
+    --primary: 210 100% 48%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 25% 92%;
@@ -38,20 +38,20 @@
 
     --border: 210 20% 88%;
     --input: 210 20% 88%;
-    --ring: 210 100% 35%;
+    --ring: 210 100% 48%;
 
     --radius: 0.375rem;
 
-    --sidebar-background: 210 100% 25%;
+    --sidebar-background: 210 100% 35%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 45 95% 55%;
     --sidebar-primary-foreground: 210 25% 15%;
-    --sidebar-accent: 210 100% 30%;
+    --sidebar-accent: 210 100% 42%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 80% 35%;
+    --sidebar-border: 210 80% 42%;
     --sidebar-ring: 45 95% 55%;
 
-    --table-header: 210 100% 35%;
+    --table-header: 210 100% 48%;
     --table-header-foreground: 0 0% 100%;
     --table-row-even: 210 20% 97%;
     --table-row-odd: 0 0% 100%;
@@ -67,7 +67,7 @@
     --popover: 210 25% 14%;
     --popover-foreground: 210 15% 95%;
 
-    --primary: 210 90% 55%;
+    --primary: 210 90% 58%;
     --primary-foreground: 210 25% 10%;
 
     --secondary: 210 25% 20%;
@@ -92,7 +92,7 @@
     --input: 210 25% 25%;
     --ring: 210 90% 55%;
 
-    --table-header: 210 90% 40%;
+    --table-header: 210 90% 48%;
     --table-header-foreground: 0 0% 100%;
     --table-row-even: 210 25% 12%;
     --table-row-odd: 210 25% 14%;
@@ -129,6 +129,10 @@
 
   .schedule-table tr:hover td {
     @apply bg-secondary/80;
+  }
+
+  .schedule-table.schedule-grid td.schedule-cell {
+    @apply border-l border-border/60;
   }
 
   .nav-item {
@@ -178,7 +182,7 @@
   }
   
   .schedule-table th {
-    background: #0057a3 !important;
+    background: #1a7acc !important;
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
