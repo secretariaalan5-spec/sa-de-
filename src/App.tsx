@@ -3,7 +3,16 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { AppLayout } from "@/components/layout/AppLayout";
+import Dashboard from "./pages/Dashboard";
+import Professionals from "./pages/Professionals";
+import Units from "./pages/Units";
+import Functions from "./pages/Functions";
+import Restrictions from "./pages/Restrictions";
+import Schedule from "./pages/Schedule";
+import Visualization from "./pages/Visualization";
+import Export from "./pages/Export";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -15,8 +24,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/profissionais" element={<Professionals />} />
+            <Route path="/unidades" element={<Units />} />
+            <Route path="/funcoes" element={<Functions />} />
+            <Route path="/restricoes" element={<Restrictions />} />
+            <Route path="/escala" element={<Schedule />} />
+            <Route path="/visualizacao" element={<Visualization />} />
+            <Route path="/exportar" element={<Export />} />
+            <Route path="/configuracoes" element={<Settings />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
