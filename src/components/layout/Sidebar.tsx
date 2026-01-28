@@ -54,10 +54,14 @@ export function Sidebar() {
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="p-6 border-b border-sidebar-border">
-          <h1 className="text-xl font-bold text-sidebar-foreground">
+          <div className="flex items-center gap-2">
+            <div className="text-sidebar-primary font-bold text-2xl">e-SUS</div>
+            <div className="text-sidebar-foreground font-medium text-sm">APS</div>
+          </div>
+          <h1 className="text-lg font-bold text-sidebar-foreground mt-1">
             eMult Escalas
           </h1>
-          <p className="text-sm text-sidebar-foreground/60 mt-1">
+          <p className="text-xs text-sidebar-foreground/70 mt-0.5">
             Gestão de Equipes
           </p>
         </div>
