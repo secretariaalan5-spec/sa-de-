@@ -49,10 +49,21 @@ export default function Schedule() {
   }, [activeProfessionals, filterFunctionId]);
 
   const openNew = (professionalId?: string, dayOfWeek?: DayOfWeek) => {
+    // Smart Unit Selection
+    let defaultUnit = '';
+    if (activeUnits.length === 1) {
+      defaultUnit = activeUnits[0].id;
+    } else {
+      const lastUnit = localStorage.getItem('lastUsedUnitId');
+      if (lastUnit && activeUnits.some(u => u.id === lastUnit)) {
+        defaultUnit = lastUnit;
+      }
+    }
+
     setForm({
       professionalId: professionalId ?? '',
       dayOfWeek: dayOfWeek ?? '',
-      unitId: '',
+      unitId: defaultUnit,
       period: '',
     });
     setValidationErrors([]);
@@ -98,6 +109,10 @@ export default function Schedule() {
       dayOfWeek: form.dayOfWeek as DayOfWeek,
       period: form.period as Period,
     });
+
+    // Persist last used unit
+    localStorage.setItem('lastUsedUnitId', form.unitId);
+
     toast.success('Escala adicionada');
     setDialogOpen(false);
   };
@@ -121,7 +136,13 @@ export default function Schedule() {
     const unit = getUnit(entry.unitId)?.name ?? '';
     const suffix =
       entry.period === 'manha' ? ' - MANHÃ' : entry.period === 'tarde' ? ' - TARDE' : '';
-    return { text: `${unit}${suffix}`, id: entry.id };
+    const prof = getProfessional(entry.professionalId);
+    const func = getFunction(prof?.functionId || '');
+    return {
+      text: `${unit}${suffix}`,
+      id: entry.id,
+      color: func?.color
+    };
   };
 
   const hasActiveProfs = activeProfessionals.length > 0;
@@ -214,25 +235,30 @@ export default function Schedule() {
                             return (
                               <td
                                 key={day.key}
-                                className="align-top p-2 schedule-cell cursor-pointer hover:bg-muted/50 transition-colors"
+                                className="align-top p-2 schedule-cell cursor-pointer hover:bg-slate-50 transition-colors border-l border-dashed border-slate-200"
                                 onClick={(e) => openFromCell(e, prof.id, day.key)}
                               >
                                 <div className="flex flex-col gap-1 min-h-[2.5rem]">
                                   {entries.map((entry) => {
-                                    const { text, id } = formatEntry(entry);
+                                    const { text, id, color } = formatEntry(entry);
+                                    const cardColor = color || '#000';
                                     return (
                                       <div
                                         key={id}
-                                        className="group flex items-center justify-between gap-1 rounded px-2 py-1 bg-muted/70 text-xs"
+                                        className="group relative flex items-center justify-between gap-1 rounded-r-md px-2 py-1.5 text-xs shadow-sm hover:shadow-md transition-all bg-white"
+                                        style={{
+                                          borderLeft: `4px solid ${cardColor}`,
+                                          backgroundColor: `${cardColor}15` // 15 = very light opacity
+                                        }}
                                       >
-                                        <span className="truncate">{text}</span>
+                                        <span className="truncate font-semibold text-slate-700">{text}</span>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 absolute right-0 top-0.5"
                                           onClick={(e) => handleDelete(e, id)}
                                         >
-                                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                          <Trash2 className="w-3 h-3" />
                                         </Button>
                                       </div>
                                     );
@@ -240,14 +266,14 @@ export default function Schedule() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-full text-muted-foreground hover:text-foreground border border-dashed"
+                                    className="h-8 w-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 border border-dashed border-slate-200"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       openNew(prof.id, day.key);
                                     }}
                                   >
                                     <Plus className="w-4 h-4 mr-1" />
-                                    Adicionar
+                                    <span className="sr-only">Adicionar</span>
                                   </Button>
                                 </div>
                               </td>

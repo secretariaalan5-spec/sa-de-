@@ -202,6 +202,17 @@ export function useAppData() {
       }
     }
 
+    // Check for conflicting shifts (Integral vs others)
+    const existingEntriesOnDay = data.schedule.filter(
+      s => s.professionalId === entry.professionalId && s.dayOfWeek === entry.dayOfWeek
+    );
+
+    if (entry.period === 'integral' && existingEntriesOnDay.length > 0) {
+       errors.push('Não é possível adicionar turno Integral pois já existem agendamentos neste dia.');
+    } else if (existingEntriesOnDay.some(s => s.period === 'integral')) {
+       errors.push('Não é possível adicionar turno pois já existe um agendamento Integral neste dia.');
+    }
+
     return errors;
   }, [data.professionals, data.schedule, checkUnitRestriction, checkProfessionalRestriction, getWeeklyHoursUsed]);
 
