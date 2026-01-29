@@ -1,11 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Building2, 
-  Briefcase, 
-  Calendar, 
-  Eye, 
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  Briefcase,
+  Calendar,
+  Eye,
   AlertTriangle,
   Settings,
   FileDown,
@@ -42,7 +42,7 @@ export function Sidebar() {
 
       {/* Overlay */}
       {mobileOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setMobileOpen(false)}
         />
@@ -59,7 +59,7 @@ export function Sidebar() {
             <div className="text-sidebar-foreground font-medium text-sm">APS</div>
           </div>
           <h1 className="text-lg font-bold text-sidebar-foreground mt-1">
-            eMult Escalas
+            Escala eMulti
           </h1>
           <p className="text-xs text-sidebar-foreground/70 mt-0.5">
             Gestão de Equipes
@@ -96,7 +96,7 @@ export function Sidebar() {
             <span>Configurações</span>
           </NavLink>
         </div>
-      </aside>
+      </aside >
     </>
   );
 }

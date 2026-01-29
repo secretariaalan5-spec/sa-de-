@@ -69,7 +69,7 @@ export default function Export() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Escala eMult</title>
+          <title>Escala eMulti</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
             
@@ -143,7 +143,7 @@ export default function Export() {
         </head>
         <body>
           <div class="header">
-            <h1>ESCALA eMULT</h1>
+            <h1>ESCALA eMulti</h1>
             <p>Secretaria de Saúde</p>
           </div>
           ${printContent.innerHTML}
