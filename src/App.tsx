@@ -13,6 +13,8 @@ import Schedule from "./pages/Schedule";
 import Visualization from "./pages/Visualization";
 import Export from "./pages/Export";
 import Settings from "./pages/Settings";
+import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
+import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,8 @@ const App = () => (
             <Route path="/escala" element={<Schedule />} />
             <Route path="/visualizacao" element={<Visualization />} />
             <Route path="/exportar" element={<Export />} />
+            <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
+            <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
             <Route path="/configuracoes" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
