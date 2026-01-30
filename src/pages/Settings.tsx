@@ -6,7 +6,7 @@ import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Settings() {
-  const { data, exportData, importData, resetData } = useAppData();
+  const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -38,7 +38,7 @@ export default function Settings() {
       }
     };
     reader.readAsText(file);
-    
+
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -56,34 +56,12 @@ export default function Settings() {
 
   return (
     <div className="animate-fade-in">
-      <PageHeader 
-        title="Configurações" 
+      <PageHeader
+        title="Configurações"
         description="Backup e restauração de dados"
       />
 
       <div className="space-y-6 max-w-2xl">
-        {/* Stats */}
-        <div className="form-section">
-          <h3 className="font-semibold mb-4">Resumo dos Dados</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-bold">{data.professionals.length}</p>
-              <p className="text-sm text-muted-foreground">Profissionais</p>
-            </div>
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-bold">{data.units.length}</p>
-              <p className="text-sm text-muted-foreground">Unidades</p>
-            </div>
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-bold">{data.schedule.length}</p>
-              <p className="text-sm text-muted-foreground">Escalas</p>
-            </div>
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-bold">{data.restrictions.length}</p>
-              <p className="text-sm text-muted-foreground">Restrições</p>
-            </div>
-          </div>
-        </div>
 
         {/* Backup */}
         <div className="form-section">
@@ -110,7 +88,7 @@ export default function Settings() {
             onChange={handleImport}
             className="hidden"
           />
-          <Button 
+          <Button
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
           >
