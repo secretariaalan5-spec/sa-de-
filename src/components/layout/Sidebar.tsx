@@ -15,7 +15,11 @@ import {
   ChevronRight,
   ClipboardList,
   Stethoscope,
-  Syringe
+  Syringe,
+  UserPlus,
+  CalendarOff,
+  BarChart3,
+  FileText
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -32,14 +36,18 @@ const navItems = [
 ];
 
 const serviceItems = [
+  { to: '/escalas-servicos/profissionais', icon: UserPlus, label: 'Cadastro' },
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
+  { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
+  { to: '/escalas-servicos/controle', icon: BarChart3, label: 'Controle Individual' },
+  { to: '/escalas-servicos/relatorios', icon: FileText, label: 'Relatórios' },
 ];
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isEscalasOpen, setIsEscalasOpen] = useState(false);
-  const [isServicosOpen, setIsServicosOpen] = useState(false);
+  const [isServicosOpen, setIsServicosOpen] = useState(true);
   const location = useLocation();
 
   return (
@@ -74,46 +82,10 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {/* Group Header */}
-          <button
-            onClick={() => setIsEscalasOpen(!isEscalasOpen)}
-            className="w-full flex items-center justify-between p-2 text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group"
-          >
-            <div className="flex items-center gap-2 font-medium">
-              <LayoutDashboard size={20} />
-              <span>Escalas eMult</span>
-            </div>
-            {isEscalasOpen ? (
-              <ChevronDown size={16} />
-            ) : (
-              <ChevronRight size={16} />
-            )}
-          </button>
-
-          {/* Group Items */}
-          {isEscalasOpen && (
-            <div className="pl-4 space-y-1 mt-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => cn(
-                    "nav-item text-sm",
-                    isActive && "active"
-                  )}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
-          )}
-
-          {/* Service Group Header */}
+          {/* Service Group Header - First */}
           <button
             onClick={() => setIsServicosOpen(!isServicosOpen)}
-            className="w-full flex items-center justify-between p-2 mt-2 text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group"
+            className="w-full flex items-center justify-between p-2 text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group"
           >
             <div className="flex items-center gap-2 font-medium">
               <ClipboardList size={20} />
@@ -145,6 +117,42 @@ export function Sidebar() {
               ))}
             </div>
           )}
+
+          {/* eMult Group Header */}
+          <button
+            onClick={() => setIsEscalasOpen(!isEscalasOpen)}
+            className="w-full flex items-center justify-between p-2 mt-2 text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group"
+          >
+            <div className="flex items-center gap-2 font-medium">
+              <LayoutDashboard size={20} />
+              <span>Escalas eMult</span>
+            </div>
+            {isEscalasOpen ? (
+              <ChevronDown size={16} />
+            ) : (
+              <ChevronRight size={16} />
+            )}
+          </button>
+
+          {/* Group Items */}
+          {isEscalasOpen && (
+            <div className="pl-4 space-y-1 mt-1">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => cn(
+                    "nav-item text-sm",
+                    isActive && "active"
+                  )}
+                >
+                  <item.icon size={18} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
@@ -160,7 +168,7 @@ export function Sidebar() {
             <span>Configurações</span>
           </NavLink>
         </div>
-      </aside >
+      </aside>
     </>
   );
 }
