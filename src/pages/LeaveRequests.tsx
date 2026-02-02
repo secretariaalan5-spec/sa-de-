@@ -1,0 +1,252 @@
+import { useState } from 'react';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
+import { useLeaveRequests } from '@/hooks/useLeaveRequests';
+import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Plus, Trash2, AlertCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+
+export default function LeaveRequestsPage() {
+    const { professionals } = useServiceProfessionals();
+    const { requests, addRequest, deleteRequest, getTotalCreditsUsedByProfessional } = useLeaveRequests();
+    const { allEntries } = useServiceSchedule('nurse');
+
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [form, setForm] = useState({
+        professionalId: '',
+        requestDate: format(new Date(), 'yyyy-MM-dd'),
+        leaveStartDate: '',
+        daysRequested: 1,
+        observations: '',
+    });
+
+    // Calculate available credits for a professional
+    const getAvailableCredits = (professionalId: string) => {
+        const profEntries = allEntries.filter(e => e.professionalId === professionalId);
+        const weekendEntries = profEntries.filter(e => e.isWeekend);
+        const creditsGenerated = weekendEntries.length * 2;
+        const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
+        return creditsGenerated - creditsUsed;
+    };
+
+    const selectedProfessional = professionals.find(p => p.id === form.professionalId);
+    const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
+
+    const handleSubmit = () => {
+        if (!form.professionalId || !form.leaveStartDate || form.daysRequested < 1) {
+            toast.error('Preencha todos os campos obrigatórios');
+            return;
+        }
+
+        if (form.daysRequested > availableCredits) {
+            toast.error(`Saldo insuficiente. Disponível: ${availableCredits} dias`);
+            return;
+        }
+
+        // Generate leave dates
+        const startDate = new Date(form.leaveStartDate + 'T00:00:00');
+        const leaveDates: string[] = [];
+        for (let i = 0; i < form.daysRequested; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            leaveDates.push(format(date, 'yyyy-MM-dd'));
+        }
+
+        addRequest({
+            professionalId: form.professionalId,
+            category: selectedProfessional?.category || 'nurse',
+            requestDate: form.requestDate,
+            leaveDates,
+            daysRequested: form.daysRequested,
+            observations: form.observations,
+        });
+
+        toast.success('Pedido de folga registrado com sucesso');
+        setForm({
+            professionalId: '',
+            requestDate: format(new Date(), 'yyyy-MM-dd'),
+            leaveStartDate: '',
+            daysRequested: 1,
+            observations: '',
+        });
+        setDialogOpen(false);
+    };
+
+    return (
+        <div className="animate-fade-in space-y-6">
+            <PageHeader
+                title="Pedidos de Folga"
+                description="Registre pedidos de folga recebidos em papel e controle o saldo de créditos"
+            />
+
+            <div className="flex justify-end">
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Registrar Folga
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Registrar Pedido de Folga</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div>
+                                <Label>Profissional</Label>
+                                <Select 
+                                    value={form.professionalId} 
+                                    onValueChange={(value) => setForm(prev => ({ ...prev, professionalId: value }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o profissional" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {professionals.filter(p => p.active).map(prof => (
+                                            <SelectItem key={prof.id} value={prof.id}>
+                                                {prof.name} ({prof.category === 'nurse' ? 'Enfermeiro' : 'Técnico'})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {form.professionalId && (
+                                <div className="p-3 bg-muted rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 text-primary" />
+                                        <span className="text-sm">
+                                            Saldo disponível: <strong className="text-primary">{availableCredits} dias</strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <Label>Data do Pedido</Label>
+                                <Input
+                                    type="date"
+                                    value={form.requestDate}
+                                    onChange={(e) => setForm(prev => ({ ...prev, requestDate: e.target.value }))}
+                                />
+                            </div>
+
+                            <div>
+                                <Label>Data Inicial da Folga</Label>
+                                <Input
+                                    type="date"
+                                    value={form.leaveStartDate}
+                                    onChange={(e) => setForm(prev => ({ ...prev, leaveStartDate: e.target.value }))}
+                                />
+                            </div>
+
+                            <div>
+                                <Label>Quantidade de Dias</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={availableCredits}
+                                    value={form.daysRequested}
+                                    onChange={(e) => setForm(prev => ({ ...prev, daysRequested: Number(e.target.value) }))}
+                                />
+                            </div>
+
+                            <div>
+                                <Label>Observações</Label>
+                                <Textarea
+                                    value={form.observations}
+                                    onChange={(e) => setForm(prev => ({ ...prev, observations: e.target.value }))}
+                                    placeholder="Ex: compensação, férias, licença..."
+                                />
+                            </div>
+
+                            <Button 
+                                onClick={handleSubmit} 
+                                className="w-full"
+                                disabled={form.daysRequested > availableCredits}
+                            >
+                                Registrar Folga
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+
+            {/* Leave Requests List */}
+            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-muted">
+                            <tr>
+                                <th className="text-left p-3">Profissional</th>
+                                <th className="text-left p-3">Categoria</th>
+                                <th className="text-center p-3">Data do Pedido</th>
+                                <th className="text-center p-3">Dias</th>
+                                <th className="text-left p-3">Período</th>
+                                <th className="text-left p-3">Observações</th>
+                                <th className="text-center p-3">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {requests.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                                        Nenhum pedido de folga registrado.
+                                    </td>
+                                </tr>
+                            ) : (
+                                requests.map(request => {
+                                    const prof = professionals.find(p => p.id === request.professionalId);
+                                    return (
+                                        <tr key={request.id} className="border-t">
+                                            <td className="p-3 font-medium">{prof?.name || 'Desconhecido'}</td>
+                                            <td className="p-3">
+                                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm">
+                                                    {request.category === 'nurse' ? 'Enfermeiro' : 'Técnico'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
+                                            </td>
+                                            <td className="p-3 text-center font-semibold">{request.daysRequested}</td>
+                                            <td className="p-3 text-sm">
+                                                {request.leaveDates.length > 0 && (
+                                                    <>
+                                                        {format(new Date(request.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
+                                                        {request.leaveDates.length > 1 && (
+                                                            <> a {format(new Date(request.leaveDates[request.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </td>
+                                            <td className="p-3 text-sm text-muted-foreground">
+                                                {request.observations || '-'}
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="ghost"
+                                                    onClick={() => deleteRequest(request.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
