@@ -5,22 +5,63 @@ import { Button } from '@/components/ui/button';
 import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Storage keys for service schedule data
+const SERVICE_STORAGE_KEYS = {
+  professionals: 'serviceProfessionals',
+  entries: 'serviceSchedule_entries',
+  creditsUsed: 'serviceSchedule_creditsUsed',
+  leaveRequests: 'leaveRequests',
+};
+
+interface FullBackupData {
+  emult: ReturnType<typeof JSON.parse>;
+  serviceSchedule: {
+    professionals: unknown[];
+    entries: unknown[];
+    creditsUsed: Record<string, number>;
+    leaveRequests: unknown[];
+  };
+  backupVersion: number;
+  backupDate: string;
+}
+
 export default function Settings() {
   const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
-    const jsonString = exportData();
+    // Get eMult data
+    const emultData = JSON.parse(exportData());
+    
+    // Get service schedule data from localStorage
+    const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
+    const serviceEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]');
+    const serviceCreditsUsed = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.creditsUsed) || '{}');
+    const leaveRequests = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.leaveRequests) || '[]');
+
+    const fullBackup: FullBackupData = {
+      emult: emultData,
+      serviceSchedule: {
+        professionals: serviceProfessionals,
+        entries: serviceEntries,
+        creditsUsed: serviceCreditsUsed,
+        leaveRequests: leaveRequests,
+      },
+      backupVersion: 2,
+      backupDate: new Date().toISOString(),
+    };
+
+    const jsonString = JSON.stringify(fullBackup, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `emult-escala-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `escala-completa-backup-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Backup exportado com sucesso');
+    toast.success('Backup completo exportado (eMult + Escalas de Serviço)');
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,11 +71,38 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      const success = importData(content);
-      if (success) {
-        toast.success('Dados importados com sucesso');
-      } else {
-        toast.error('Erro ao importar dados. Verifique o arquivo.');
+      try {
+        const parsed = JSON.parse(content);
+        
+        // Check if it's the new full backup format (version 2)
+        if (parsed.backupVersion === 2 && parsed.emult && parsed.serviceSchedule) {
+          // Import eMult data
+          const emultSuccess = importData(JSON.stringify(parsed.emult));
+          
+          // Import service schedule data
+          localStorage.setItem(SERVICE_STORAGE_KEYS.professionals, JSON.stringify(parsed.serviceSchedule.professionals || []));
+          localStorage.setItem(SERVICE_STORAGE_KEYS.entries, JSON.stringify(parsed.serviceSchedule.entries || []));
+          localStorage.setItem(SERVICE_STORAGE_KEYS.creditsUsed, JSON.stringify(parsed.serviceSchedule.creditsUsed || {}));
+          localStorage.setItem(SERVICE_STORAGE_KEYS.leaveRequests, JSON.stringify(parsed.serviceSchedule.leaveRequests || []));
+          
+          if (emultSuccess) {
+            toast.success('Backup completo importado com sucesso');
+            // Reload to refresh all hooks
+            window.location.reload();
+          } else {
+            toast.error('Erro ao importar dados eMult');
+          }
+        } else {
+          // Legacy format - try to import as eMult only
+          const success = importData(content);
+          if (success) {
+            toast.success('Dados eMult importados (formato antigo)');
+          } else {
+            toast.error('Erro ao importar dados. Verifique o arquivo.');
+          }
+        }
+      } catch {
+        toast.error('Erro ao ler arquivo de backup');
       }
     };
     reader.readAsText(file);
@@ -46,10 +114,19 @@ export default function Settings() {
   };
 
   const handleReset = () => {
-    if (confirm('ATENÇÃO: Isso apagará TODOS os dados. Esta ação não pode ser desfeita. Continuar?')) {
-      if (confirm('Tem certeza? Todos os profissionais, unidades e escalas serão perdidos.')) {
+    if (confirm('ATENÇÃO: Isso apagará TODOS os dados (eMult + Escalas de Serviço). Esta ação não pode ser desfeita. Continuar?')) {
+      if (confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos.')) {
+        // Reset eMult data
         resetData();
-        toast.success('Dados resetados');
+        
+        // Reset service schedule data
+        localStorage.removeItem(SERVICE_STORAGE_KEYS.professionals);
+        localStorage.removeItem(SERVICE_STORAGE_KEYS.entries);
+        localStorage.removeItem(SERVICE_STORAGE_KEYS.creditsUsed);
+        localStorage.removeItem(SERVICE_STORAGE_KEYS.leaveRequests);
+        
+        toast.success('Todos os dados foram resetados');
+        window.location.reload();
       }
     }
   };
@@ -65,13 +142,13 @@ export default function Settings() {
 
         {/* Backup */}
         <div className="form-section">
-          <h3 className="font-semibold mb-4">Backup</h3>
+          <h3 className="font-semibold mb-4">Backup Completo</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Exporte seus dados em formato JSON para manter um backup seguro.
+            Exporte todos os dados em formato JSON (Escalas eMult + Escalas de Serviço + Pedidos de Folga).
           </p>
           <Button onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar Backup
+            Exportar Backup Completo
           </Button>
         </div>
 
@@ -79,7 +156,7 @@ export default function Settings() {
         <div className="form-section">
           <h3 className="font-semibold mb-4">Restaurar</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Importe um arquivo de backup previamente exportado. Os dados atuais serão substituídos.
+            Importe um arquivo de backup. Os dados atuais serão substituídos.
           </p>
           <input
             ref={fileInputRef}
@@ -104,7 +181,7 @@ export default function Settings() {
             Zona de Perigo
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Apagar todos os dados do sistema. Esta ação é irreversível.
+            Apagar todos os dados do sistema (eMult + Escalas de Serviço). Esta ação é irreversível.
           </p>
           <Button variant="destructive" onClick={handleReset}>
             <Trash2 className="w-4 h-4 mr-2" />
