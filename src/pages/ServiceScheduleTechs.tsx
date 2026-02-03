@@ -4,14 +4,15 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { ServiceCalendar } from '@/components/service-schedule/ServiceCalendar';
 import { CreditsStatsTable } from '@/components/service-schedule/CreditsStatsTable';
+import { parseISO } from 'date-fns';
 
 export default function ServiceScheduleTechs() {
     const { getTechs } = useServiceProfessionals();
     const { getTotalCreditsUsedByProfessional } = useLeaveRequests();
-    const { 
-        entries, 
-        addEntry, 
-        removeEntry, 
+    const {
+        entries,
+        addEntry,
+        removeEntry,
         getEntriesForDate,
         allEntries,
     } = useServiceSchedule('tech');
@@ -20,8 +21,18 @@ export default function ServiceScheduleTechs() {
 
     // Calculate stats with credits from leave requests
     const stats = techs.map(prof => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const profEntries = allEntries.filter(e => e.professionalId === prof.id);
-        const weekendEntries = profEntries.filter(e => e.isWeekend);
+
+        // Apenas contar créditos de dias já trabalhados (passados ou hoje)
+        const pastEntries = profEntries.filter(e => {
+            const entryDate = parseISO(e.date);
+            return entryDate <= today;
+        });
+
+        const weekendEntries = pastEntries.filter(e => e.isWeekend);
         const creditsGenerated = weekendEntries.length * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(prof.id);
 
@@ -29,7 +40,7 @@ export default function ServiceScheduleTechs() {
             professionalId: prof.id,
             professionalName: prof.name,
             category: prof.category,
-            workedDays: profEntries.length,
+            workedDays: pastEntries.length,
             weekendDays: weekendEntries.length,
             creditsGenerated,
             creditsUsed,
@@ -54,9 +65,9 @@ export default function ServiceScheduleTechs() {
                 getEntriesForDate={getEntriesForDate}
             />
 
-            <CreditsStatsTable 
-                stats={stats} 
-                title="Estatísticas de Créditos - Técnicos" 
+            <CreditsStatsTable
+                stats={stats}
+                title="Estatísticas de Créditos - Técnicos"
             />
         </div>
     );

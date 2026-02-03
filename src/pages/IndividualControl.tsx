@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { parseISO, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import jsPDF from 'jspdf';
 
 export default function IndividualControlPage() {
     const { professionals } = useServiceProfessionals();
@@ -18,13 +19,13 @@ export default function IndividualControlPage() {
         today.setHours(0, 0, 0, 0);
 
         const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-        
+
         // Apenas contar dias já trabalhados (passados ou hoje)
         const pastEntries = profEntries.filter(e => {
             const entryDate = parseISO(e.date);
             return entryDate <= today;
         });
-        
+
         // Apenas fins de semana já trabalhados geram créditos
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
         const creditsGenerated = weekendEntries.length * 2;
@@ -47,63 +48,252 @@ export default function IndividualControlPage() {
     const downloadIndividualReport = (prof: typeof professionals[0]) => {
         const stats = getStatsForProfessional(prof.id);
         const leaveRequests = getRequestsByProfessional(prof.id);
-        
+
         const reportDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-        
-        let content = `CONTROLE INDIVIDUAL DE CRÉDITOS E FOLGAS\n`;
-        content += `==========================================\n\n`;
-        content += `Profissional: ${prof.name}\n`;
-        content += `Categoria: ${prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}\n`;
-        content += `Status: ${prof.active ? 'Ativo' : 'Inativo'}\n`;
-        content += `Relatório gerado em: ${reportDate}\n\n`;
-        
-        content += `RESUMO DE CRÉDITOS\n`;
-        content += `------------------\n`;
-        content += `Dias trabalhados (total): ${stats.totalWorkedDays}\n`;
-        content += `Dias em fins de semana: ${stats.weekendDays}\n`;
-        content += `Créditos gerados: ${stats.creditsGenerated} dias\n`;
-        content += `Créditos utilizados: ${stats.creditsUsed} dias\n`;
-        content += `Saldo disponível: ${stats.creditsBalance} dias\n\n`;
-        
+
+        // Create new PDF document
+        const doc = new jsPDF();
+
+        // Set font
+        doc.setFont('helvetica');
+
+        let yPosition = 15;
+        const lineHeight = 6;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - (margin * 2);
+
+        // Helper function to draw a box
+        const drawBox = (x: number, y: number, width: number, height: number, fillColor?: number[]) => {
+            if (fillColor) {
+                doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
+                doc.rect(x, y, width, height, 'FD');
+            } else {
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(x, y, width, height);
+            }
+        };
+
+        // Header with blue background
+        doc.setFillColor(41, 98, 255); // Blue color
+        doc.rect(0, 0, pageWidth, 35, 'F');
+
+        // Title
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONTROLE INDIVIDUAL', pageWidth / 2, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('Créditos e Folgas', pageWidth / 2, 23, { align: 'center' });
+
+        yPosition = 45;
+        doc.setTextColor(0, 0, 0);
+
+        // Professional info box
+        drawBox(margin, yPosition, contentWidth, 28, [245, 247, 250]);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DADOS DO PROFISSIONAL', margin + 5, yPosition + 7);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Nome: ${prof.name}`, margin + 5, yPosition + 14);
+        doc.text(`Categoria: ${prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}`, margin + 5, yPosition + 20);
+
+        const statusColor = prof.active ? [34, 197, 94] : [239, 68, 68];
+        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`STATUS: ${prof.active ? 'ATIVO' : 'INATIVO'}`, pageWidth - margin - 45, yPosition + 14);
+
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`Gerado em: ${reportDate}`, margin + 5, yPosition + 26);
+
+        yPosition += 38;
+        doc.setTextColor(0, 0, 0);
+
+        // Credits summary with table
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(41, 98, 255);
+        doc.text('RESUMO DE CRÉDITOS', margin, yPosition);
+        yPosition += 8;
+        doc.setTextColor(0, 0, 0);
+
+        // Table header
+        const tableStartY = yPosition;
+        const rowHeight = 10;
+        const col1Width = contentWidth * 0.65;
+        const col2Width = contentWidth * 0.35;
+
+        // Header row
+        doc.setFillColor(41, 98, 255);
+        doc.rect(margin, yPosition, col1Width, rowHeight, 'F');
+        doc.rect(margin + col1Width, yPosition, col2Width, rowHeight, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Descrição', margin + 3, yPosition + 6.5);
+        doc.text('Quantidade', margin + col1Width + 3, yPosition + 6.5);
+        yPosition += rowHeight;
+
+        // Table rows
+        const tableData = [
+            { label: 'Dias trabalhados (total)', value: stats.totalWorkedDays, color: [255, 255, 255] },
+            { label: 'Dias em fins de semana', value: stats.weekendDays, color: [254, 249, 195] },
+            { label: 'Créditos gerados', value: `${stats.creditsGenerated} dias`, color: [255, 255, 255] },
+            { label: 'Créditos utilizados', value: `${stats.creditsUsed} dias`, color: [254, 226, 226] },
+        ];
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+
+        tableData.forEach((row, index) => {
+            // Alternate row colors
+            doc.setFillColor(row.color[0], row.color[1], row.color[2]);
+            doc.rect(margin, yPosition, col1Width, rowHeight, 'FD');
+            doc.rect(margin + col1Width, yPosition, col2Width, rowHeight, 'FD');
+
+            doc.text(row.label, margin + 3, yPosition + 6.5);
+            doc.text(String(row.value), margin + col1Width + 3, yPosition + 6.5);
+            yPosition += rowHeight;
+        });
+
+        // Balance row (highlighted)
+        const balanceColor = stats.creditsBalance > 0 ? [220, 252, 231] : stats.creditsBalance < 0 ? [254, 226, 226] : [243, 244, 246];
+        doc.setFillColor(balanceColor[0], balanceColor[1], balanceColor[2]);
+        doc.rect(margin, yPosition, col1Width, rowHeight + 2, 'FD');
+        doc.rect(margin + col1Width, yPosition, col2Width, rowHeight + 2, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('SALDO DISPONÍVEL', margin + 3, yPosition + 7.5);
+
+        const textColor = stats.creditsBalance > 0 ? [22, 163, 74] : stats.creditsBalance < 0 ? [220, 38, 38] : [0, 0, 0];
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.text(`${stats.creditsBalance} dias`, margin + col1Width + 3, yPosition + 7.5);
+        doc.setTextColor(0, 0, 0);
+
+        yPosition += rowHeight + 12;
+
+        // Weekend entries section
         if (stats.weekendEntries.length > 0) {
-            content += `FINS DE SEMANA TRABALHADOS\n`;
-            content += `--------------------------\n`;
+            if (yPosition > pageHeight - 80) {
+                doc.addPage();
+                yPosition = 20;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(41, 98, 255);
+            doc.text('FINS DE SEMANA TRABALHADOS', margin, yPosition);
+            yPosition += 8;
+            doc.setTextColor(0, 0, 0);
+
+            // Box for weekend entries
+            const weekendBoxHeight = Math.min(stats.weekendEntries.length * 7 + 10, 60);
+            drawBox(margin, yPosition, contentWidth, weekendBoxHeight, [250, 250, 250]);
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            yPosition += 7;
+
             stats.weekendEntries
                 .sort((a, b) => a.date.localeCompare(b.date))
-                .forEach(entry => {
+                .forEach((entry, index) => {
+                    if (yPosition > pageHeight - 20) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+
                     const dateFormatted = format(parseISO(entry.date), "dd/MM/yyyy (EEEE)", { locale: ptBR });
-                    content += `• ${dateFormatted}\n`;
+                    doc.text(`${index + 1}. ${dateFormatted}`, margin + 5, yPosition);
+                    yPosition += 7;
                 });
-            content += `\n`;
+
+            yPosition += 10;
         }
-        
+
+        // Leave requests section
         if (leaveRequests.length > 0) {
-            content += `HISTÓRICO DE FOLGAS UTILIZADAS\n`;
-            content += `------------------------------\n`;
+            if (yPosition > pageHeight - 80) {
+                doc.addPage();
+                yPosition = 20;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(41, 98, 255);
+            doc.text('HISTÓRICO DE FOLGAS UTILIZADAS', margin, yPosition);
+            yPosition += 8;
+            doc.setTextColor(0, 0, 0);
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+
             leaveRequests
                 .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-                .forEach(req => {
+                .forEach((req, index) => {
+                    if (yPosition > pageHeight - 30) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+
+                    // Box for each request
+                    const boxStartY = yPosition;
                     const requestDate = format(parseISO(req.requestDate), "dd/MM/yyyy", { locale: ptBR });
                     const leaveDates = req.leaveDates
                         .map(d => format(parseISO(d), "dd/MM/yyyy", { locale: ptBR }))
                         .join(', ');
-                    content += `• Pedido em ${requestDate}: ${req.daysRequested} dia(s)\n`;
-                    content += `  Datas: ${leaveDates}\n`;
+
+                    let boxHeight = 20;
+                    if (req.observations) boxHeight += 7;
+
+                    drawBox(margin, yPosition, contentWidth, boxHeight, [245, 247, 250]);
+
+                    yPosition += 6;
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Pedido ${index + 1} - ${requestDate}`, margin + 5, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`${req.daysRequested} dia(s)`, pageWidth - margin - 25, yPosition);
+
+                    yPosition += 6;
+                    doc.setTextColor(80, 80, 80);
+                    const datesText = `Datas: ${leaveDates}`;
+                    const splitDates = doc.splitTextToSize(datesText, contentWidth - 10);
+                    splitDates.forEach((line: string) => {
+                        doc.text(line, margin + 5, yPosition);
+                        yPosition += 5;
+                    });
+
                     if (req.observations) {
-                        content += `  Obs: ${req.observations}\n`;
+                        yPosition += 1;
+                        doc.setFont('helvetica', 'italic');
+                        const obsText = `Obs: ${req.observations}`;
+                        const splitObs = doc.splitTextToSize(obsText, contentWidth - 10);
+                        splitObs.forEach((line: string) => {
+                            doc.text(line, margin + 5, yPosition);
+                            yPosition += 5;
+                        });
                     }
+
+                    doc.setTextColor(0, 0, 0);
+                    yPosition = boxStartY + boxHeight + 5;
                 });
         }
-        
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `controle-${prof.name.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+
+        // Footer
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Escala eMulti - Sistema de Gestão de Escalas', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        // Save the PDF
+        doc.save(`controle-${prof.name.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     };
 
     const nurses = professionals.filter(p => p.category === 'nurse');
@@ -181,7 +371,7 @@ export default function IndividualControlPage() {
                         <span className="text-sm text-muted-foreground">Saldo Disponível</span>
                         <span className={cn(
                             "text-2xl font-bold",
-                            stats.creditsBalance > 0 
+                            stats.creditsBalance > 0
                                 ? "text-green-600 dark:text-green-400"
                                 : stats.creditsBalance < 0
                                     ? "text-destructive"

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 
@@ -30,8 +30,18 @@ export default function LeaveRequestsPage() {
 
     // Calculate available credits for a professional
     const getAvailableCredits = (professionalId: string) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-        const weekendEntries = profEntries.filter(e => e.isWeekend);
+
+        // Apenas contar dias já trabalhados (passados ou hoje)
+        const pastEntries = profEntries.filter(e => {
+            const entryDate = parseISO(e.date);
+            return entryDate <= today;
+        });
+
+        const weekendEntries = pastEntries.filter(e => e.isWeekend);
         const creditsGenerated = weekendEntries.length * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
         return creditsGenerated - creditsUsed;
@@ -102,8 +112,8 @@ export default function LeaveRequestsPage() {
                         <div className="space-y-4">
                             <div>
                                 <Label>Profissional</Label>
-                                <Select 
-                                    value={form.professionalId} 
+                                <Select
+                                    value={form.professionalId}
                                     onValueChange={(value) => setForm(prev => ({ ...prev, professionalId: value }))}
                                 >
                                     <SelectTrigger>
@@ -168,8 +178,8 @@ export default function LeaveRequestsPage() {
                                 />
                             </div>
 
-                            <Button 
-                                onClick={handleSubmit} 
+                            <Button
+                                onClick={handleSubmit}
                                 className="w-full"
                                 disabled={form.daysRequested > availableCredits}
                             >
@@ -231,8 +241,8 @@ export default function LeaveRequestsPage() {
                                                 {request.observations || '-'}
                                             </td>
                                             <td className="p-3 text-center">
-                                                <Button 
-                                                    size="sm" 
+                                                <Button
+                                                    size="sm"
                                                     variant="ghost"
                                                     onClick={() => deleteRequest(request.id)}
                                                 >
