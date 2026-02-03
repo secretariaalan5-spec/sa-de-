@@ -2,8 +2,11 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
-import { Stethoscope, Syringe, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { Stethoscope, Syringe, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { parseISO, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function IndividualControlPage() {
     const { professionals } = useServiceProfessionals();
@@ -11,20 +14,96 @@ export default function IndividualControlPage() {
     const { allEntries } = useServiceSchedule('nurse');
 
     const getStatsForProfessional = (professionalId: string) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-        const weekendEntries = profEntries.filter(e => e.isWeekend);
+        
+        // Apenas contar dias já trabalhados (passados ou hoje)
+        const pastEntries = profEntries.filter(e => {
+            const entryDate = parseISO(e.date);
+            return entryDate <= today;
+        });
+        
+        // Apenas fins de semana já trabalhados geram créditos
+        const weekendEntries = pastEntries.filter(e => e.isWeekend);
         const creditsGenerated = weekendEntries.length * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
         const leaveRequests = getRequestsByProfessional(professionalId);
 
         return {
-            totalWorkedDays: profEntries.length,
+            totalWorkedDays: pastEntries.length,
             weekendDays: weekendEntries.length,
             creditsGenerated,
             creditsUsed,
             creditsBalance: creditsGenerated - creditsUsed,
             leaveRequestsCount: leaveRequests.length,
+            allEntries: profEntries,
+            pastEntries,
+            weekendEntries,
         };
+    };
+
+    const downloadIndividualReport = (prof: typeof professionals[0]) => {
+        const stats = getStatsForProfessional(prof.id);
+        const leaveRequests = getRequestsByProfessional(prof.id);
+        
+        const reportDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+        
+        let content = `CONTROLE INDIVIDUAL DE CRÉDITOS E FOLGAS\n`;
+        content += `==========================================\n\n`;
+        content += `Profissional: ${prof.name}\n`;
+        content += `Categoria: ${prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}\n`;
+        content += `Status: ${prof.active ? 'Ativo' : 'Inativo'}\n`;
+        content += `Relatório gerado em: ${reportDate}\n\n`;
+        
+        content += `RESUMO DE CRÉDITOS\n`;
+        content += `------------------\n`;
+        content += `Dias trabalhados (total): ${stats.totalWorkedDays}\n`;
+        content += `Dias em fins de semana: ${stats.weekendDays}\n`;
+        content += `Créditos gerados: ${stats.creditsGenerated} dias\n`;
+        content += `Créditos utilizados: ${stats.creditsUsed} dias\n`;
+        content += `Saldo disponível: ${stats.creditsBalance} dias\n\n`;
+        
+        if (stats.weekendEntries.length > 0) {
+            content += `FINS DE SEMANA TRABALHADOS\n`;
+            content += `--------------------------\n`;
+            stats.weekendEntries
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .forEach(entry => {
+                    const dateFormatted = format(parseISO(entry.date), "dd/MM/yyyy (EEEE)", { locale: ptBR });
+                    content += `• ${dateFormatted}\n`;
+                });
+            content += `\n`;
+        }
+        
+        if (leaveRequests.length > 0) {
+            content += `HISTÓRICO DE FOLGAS UTILIZADAS\n`;
+            content += `------------------------------\n`;
+            leaveRequests
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                .forEach(req => {
+                    const requestDate = format(parseISO(req.requestDate), "dd/MM/yyyy", { locale: ptBR });
+                    const leaveDates = req.leaveDates
+                        .map(d => format(parseISO(d), "dd/MM/yyyy", { locale: ptBR }))
+                        .join(', ');
+                    content += `• Pedido em ${requestDate}: ${req.daysRequested} dia(s)\n`;
+                    content += `  Datas: ${leaveDates}\n`;
+                    if (req.observations) {
+                        content += `  Obs: ${req.observations}\n`;
+                    }
+                });
+        }
+        
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `controle-${prof.name.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const nurses = professionals.filter(p => p.category === 'nurse');
@@ -44,11 +123,22 @@ export default function IndividualControlPage() {
                         )}
                         <h3 className="font-semibold">{prof.name}</h3>
                     </div>
-                    {!prof.active && (
-                        <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">
-                            Inativo
-                        </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {!prof.active && (
+                            <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">
+                                Inativo
+                            </span>
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => downloadIndividualReport(prof)}
+                            title="Baixar controle individual"
+                        >
+                            <Download className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
