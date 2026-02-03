@@ -83,8 +83,16 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
     }, []);
 
     const calculateStatsForProfessional = useCallback((professionalId: string): ServiceScheduleStats | null => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-        const weekendEntries = profEntries.filter(e => e.isWeekend);
+        // Only count past weekend entries for credits (work already done)
+        const weekendEntries = profEntries.filter(e => {
+            if (!e.isWeekend) return false;
+            const entryDate = parseISO(e.date);
+            return entryDate <= today; // Only past or today
+        });
         const creditsGenerated = weekendEntries.length * 2;
         const used = creditsUsed[professionalId] || 0;
 
@@ -101,9 +109,17 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
     }, [allEntries, creditsUsed, type]);
 
     const calculateStats = useCallback((professionals: ServiceProfessional[]): ServiceScheduleStats[] => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         return professionals.map(prof => {
             const profEntries = allEntries.filter(e => e.professionalId === prof.id);
-            const weekendEntries = profEntries.filter(e => e.isWeekend);
+            // Only count past weekend entries for credits (work already done)
+            const weekendEntries = profEntries.filter(e => {
+                if (!e.isWeekend) return false;
+                const entryDate = parseISO(e.date);
+                return entryDate <= today; // Only past or today
+            });
             const creditsGenerated = weekendEntries.length * 2;
             const used = creditsUsed[prof.id] || 0;
 
@@ -121,9 +137,17 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
     }, [allEntries, creditsUsed]);
 
     const getAllStats = useCallback((professionals: ServiceProfessional[]): ServiceScheduleStats[] => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         return professionals.map(prof => {
             const profEntries = allEntries.filter(e => e.professionalId === prof.id);
-            const weekendEntries = profEntries.filter(e => e.isWeekend);
+            // Only count past weekend entries for credits (work already done)
+            const weekendEntries = profEntries.filter(e => {
+                if (!e.isWeekend) return false;
+                const entryDate = parseISO(e.date);
+                return entryDate <= today; // Only past or today
+            });
             const creditsGenerated = weekendEntries.length * 2;
             const used = creditsUsed[prof.id] || 0;
 
