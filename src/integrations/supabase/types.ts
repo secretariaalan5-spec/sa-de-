@@ -14,7 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      portal_schedules: {
+        Row: {
+          created_at: string
+          emult_data: Json
+          id: string
+          published_at: string
+          service_data: Json
+        }
+        Insert: {
+          created_at?: string
+          emult_data?: Json
+          id?: string
+          published_at?: string
+          service_data?: Json
+        }
+        Update: {
+          created_at?: string
+          emult_data?: Json
+          id?: string
+          published_at?: string
+          service_data?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
