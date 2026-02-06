@@ -2,8 +2,10 @@ import { useRef } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Globe, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+
+const PORTAL_DATA_KEY = 'escala-portal-data';
 
 // Storage keys for service schedule data
 const SERVICE_STORAGE_KEYS = {
@@ -131,14 +133,78 @@ export default function Settings() {
     }
   };
 
+  const handlePublishToPortal = () => {
+    // Get eMult data
+    const emultData = JSON.parse(exportData());
+    
+    // Get service schedule data from localStorage
+    const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
+    const nurseEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
+      (e: { type: string }) => e.type === 'nurse'
+    );
+    const techEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
+      (e: { type: string }) => e.type === 'tech'
+    );
+
+    const portalData = {
+      publishedAt: new Date().toISOString(),
+      emult: {
+        professionals: emultData.professionals || [],
+        units: emultData.units || [],
+        functions: emultData.functions || [],
+        schedule: emultData.schedule || [],
+      },
+      service: {
+        professionals: serviceProfessionals,
+        nurseEntries,
+        techEntries,
+      },
+    };
+
+    localStorage.setItem(PORTAL_DATA_KEY, JSON.stringify(portalData));
+    toast.success('Escalas publicadas no portal com sucesso!');
+  };
+
+  const getPortalUrl = () => {
+    return `${window.location.origin}/portal`;
+  };
+
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Configurações"
-        description="Backup e restauração de dados"
+        description="Backup, restauração de dados e publicação no portal"
       />
 
       <div className="space-y-6 max-w-2xl">
+
+        {/* Portal */}
+        <div className="form-section border-primary/30 bg-primary/5">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Globe className="w-5 h-5 text-primary" />
+            Portal de Visualização
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Publique as escalas para que os gerentes de unidade possam visualizar. 
+            O portal é público e mostra apenas as informações de escala (sem dados de créditos ou folgas).
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handlePublishToPortal}>
+              <Upload className="w-4 h-4 mr-2" />
+              Publicar no Portal
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.open(getPortalUrl(), '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Abrir Portal
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Link do portal: <code className="bg-muted px-1 rounded">{getPortalUrl()}</code>
+          </p>
+        </div>
 
         {/* Backup */}
         <div className="form-section">
