@@ -1,12 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle, Globe, ExternalLink } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Globe, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const PORTAL_DATA_KEY = 'escala-portal-data';
-
+import { supabase } from '@/integrations/supabase/client';
 // Storage keys for service schedule data
 const SERVICE_STORAGE_KEYS = {
   professionals: 'serviceProfessionals',
@@ -30,6 +28,7 @@ interface FullBackupData {
 export default function Settings() {
   const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const handleExport = () => {
     // Get eMult data
@@ -133,36 +132,50 @@ export default function Settings() {
     }
   };
 
-  const handlePublishToPortal = () => {
-    // Get eMult data
-    const emultData = JSON.parse(exportData());
-    
-    // Get service schedule data from localStorage
-    const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
-    const nurseEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
-      (e: { type: string }) => e.type === 'nurse'
-    );
-    const techEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
-      (e: { type: string }) => e.type === 'tech'
-    );
+  const handlePublishToPortal = async () => {
+    setIsPublishing(true);
+    try {
+      // Get eMult data
+      const emultData = JSON.parse(exportData());
+      
+      // Get service schedule data from localStorage
+      const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
+      const nurseEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
+        (e: { type: string }) => e.type === 'nurse'
+      );
+      const techEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
+        (e: { type: string }) => e.type === 'tech'
+      );
 
-    const portalData = {
-      publishedAt: new Date().toISOString(),
-      emult: {
+      const emult_data = {
         professionals: emultData.professionals || [],
         units: emultData.units || [],
         functions: emultData.functions || [],
         schedule: emultData.schedule || [],
-      },
-      service: {
+      };
+
+      const service_data = {
         professionals: serviceProfessionals,
         nurseEntries,
         techEntries,
-      },
-    };
+      };
 
-    localStorage.setItem(PORTAL_DATA_KEY, JSON.stringify(portalData));
-    toast.success('Escalas publicadas no portal com sucesso!');
+      const { error } = await supabase
+        .from('portal_schedules')
+        .insert({
+          emult_data,
+          service_data,
+        });
+
+      if (error) throw error;
+
+      toast.success('Escalas publicadas no portal com sucesso!');
+    } catch (error) {
+      console.error('Erro ao publicar:', error);
+      toast.error('Erro ao publicar escalas. Tente novamente.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const getPortalUrl = () => {
@@ -189,9 +202,13 @@ export default function Settings() {
             O portal é público e mostra apenas as informações de escala (sem dados de créditos ou folgas).
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={handlePublishToPortal}>
-              <Upload className="w-4 h-4 mr-2" />
-              Publicar no Portal
+            <Button onClick={handlePublishToPortal} disabled={isPublishing}>
+              {isPublishing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
             </Button>
             <Button
               variant="outline"
