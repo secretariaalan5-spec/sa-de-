@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useServiceStats } from '@/hooks/useServiceStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,9 +16,14 @@ type ReportView = 'menu' | 'nurses' | 'techs' | 'leaves' | 'credits';
 
 export default function ServiceReportsPage() {
     const { professionals } = useServiceProfessionals();
-    const { requests } = useLeaveRequests();
+    const { requests, getTotalCreditsUsedByProfessional } = useLeaveRequests();
     const { allEntries } = useServiceSchedule('nurse');
     const { allEntries: techEntries } = useServiceSchedule('tech');
+
+    const { getStatsForProfessional, getMonthlyStatsForProfessional } = useServiceStats({
+        allEntries,
+        getTotalCreditsUsedByProfessional,
+    });
 
     const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
     const [activeView, setActiveView] = useState<ReportView>('menu');
@@ -33,23 +39,14 @@ export default function ServiceReportsPage() {
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const startDayOfWeek = getDay(monthStart);
 
-    const getMonthlyStats = (professionalId: string, entries: typeof allEntries) => {
-        const profEntries = entries.filter(e => {
-            const entryDate = new Date(e.date);
-            return e.professionalId === professionalId && 
-                   entryDate >= monthStart && 
-                   entryDate <= monthEnd;
-        });
-        const weekendEntries = profEntries.filter(e => e.isWeekend);
-        const today = new Date();
-        const workedWeekendEntries = weekendEntries.filter(e => new Date(e.date) <= today);
-        const creditsGenerated = workedWeekendEntries.length * 2;
-
-        return {
-            totalWorkedDays: profEntries.length,
-            weekendDays: weekendEntries.length,
-            creditsGenerated,
-        };
+    const getMonthlyStats = (professionalId: string, prof: typeof professionals[0]) => {
+        return getMonthlyStatsForProfessional(
+            professionalId,
+            prof.name,
+            prof.category,
+            monthStart,
+            monthEnd
+        );
     };
 
     const getLeaveRequestsForMonth = (professionalId: string) => {
@@ -193,13 +190,13 @@ export default function ServiceReportsPage() {
 
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {profs.map(prof => {
-                        const stats = getMonthlyStats(prof.id, entries);
-                        if (stats.totalWorkedDays === 0) return null;
+                        const stats = getMonthlyStats(prof.id, prof);
+                        if (stats.workedDays === 0) return null;
                         return (
                             <div key={prof.id} className="bg-muted/50 rounded-lg p-3 border border-border">
                                 <p className="font-medium text-sm truncate">{prof.name}</p>
                                 <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                                    <span>{stats.totalWorkedDays} dias</span>
+                                    <span>{stats.workedDays} dias</span>
                                     <span className="text-amber-600 dark:text-amber-400">{stats.weekendDays} FDS</span>
                                     <span className="text-primary font-medium">+{stats.creditsGenerated} créditos</span>
                                 </div>
@@ -286,7 +283,7 @@ export default function ServiceReportsPage() {
         );
     };
 
-    const renderCreditsTable = (profs: typeof nurses, entries: typeof allEntries, label: string) => (
+    const renderCreditsTable = (profs: typeof nurses, label: string) => (
         <Card>
             <CardHeader className="bg-primary/5 py-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -308,15 +305,12 @@ export default function ServiceReportsPage() {
                     </TableHeader>
                     <TableBody>
                         {profs.map(prof => {
-                            const stats = getMonthlyStats(prof.id, entries);
-                            const monthLeaves = getLeaveRequestsForMonth(prof.id);
-                            const creditsUsed = monthLeaves.reduce((sum, r) => sum + r.daysRequested, 0);
-                            const balance = stats.creditsGenerated - creditsUsed;
+                            const stats = getStatsForProfessional(prof.id, prof.name, prof.category);
 
                             return (
                                 <TableRow key={prof.id}>
                                     <TableCell className="font-medium">{prof.name}</TableCell>
-                                    <TableCell className="text-center">{stats.totalWorkedDays}</TableCell>
+                                    <TableCell className="text-center">{stats.workedDays}</TableCell>
                                     <TableCell className="text-center">
                                         <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded text-sm">
                                             {stats.weekendDays}
@@ -326,18 +320,18 @@ export default function ServiceReportsPage() {
                                         +{stats.creditsGenerated}
                                     </TableCell>
                                     <TableCell className="text-center text-destructive">
-                                        {creditsUsed > 0 ? `-${creditsUsed}` : '0'}
+                                        {stats.creditsUsed > 0 ? `-${stats.creditsUsed}` : '0'}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <span className={cn(
                                             "px-2 py-0.5 rounded font-bold",
-                                            balance > 0 
+                                            stats.creditsBalance > 0 
                                                 ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                                                : balance < 0
+                                                : stats.creditsBalance < 0
                                                     ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
                                                     : "bg-muted text-muted-foreground"
                                         )}>
-                                            {balance}
+                                            {stats.creditsBalance}
                                         </span>
                                     </TableCell>
                                 </TableRow>
@@ -357,8 +351,8 @@ export default function ServiceReportsPage() {
                     {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
                 </p>
             </div>
-            {nurses.length > 0 && renderCreditsTable(nurses, allEntries, 'Enfermeiros')}
-            {techs.length > 0 && renderCreditsTable(techs, techEntries, 'Técnicos')}
+            {nurses.length > 0 && renderCreditsTable(nurses, 'Enfermeiros')}
+            {techs.length > 0 && renderCreditsTable(techs, 'Técnicos')}
         </div>
     );
 
