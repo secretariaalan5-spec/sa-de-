@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ServiceProfessional, ServiceScheduleEntry } from '@/types/serviceSchedule';
 
@@ -31,6 +32,8 @@ export function ServiceCalendar({
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedProfessional, setSelectedProfessional] = useState<string>('');
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [dialogSearchTerm, setDialogSearchTerm] = useState('');
 
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -46,6 +49,7 @@ export function ServiceCalendar({
             if (success) {
                 setSelectedProfessional('');
                 setDialogOpen(false);
+                setDialogSearchTerm('');
             }
         }
     };
@@ -53,21 +57,47 @@ export function ServiceCalendar({
     const handleOpenDialog = (dateStr: string) => {
         setSelectedDate(dateStr);
         setDialogOpen(true);
+        setDialogSearchTerm('');
     };
+
+    // Filter professionals displayed in the calendar by search
+    const highlightedProfessionalIds = useMemo(() => {
+        if (!searchTerm.trim()) return null;
+        const term = searchTerm.toLowerCase();
+        return new Set(professionals.filter(p => p.name.toLowerCase().includes(term)).map(p => p.id));
+    }, [searchTerm, professionals]);
+
+    // Filter professionals in dialog
+    const filteredDialogProfessionals = useMemo(() => {
+        if (!dialogSearchTerm.trim()) return professionals;
+        const term = dialogSearchTerm.toLowerCase();
+        return professionals.filter(p => p.name.toLowerCase().includes(term));
+    }, [dialogSearchTerm, professionals]);
 
     return (
         <div>
-            {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-6">
-                <Button variant="outline" onClick={handlePreviousMonth}>
-                    <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <h2 className="text-2xl font-bold capitalize">
-                    {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-                </h2>
-                <Button variant="outline" onClick={handleNextMonth}>
-                    <ChevronRight className="w-4 h-4" />
-                </Button>
+            {/* Month Navigation + Search */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" onClick={handlePreviousMonth}>
+                        <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <h2 className="text-xl font-bold capitalize min-w-[200px] text-center">
+                        {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                    </h2>
+                    <Button variant="outline" size="icon" onClick={handleNextMonth}>
+                        <ChevronRight className="w-4 h-4" />
+                    </Button>
+                </div>
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar profissional..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
+                    />
+                </div>
             </div>
 
             {/* Calendar Grid */}
@@ -83,17 +113,20 @@ export function ServiceCalendar({
 
                 {/* Calendar Days */}
                 <div className="grid grid-cols-7">
-                    {/* Empty cells for days before month start */}
                     {Array.from({ length: startDayOfWeek }).map((_, i) => (
                         <div key={`empty-${i}`} className="min-h-[120px] border border-border bg-muted/30" />
                     ))}
 
-                    {/* Days of the month */}
                     {daysInMonth.map(day => {
                         const dateStr = format(day, 'yyyy-MM-dd');
                         const dayEntries = getEntriesForDate(dateStr);
                         const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
                         const isWeekendDay = isWeekend(day);
+
+                        // Filter entries if searching
+                        const visibleEntries = highlightedProfessionalIds
+                            ? dayEntries.filter(e => highlightedProfessionalIds.has(e.professionalId))
+                            : dayEntries;
 
                         return (
                             <div
@@ -125,9 +158,8 @@ export function ServiceCalendar({
                                     </Button>
                                 </div>
 
-                                {/* Professionals for this day */}
                                 <div className="space-y-1">
-                                    {dayEntries.map(entry => {
+                                    {visibleEntries.map(entry => {
                                         const professional = professionals.find(p => p.id === entry.professionalId);
                                         return (
                                             <div
@@ -154,6 +186,12 @@ export function ServiceCalendar({
                                             </div>
                                         );
                                     })}
+                                    {/* Show count of hidden entries when filtering */}
+                                    {highlightedProfessionalIds && dayEntries.length > visibleEntries.length && (
+                                        <span className="text-[10px] text-muted-foreground">
+                                            +{dayEntries.length - visibleEntries.length} ocultos
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -170,16 +208,30 @@ export function ServiceCalendar({
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar profissional..."
+                                value={dialogSearchTerm}
+                                onChange={(e) => setDialogSearchTerm(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
                         <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
                             <SelectTrigger>
                                 <SelectValue placeholder={`Selecione um ${typeLabel.toLowerCase()}`} />
                             </SelectTrigger>
                             <SelectContent>
-                                {professionals.map(prof => (
+                                {filteredDialogProfessionals.map(prof => (
                                     <SelectItem key={prof.id} value={prof.id}>
                                         {prof.name}
                                     </SelectItem>
                                 ))}
+                                {filteredDialogProfessionals.length === 0 && (
+                                    <div className="py-2 px-3 text-sm text-muted-foreground text-center">
+                                        Nenhum profissional encontrado
+                                    </div>
+                                )}
                             </SelectContent>
                         </Select>
                         <Button onClick={handleAddProfessional} className="w-full">

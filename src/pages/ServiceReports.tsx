@@ -4,14 +4,14 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Printer, Calendar, Users, FileText} from 'lucide-react';
+import { Printer, Calendar, Users, FileText, Stethoscope, Syringe, TrendingUp, CalendarOff, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+
+type ReportView = 'menu' | 'nurses' | 'techs' | 'leaves' | 'credits';
 
 export default function ServiceReportsPage() {
     const { professionals } = useServiceProfessionals();
@@ -20,10 +20,9 @@ export default function ServiceReportsPage() {
     const { allEntries: techEntries } = useServiceSchedule('tech');
 
     const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+    const [activeView, setActiveView] = useState<ReportView>('menu');
 
-    const handlePrint = () => {
-        window.print();
-    };
+    const handlePrint = () => window.print();
 
     const nurses = professionals.filter(p => p.category === 'nurse' && p.active);
     const techs = professionals.filter(p => p.category === 'tech' && p.active);
@@ -63,6 +62,56 @@ export default function ServiceReportsPage() {
         });
     };
 
+    const monthLeaveRequests = requests.filter(r =>
+        r.leaveDates.some(date => {
+            const d = new Date(date);
+            return d >= monthStart && d <= monthEnd;
+        })
+    );
+
+    const reportCards = [
+        {
+            id: 'nurses' as ReportView,
+            title: 'Escala de Enfermeiros',
+            description: 'Calendário mensal com os dias escalados para cada enfermeiro',
+            icon: Stethoscope,
+            count: nurses.length,
+            countLabel: 'profissionais',
+            color: 'text-blue-600 dark:text-blue-400',
+            bgColor: 'bg-blue-50 dark:bg-blue-950/20',
+        },
+        {
+            id: 'techs' as ReportView,
+            title: 'Escala de Técnicos',
+            description: 'Calendário mensal com os dias escalados para cada técnico',
+            icon: Syringe,
+            count: techs.length,
+            countLabel: 'profissionais',
+            color: 'text-emerald-600 dark:text-emerald-400',
+            bgColor: 'bg-emerald-50 dark:bg-emerald-950/20',
+        },
+        {
+            id: 'leaves' as ReportView,
+            title: 'Pedidos de Folga',
+            description: 'Relatório de todas as folgas registradas no mês, agrupadas por profissional',
+            icon: CalendarOff,
+            count: monthLeaveRequests.length,
+            countLabel: 'pedidos no mês',
+            color: 'text-amber-600 dark:text-amber-400',
+            bgColor: 'bg-amber-50 dark:bg-amber-950/20',
+        },
+        {
+            id: 'credits' as ReportView,
+            title: 'Extrato de Créditos',
+            description: 'Dias trabalhados, fins de semana e saldo de créditos por profissional',
+            icon: TrendingUp,
+            count: nurses.length + techs.length,
+            countLabel: 'profissionais',
+            color: 'text-violet-600 dark:text-violet-400',
+            bgColor: 'bg-violet-50 dark:bg-violet-950/20',
+        },
+    ];
+
     const renderCalendar = (type: 'nurse' | 'tech') => {
         const profs = type === 'nurse' ? nurses : techs;
         const entries = type === 'nurse' ? allEntries : techEntries;
@@ -71,15 +120,12 @@ export default function ServiceReportsPage() {
         return (
             <div className="print-section">
                 <div className="mb-6 text-center border-b border-border pb-4">
-                    <h2 className="text-xl font-bold text-primary">
-                        Escala de {typeLabel}
-                    </h2>
+                    <h2 className="text-xl font-bold text-primary">Escala de {typeLabel}</h2>
                     <p className="text-muted-foreground capitalize">
                         {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
                     </p>
                 </div>
 
-                {/* Legenda */}
                 <div className="flex gap-4 mb-4 text-sm no-print">
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-300" />
@@ -145,7 +191,6 @@ export default function ServiceReportsPage() {
                     </div>
                 </div>
 
-                {/* Resumo da Escala */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {profs.map(prof => {
                         const stats = getMonthlyStats(prof.id, entries);
@@ -167,17 +212,8 @@ export default function ServiceReportsPage() {
     };
 
     const renderLeaveReport = () => {
-        const monthRequests = requests.filter(r => {
-            return r.leaveDates.some(date => {
-                const d = new Date(date);
-                return d >= monthStart && d <= monthEnd;
-            });
-        });
-
-        const groupedByProfessional = monthRequests.reduce((acc, req) => {
-            if (!acc[req.professionalId]) {
-                acc[req.professionalId] = [];
-            }
+        const groupedByProfessional = monthLeaveRequests.reduce((acc, req) => {
+            if (!acc[req.professionalId]) acc[req.professionalId] = [];
             acc[req.professionalId].push(req);
             return acc;
         }, {} as Record<string, typeof requests>);
@@ -185,9 +221,7 @@ export default function ServiceReportsPage() {
         return (
             <div className="print-section space-y-6">
                 <div className="mb-6 text-center border-b border-border pb-4">
-                    <h2 className="text-xl font-bold text-primary">
-                        Relatório de Pedidos de Folga
-                    </h2>
+                    <h2 className="text-xl font-bold text-primary">Relatório de Pedidos de Folga</h2>
                     <p className="text-muted-foreground capitalize">
                         {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
                     </p>
@@ -201,7 +235,6 @@ export default function ServiceReportsPage() {
                     Object.entries(groupedByProfessional).map(([profId, profRequests]) => {
                         const prof = professionals.find(p => p.id === profId);
                         if (!prof) return null;
-
                         return (
                             <Card key={profId} className="overflow-hidden">
                                 <CardHeader className="bg-muted/50 py-3">
@@ -232,21 +265,14 @@ export default function ServiceReportsPage() {
                                                     <TableCell>
                                                         <div className="flex flex-wrap gap-1">
                                                             {req.leaveDates.map(date => (
-                                                                <span 
-                                                                    key={date} 
-                                                                    className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded"
-                                                                >
+                                                                <span key={date} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                                                                     {format(new Date(date), 'dd/MM')}
                                                                 </span>
                                                             ))}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-center font-medium">
-                                                        {req.daysRequested}
-                                                    </TableCell>
-                                                    <TableCell className="text-sm text-muted-foreground">
-                                                        {req.observations || '-'}
-                                                    </TableCell>
+                                                    <TableCell className="text-center font-medium">{req.daysRequested}</TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">{req.observations || '-'}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -260,151 +286,93 @@ export default function ServiceReportsPage() {
         );
     };
 
-    const renderCreditsReport = () => {
-        const allProfs = [...nurses, ...techs];
-        const nurseEntries = allEntries;
+    const renderCreditsTable = (profs: typeof nurses, entries: typeof allEntries, label: string) => (
+        <Card>
+            <CardHeader className="bg-primary/5 py-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    {label}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/50">
+                            <TableHead>Profissional</TableHead>
+                            <TableHead className="text-center w-[100px]">Dias Trab.</TableHead>
+                            <TableHead className="text-center w-[80px]">FDS</TableHead>
+                            <TableHead className="text-center w-[100px]">Créditos +</TableHead>
+                            <TableHead className="text-center w-[100px]">Créditos -</TableHead>
+                            <TableHead className="text-center w-[80px]">Saldo</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {profs.map(prof => {
+                            const stats = getMonthlyStats(prof.id, entries);
+                            const monthLeaves = getLeaveRequestsForMonth(prof.id);
+                            const creditsUsed = monthLeaves.reduce((sum, r) => sum + r.daysRequested, 0);
+                            const balance = stats.creditsGenerated - creditsUsed;
 
-        return (
-            <div className="print-section space-y-6">
-                <div className="mb-6 text-center border-b border-border pb-4">
-                    <h2 className="text-xl font-bold text-primary">
-                        Relatório de Créditos e Folgas
-                    </h2>
-                    <p className="text-muted-foreground capitalize">
-                        {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
-                    </p>
-                </div>
+                            return (
+                                <TableRow key={prof.id}>
+                                    <TableCell className="font-medium">{prof.name}</TableCell>
+                                    <TableCell className="text-center">{stats.totalWorkedDays}</TableCell>
+                                    <TableCell className="text-center">
+                                        <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded text-sm">
+                                            {stats.weekendDays}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="text-center font-semibold text-green-600 dark:text-green-400">
+                                        +{stats.creditsGenerated}
+                                    </TableCell>
+                                    <TableCell className="text-center text-destructive">
+                                        {creditsUsed > 0 ? `-${creditsUsed}` : '0'}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded font-bold",
+                                            balance > 0 
+                                                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+                                                : balance < 0
+                                                    ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
+                                                    : "bg-muted text-muted-foreground"
+                                        )}>
+                                            {balance}
+                                        </span>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
 
-                {/* Enfermeiros */}
-                {nurses.length > 0 && (
-                    <Card>
-                        <CardHeader className="bg-primary/5 py-3">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Users className="w-4 h-4 text-primary" />
-                                Enfermeiros
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                        <TableHead>Profissional</TableHead>
-                                        <TableHead className="text-center w-[100px]">Dias Trab.</TableHead>
-                                        <TableHead className="text-center w-[80px]">FDS</TableHead>
-                                        <TableHead className="text-center w-[100px]">Créditos +</TableHead>
-                                        <TableHead className="text-center w-[100px]">Créditos -</TableHead>
-                                        <TableHead className="text-center w-[80px]">Saldo</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {nurses.map(prof => {
-                                        const stats = getMonthlyStats(prof.id, nurseEntries);
-                                        const monthLeaves = getLeaveRequestsForMonth(prof.id);
-                                        const creditsUsed = monthLeaves.reduce((sum, r) => sum + r.daysRequested, 0);
-                                        const balance = stats.creditsGenerated - creditsUsed;
-
-                                        return (
-                                            <TableRow key={prof.id}>
-                                                <TableCell className="font-medium">{prof.name}</TableCell>
-                                                <TableCell className="text-center">{stats.totalWorkedDays}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded text-sm">
-                                                        {stats.weekendDays}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-center font-semibold text-green-600 dark:text-green-400">
-                                                    +{stats.creditsGenerated}
-                                                </TableCell>
-                                                <TableCell className="text-center text-destructive">
-                                                    {creditsUsed > 0 ? `-${creditsUsed}` : '0'}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={cn(
-                                                        "px-2 py-0.5 rounded font-bold",
-                                                        balance > 0 
-                                                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                                                            : balance < 0
-                                                                ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
-                                                                : "bg-muted text-muted-foreground"
-                                                    )}>
-                                                        {balance}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Técnicos */}
-                {techs.length > 0 && (
-                    <Card>
-                        <CardHeader className="bg-primary/5 py-3">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Users className="w-4 h-4 text-primary" />
-                                Técnicos
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                        <TableHead>Profissional</TableHead>
-                                        <TableHead className="text-center w-[100px]">Dias Trab.</TableHead>
-                                        <TableHead className="text-center w-[80px]">FDS</TableHead>
-                                        <TableHead className="text-center w-[100px]">Créditos +</TableHead>
-                                        <TableHead className="text-center w-[100px]">Créditos -</TableHead>
-                                        <TableHead className="text-center w-[80px]">Saldo</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {techs.map(prof => {
-                                        const stats = getMonthlyStats(prof.id, techEntries);
-                                        const monthLeaves = getLeaveRequestsForMonth(prof.id);
-                                        const creditsUsed = monthLeaves.reduce((sum, r) => sum + r.daysRequested, 0);
-                                        const balance = stats.creditsGenerated - creditsUsed;
-
-                                        return (
-                                            <TableRow key={prof.id}>
-                                                <TableCell className="font-medium">{prof.name}</TableCell>
-                                                <TableCell className="text-center">{stats.totalWorkedDays}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded text-sm">
-                                                        {stats.weekendDays}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-center font-semibold text-green-600 dark:text-green-400">
-                                                    +{stats.creditsGenerated}
-                                                </TableCell>
-                                                <TableCell className="text-center text-destructive">
-                                                    {creditsUsed > 0 ? `-${creditsUsed}` : '0'}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={cn(
-                                                        "px-2 py-0.5 rounded font-bold",
-                                                        balance > 0 
-                                                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
-                                                            : balance < 0
-                                                                ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
-                                                                : "bg-muted text-muted-foreground"
-                                                    )}>
-                                                        {balance}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                )}
+    const renderCreditsReport = () => (
+        <div className="print-section space-y-6">
+            <div className="mb-6 text-center border-b border-border pb-4">
+                <h2 className="text-xl font-bold text-primary">Relatório de Créditos e Folgas</h2>
+                <p className="text-muted-foreground capitalize">
+                    {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
+                </p>
             </div>
-        );
+            {nurses.length > 0 && renderCreditsTable(nurses, allEntries, 'Enfermeiros')}
+            {techs.length > 0 && renderCreditsTable(techs, techEntries, 'Técnicos')}
+        </div>
+    );
+
+    const renderActiveReport = () => {
+        switch (activeView) {
+            case 'nurses': return renderCalendar('nurse');
+            case 'techs': return renderCalendar('tech');
+            case 'leaves': return renderLeaveReport();
+            case 'credits': return renderCreditsReport();
+            default: return null;
+        }
     };
+
+    const activeCard = reportCards.find(c => c.id === activeView);
 
     return (
         <div className="animate-fade-in space-y-6">
@@ -422,47 +390,60 @@ export default function ServiceReportsPage() {
                         className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                 </div>
-                <Button onClick={handlePrint} className="gap-2">
-                    <Printer className="w-4 h-4" />
-                    Imprimir
-                </Button>
+                {activeView !== 'menu' && (
+                    <Button onClick={handlePrint} className="gap-2">
+                        <Printer className="w-4 h-4" />
+                        Imprimir
+                    </Button>
+                )}
             </div>
 
-            <Tabs defaultValue="nurses" className="space-y-4">
-                <TabsList className="no-print grid w-full grid-cols-4">
-                    <TabsTrigger value="nurses" className="gap-2">
-                        <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">Escala</span> Enfermeiros
-                    </TabsTrigger>
-                    <TabsTrigger value="techs" className="gap-2">
-                        <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">Escala</span> Técnicos
-                    </TabsTrigger>
-                    <TabsTrigger value="leaves" className="gap-2">
-                        <FileText className="w-4 h-4" />
-                        Folgas
-                    </TabsTrigger>
-                    <TabsTrigger value="credits" className="gap-2">
-                        <Users className="w-4 h-4" />
-                        Créditos
-                    </TabsTrigger>
-                </TabsList>
-
-                <div className="bg-card rounded-xl border border-border shadow-sm p-6 print-area">
-                    <TabsContent value="nurses" className="mt-0">
-                        {renderCalendar('nurse')}
-                    </TabsContent>
-                    <TabsContent value="techs" className="mt-0">
-                        {renderCalendar('tech')}
-                    </TabsContent>
-                    <TabsContent value="leaves" className="mt-0">
-                        {renderLeaveReport()}
-                    </TabsContent>
-                    <TabsContent value="credits" className="mt-0">
-                        {renderCreditsReport()}
-                    </TabsContent>
+            {activeView === 'menu' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {reportCards.map(card => {
+                        const Icon = card.icon;
+                        return (
+                            <Card
+                                key={card.id}
+                                className="cursor-pointer hover:shadow-md transition-all hover:border-primary/30 group"
+                                onClick={() => setActiveView(card.id)}
+                            >
+                                <CardHeader className="pb-2">
+                                    <div className="flex items-start justify-between">
+                                        <div className={cn("p-2.5 rounded-lg", card.bgColor)}>
+                                            <Icon className={cn("w-5 h-5", card.color)} />
+                                        </div>
+                                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                    </div>
+                                    <CardTitle className="text-base mt-3">{card.title}</CardTitle>
+                                    <CardDescription className="text-sm">{card.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <p className="text-2xl font-bold text-foreground">
+                                        {card.count}
+                                        <span className="text-xs font-normal text-muted-foreground ml-2">{card.countLabel}</span>
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
-            </Tabs>
+            ) : (
+                <div className="space-y-4">
+                    <Button
+                        variant="ghost"
+                        onClick={() => setActiveView('menu')}
+                        className="gap-2 no-print"
+                    >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                        Voltar aos relatórios
+                    </Button>
+
+                    <div className="bg-card rounded-xl border border-border shadow-sm p-6 print-area">
+                        {renderActiveReport()}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
