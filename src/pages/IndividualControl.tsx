@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useServiceStats } from '@/hooks/useServiceStats';
 import { Stethoscope, Syringe, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -14,39 +15,32 @@ export default function IndividualControlPage() {
     const { getTotalCreditsUsedByProfessional, getRequestsByProfessional } = useLeaveRequests();
     const { allEntries } = useServiceSchedule('nurse');
 
-    const getStatsForProfessional = (professionalId: string) => {
+    const { getStatsForProfessional } = useServiceStats({
+        allEntries,
+        getTotalCreditsUsedByProfessional,
+    });
+
+    const getFullStatsForProfessional = (prof: typeof professionals[0]) => {
+        const stats = getStatsForProfessional(prof.id, prof.name, prof.category);
+        const leaveRequests = getRequestsByProfessional(prof.id);
+        
+        // Get weekend entries for PDF report
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
-        const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-
-        // Apenas contar dias já trabalhados (passados ou hoje)
-        const pastEntries = profEntries.filter(e => {
-            const entryDate = parseISO(e.date);
-            return entryDate <= today;
-        });
-
-        // Apenas fins de semana já trabalhados geram créditos
+        const profEntries = allEntries.filter(e => e.professionalId === prof.id);
+        const pastEntries = profEntries.filter(e => parseISO(e.date) <= today);
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
-        const creditsGenerated = weekendEntries.length * 2;
-        const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
-        const leaveRequests = getRequestsByProfessional(professionalId);
 
         return {
-            totalWorkedDays: pastEntries.length,
-            weekendDays: weekendEntries.length,
-            creditsGenerated,
-            creditsUsed,
-            creditsBalance: creditsGenerated - creditsUsed,
+            ...stats,
+            totalWorkedDays: stats.workedDays,
             leaveRequestsCount: leaveRequests.length,
-            allEntries: profEntries,
-            pastEntries,
             weekendEntries,
         };
     };
 
     const downloadIndividualReport = (prof: typeof professionals[0]) => {
-        const stats = getStatsForProfessional(prof.id);
+        const stats = getFullStatsForProfessional(prof);
         const leaveRequests = getRequestsByProfessional(prof.id);
 
         const reportDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -124,7 +118,6 @@ export default function IndividualControlPage() {
         doc.setTextColor(0, 0, 0);
 
         // Table header
-        const tableStartY = yPosition;
         const rowHeight = 10;
         const col1Width = contentWidth * 0.65;
         const col2Width = contentWidth * 0.35;
@@ -152,7 +145,7 @@ export default function IndividualControlPage() {
         doc.setTextColor(0, 0, 0);
         doc.setFont('helvetica', 'normal');
 
-        tableData.forEach((row, index) => {
+        tableData.forEach((row) => {
             // Alternate row colors
             doc.setFillColor(row.color[0], row.color[1], row.color[2]);
             doc.rect(margin, yPosition, col1Width, rowHeight, 'FD');
@@ -300,7 +293,7 @@ export default function IndividualControlPage() {
     const techs = professionals.filter(p => p.category === 'tech');
 
     const renderProfessionalCard = (prof: typeof professionals[0]) => {
-        const stats = getStatsForProfessional(prof.id);
+        const stats = getFullStatsForProfessional(prof);
 
         return (
             <div key={prof.id} className="bg-card rounded-xl border border-border shadow-sm p-4">
@@ -392,7 +385,6 @@ export default function IndividualControlPage() {
                 description="Visualize os créditos e folgas de cada profissional"
             />
 
-            {/* Nurses */}
             <div>
                 <div className="flex items-center gap-2 mb-4">
                     <Stethoscope className="w-5 h-5 text-primary" />
@@ -407,7 +399,6 @@ export default function IndividualControlPage() {
                 )}
             </div>
 
-            {/* Techs */}
             <div>
                 <div className="flex items-center gap-2 mb-4">
                     <Syringe className="w-5 h-5 text-primary" />

@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useServiceStats } from '@/hooks/useServiceStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,14 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
     const { requests, addRequest, deleteRequest, getTotalCreditsUsedByProfessional } = useLeaveRequests();
     const { allEntries } = useServiceSchedule('nurse');
+
+    const { getAvailableCredits } = useServiceStats({
+        allEntries,
+        getTotalCreditsUsedByProfessional,
+    });
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [form, setForm] = useState({
@@ -27,25 +32,6 @@ export default function LeaveRequestsPage() {
         daysRequested: 1,
         observations: '',
     });
-
-    // Calculate available credits for a professional
-    const getAvailableCredits = (professionalId: string) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const profEntries = allEntries.filter(e => e.professionalId === professionalId);
-
-        // Apenas contar dias já trabalhados (passados ou hoje)
-        const pastEntries = profEntries.filter(e => {
-            const entryDate = parseISO(e.date);
-            return entryDate <= today;
-        });
-
-        const weekendEntries = pastEntries.filter(e => e.isWeekend);
-        const creditsGenerated = weekendEntries.length * 2;
-        const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
-        return creditsGenerated - creditsUsed;
-    };
 
     const selectedProfessional = professionals.find(p => p.id === form.professionalId);
     const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
@@ -61,7 +47,6 @@ export default function LeaveRequestsPage() {
             return;
         }
 
-        // Generate leave dates
         const startDate = new Date(form.leaveStartDate + 'T00:00:00');
         const leaveDates: string[] = [];
         for (let i = 0; i < form.daysRequested; i++) {
@@ -190,7 +175,6 @@ export default function LeaveRequestsPage() {
                 </Dialog>
             </div>
 
-            {/* Leave Requests List */}
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
