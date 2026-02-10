@@ -19,7 +19,7 @@ import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
 import ServiceReportsPage from "./pages/ServiceReports";
-import Portal from "./pages/Portal";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,7 +48,7 @@ const App = () => (
             <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
             <Route path="/configuracoes" element={<Settings />} />
           </Route>
-          <Route path="/portal" element={<Portal />} />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
