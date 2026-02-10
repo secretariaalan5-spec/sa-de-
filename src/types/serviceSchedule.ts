@@ -18,12 +18,23 @@ export interface ServiceScheduleStats {
     creditsBalance: number;
 }
 
+export type LeaveType = 'ferias' | 'licenca_medica' | 'licenca' | 'capacitacao' | 'outros';
+
+export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
+    ferias: 'Férias',
+    licenca_medica: 'Licença Médica',
+    licenca: 'Licença',
+    capacitacao: 'Capacitação',
+    outros: 'Outros',
+};
+
 export interface LeaveRequest {
     id: string;
     professionalId: string;
     category: 'nurse' | 'tech';
-    requestDate: string; // Data do pedido
-    leaveDates: string[]; // Datas da folga
+    leaveType: LeaveType;
+    requestDate: string;
+    leaveDates: string[];
     daysRequested: number;
     observations?: string;
     status: 'pending' | 'approved' | 'rejected';
