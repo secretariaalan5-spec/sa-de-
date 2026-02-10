@@ -44,7 +44,7 @@ export default function LeaveRequestsPage() {
             return;
         }
 
-        if (form.daysRequested > availableCredits) {
+        if (form.leaveType === 'folga_credito' && form.daysRequested > availableCredits) {
             toast.error(`Saldo insuficiente. Disponível: ${availableCredits} dias`);
             return;
         }
@@ -118,7 +118,7 @@ export default function LeaveRequestsPage() {
                                 </Select>
                             </div>
 
-                            {form.professionalId && (
+                            {form.professionalId && form.leaveType === 'folga_credito' && (
                                 <div className="p-3 bg-muted rounded-lg">
                                     <div className="flex items-center gap-2">
                                         <AlertCircle className="w-4 h-4 text-primary" />
@@ -171,7 +171,7 @@ export default function LeaveRequestsPage() {
                                 <Input
                                     type="number"
                                     min={1}
-                                    max={availableCredits}
+                                    max={form.leaveType === 'folga_credito' ? availableCredits : undefined}
                                     value={form.daysRequested}
                                     onChange={(e) => setForm(prev => ({ ...prev, daysRequested: Number(e.target.value) }))}
                                 />
@@ -189,7 +189,7 @@ export default function LeaveRequestsPage() {
                             <Button
                                 onClick={handleSubmit}
                                 className="w-full"
-                                disabled={form.daysRequested > availableCredits}
+                                disabled={form.leaveType === 'folga_credito' && form.daysRequested > availableCredits}
                             >
                                 Registrar Folga
                             </Button>
