@@ -1,10 +1,9 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle, Globe, ExternalLink, Loader2 } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 // Storage keys for service schedule data
 const SERVICE_STORAGE_KEYS = {
   professionals: 'serviceProfessionals',
@@ -28,7 +27,6 @@ interface FullBackupData {
 export default function Settings() {
   const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
 
   const handleExport = () => {
     // Get eMult data
@@ -132,96 +130,15 @@ export default function Settings() {
     }
   };
 
-  const handlePublishToPortal = async () => {
-    setIsPublishing(true);
-    try {
-      // Get eMult data
-      const emultData = JSON.parse(exportData());
-      
-      // Get service schedule data from localStorage
-      const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
-      const nurseEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
-        (e: { type: string }) => e.type === 'nurse'
-      );
-      const techEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]').filter(
-        (e: { type: string }) => e.type === 'tech'
-      );
-
-      const emult_data = {
-        professionals: emultData.professionals || [],
-        units: emultData.units || [],
-        functions: emultData.functions || [],
-        schedule: emultData.schedule || [],
-      };
-
-      const service_data = {
-        professionals: serviceProfessionals,
-        nurseEntries,
-        techEntries,
-      };
-
-      const { error } = await supabase
-        .from('portal_schedules')
-        .insert({
-          emult_data,
-          service_data,
-        });
-
-      if (error) throw error;
-
-      toast.success('Escalas publicadas no portal com sucesso!');
-    } catch (error) {
-      console.error('Erro ao publicar:', error);
-      toast.error('Erro ao publicar escalas. Tente novamente.');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const getPortalUrl = () => {
-    return `${window.location.origin}/portal`;
-  };
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Configurações"
-        description="Backup, restauração de dados e publicação no portal"
+        description="Backup e restauração de dados"
       />
 
       <div className="space-y-6 max-w-2xl">
-
-        {/* Portal */}
-        <div className="form-section border-primary/30 bg-primary/5">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Globe className="w-5 h-5 text-primary" />
-            Portal de Visualização
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Publique as escalas para que os gerentes de unidade possam visualizar. 
-            O portal é público e mostra apenas as informações de escala (sem dados de créditos ou folgas).
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={handlePublishToPortal} disabled={isPublishing}>
-              {isPublishing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
-              {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.open(getPortalUrl(), '_blank')}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Abrir Portal
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Link do portal: <code className="bg-muted px-1 rounded">{getPortalUrl()}</code>
-          </p>
-        </div>
 
         {/* Backup */}
         <div className="form-section">
