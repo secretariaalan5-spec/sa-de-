@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { differenceInCalendarDays } from 'date-fns';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
@@ -31,27 +32,35 @@ export default function LeaveRequestsPage() {
         leaveType: '' as LeaveType | '',
         requestDate: format(new Date(), 'yyyy-MM-dd'),
         leaveStartDate: '',
-        daysRequested: 1,
+        leaveEndDate: '',
         observations: '',
     });
 
     const selectedProfessional = professionals.find(p => p.id === form.professionalId);
     const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
 
+    const daysRequested = useMemo(() => {
+        if (!form.leaveStartDate || !form.leaveEndDate) return 0;
+        const start = new Date(form.leaveStartDate + 'T00:00:00');
+        const end = new Date(form.leaveEndDate + 'T00:00:00');
+        if (end < start) return 0;
+        return differenceInCalendarDays(end, start) + 1;
+    }, [form.leaveStartDate, form.leaveEndDate]);
+
     const handleSubmit = () => {
-        if (!form.professionalId || !form.leaveType || !form.leaveStartDate || form.daysRequested < 1) {
+        if (!form.professionalId || !form.leaveType || !form.leaveStartDate || !form.leaveEndDate || daysRequested < 1) {
             toast.error('Preencha todos os campos obrigatórios');
             return;
         }
 
-        if (form.leaveType === 'folga_credito' && form.daysRequested > availableCredits) {
+        if (form.leaveType === 'folga_credito' && daysRequested > availableCredits) {
             toast.error(`Saldo insuficiente. Disponível: ${availableCredits} dias`);
             return;
         }
 
         const startDate = new Date(form.leaveStartDate + 'T00:00:00');
         const leaveDates: string[] = [];
-        for (let i = 0; i < form.daysRequested; i++) {
+        for (let i = 0; i < daysRequested; i++) {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
             leaveDates.push(format(date, 'yyyy-MM-dd'));
@@ -63,7 +72,7 @@ export default function LeaveRequestsPage() {
             leaveType: form.leaveType as LeaveType,
             requestDate: form.requestDate,
             leaveDates,
-            daysRequested: form.daysRequested,
+            daysRequested,
             observations: form.observations,
         });
 
@@ -73,7 +82,7 @@ export default function LeaveRequestsPage() {
             leaveType: '',
             requestDate: format(new Date(), 'yyyy-MM-dd'),
             leaveStartDate: '',
-            daysRequested: 1,
+            leaveEndDate: '',
             observations: '',
         });
         setDialogOpen(false);
@@ -167,15 +176,20 @@ export default function LeaveRequestsPage() {
                             </div>
 
                             <div>
-                                <Label>Quantidade de Dias</Label>
+                                <Label>Data Final da Folga</Label>
                                 <Input
-                                    type="number"
-                                    min={1}
-                                    max={form.leaveType === 'folga_credito' ? availableCredits : undefined}
-                                    value={form.daysRequested}
-                                    onChange={(e) => setForm(prev => ({ ...prev, daysRequested: Number(e.target.value) }))}
+                                    type="date"
+                                    value={form.leaveEndDate}
+                                    min={form.leaveStartDate || undefined}
+                                    onChange={(e) => setForm(prev => ({ ...prev, leaveEndDate: e.target.value }))}
                                 />
                             </div>
+
+                            {daysRequested > 0 && (
+                                <div className="p-3 bg-muted rounded-lg text-sm">
+                                    Quantidade de dias: <strong>{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
+                                </div>
+                            )}
 
                             <div>
                                 <Label>Observações</Label>
@@ -189,7 +203,7 @@ export default function LeaveRequestsPage() {
                             <Button
                                 onClick={handleSubmit}
                                 className="w-full"
-                                disabled={form.leaveType === 'folga_credito' && form.daysRequested > availableCredits}
+                                disabled={daysRequested < 1 || (form.leaveType === 'folga_credito' && daysRequested > availableCredits)}
                             >
                                 Registrar Folga
                             </Button>
