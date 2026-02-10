@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
@@ -27,6 +28,7 @@ export default function LeaveRequestsPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [form, setForm] = useState({
         professionalId: '',
+        leaveType: '' as LeaveType | '',
         requestDate: format(new Date(), 'yyyy-MM-dd'),
         leaveStartDate: '',
         daysRequested: 1,
@@ -37,7 +39,7 @@ export default function LeaveRequestsPage() {
     const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
 
     const handleSubmit = () => {
-        if (!form.professionalId || !form.leaveStartDate || form.daysRequested < 1) {
+        if (!form.professionalId || !form.leaveType || !form.leaveStartDate || form.daysRequested < 1) {
             toast.error('Preencha todos os campos obrigatórios');
             return;
         }
@@ -58,6 +60,7 @@ export default function LeaveRequestsPage() {
         addRequest({
             professionalId: form.professionalId,
             category: selectedProfessional?.category || 'nurse',
+            leaveType: form.leaveType as LeaveType,
             requestDate: form.requestDate,
             leaveDates,
             daysRequested: form.daysRequested,
@@ -67,6 +70,7 @@ export default function LeaveRequestsPage() {
         toast.success('Pedido de folga registrado com sucesso');
         setForm({
             professionalId: '',
+            leaveType: '',
             requestDate: format(new Date(), 'yyyy-MM-dd'),
             leaveStartDate: '',
             daysRequested: 1,
@@ -126,6 +130,25 @@ export default function LeaveRequestsPage() {
                             )}
 
                             <div>
+                                <Label>Tipo de Afastamento</Label>
+                                <Select
+                                    value={form.leaveType}
+                                    onValueChange={(value) => setForm(prev => ({ ...prev, leaveType: value as LeaveType }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
+                                            <SelectItem key={value} value={value}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
                                 <Label>Data do Pedido</Label>
                                 <Input
                                     type="date"
@@ -182,6 +205,7 @@ export default function LeaveRequestsPage() {
                             <tr>
                                 <th className="text-left p-3">Profissional</th>
                                 <th className="text-left p-3">Categoria</th>
+                                <th className="text-left p-3">Tipo</th>
                                 <th className="text-center p-3">Data do Pedido</th>
                                 <th className="text-center p-3">Dias</th>
                                 <th className="text-left p-3">Período</th>
@@ -192,7 +216,7 @@ export default function LeaveRequestsPage() {
                         <tbody>
                             {requests.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    <td colSpan={8} className="text-center py-8 text-muted-foreground">
                                         Nenhum pedido de folga registrado.
                                     </td>
                                 </tr>
@@ -205,6 +229,11 @@ export default function LeaveRequestsPage() {
                                             <td className="p-3">
                                                 <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm">
                                                     {request.category === 'nurse' ? 'Enfermeiro' : 'Técnico'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className="bg-accent text-accent-foreground px-2 py-0.5 rounded text-sm">
+                                                    {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
                                                 </span>
                                             </td>
                                             <td className="p-3 text-center">
