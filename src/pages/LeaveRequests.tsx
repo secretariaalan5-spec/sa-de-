@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Stethoscope, Syringe } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
@@ -232,78 +232,77 @@ export default function LeaveRequestsPage() {
                 </Dialog>
             </div>
 
-            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted">
-                            <tr>
-                                <th className="text-left p-3">Profissional</th>
-                                <th className="text-left p-3">Categoria</th>
-                                <th className="text-left p-3">Tipo</th>
-                                <th className="text-center p-3">Data do Pedido</th>
-                                <th className="text-center p-3">Dias</th>
-                                <th className="text-left p-3">Período</th>
-                                <th className="text-left p-3">Observações</th>
-                                <th className="text-center p-3">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {requests.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="text-center py-8 text-muted-foreground">
-                                        Nenhum pedido de folga registrado.
-                                    </td>
-                                </tr>
-                            ) : (
-                                requests.map(request => {
-                                    const prof = professionals.find(p => p.id === request.professionalId);
-                                    return (
-                                        <tr key={request.id} className="border-t">
-                                            <td className="p-3 font-medium">{prof?.name || 'Desconhecido'}</td>
-                                            <td className="p-3">
-                                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-sm">
-                                                    {request.category === 'nurse' ? 'Enfermeiro' : 'Técnico'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3">
-                                                <span className="bg-accent text-accent-foreground px-2 py-0.5 rounded text-sm">
-                                                    {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
-                                            </td>
-                                            <td className="p-3 text-center font-semibold">{request.daysRequested}</td>
-                                            <td className="p-3 text-sm">
-                                                {request.leaveDates.length > 0 && (
-                                                    <>
-                                                        {format(new Date(request.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
-                                                        {request.leaveDates.length > 1 && (
-                                                            <> a {format(new Date(request.leaveDates[request.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </td>
-                                            <td className="p-3 text-sm text-muted-foreground">
-                                                {request.observations || '-'}
-                                            </td>
-                                            <td className="p-3 text-center">
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => deleteRequest(request.id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+            {requests.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
+                    Nenhum pedido de folga registrado.
                 </div>
-            </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {requests.map(request => {
+                        const prof = professionals.find(p => p.id === request.professionalId);
+                        const startDate = request.leaveDates[0];
+                        const endDate = request.leaveDates[request.leaveDates.length - 1];
+
+                        return (
+                            <div key={request.id} className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {request.category === 'nurse' ? (
+                                            <Stethoscope className="w-4 h-4 text-primary" />
+                                        ) : (
+                                            <Syringe className="w-4 h-4 text-primary" />
+                                        )}
+                                        <span className="font-semibold text-sm">{prof?.name || 'Desconhecido'}</span>
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        onClick={() => deleteRequest(request.id)}
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                    </Button>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                        {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                    </span>
+                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
+                                        {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div className="bg-muted/50 rounded-lg p-2">
+                                        <div className="text-xs text-muted-foreground">Período</div>
+                                        <div className="font-medium">
+                                            {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
+                                            {endDate && endDate !== startDate && (
+                                                <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="bg-muted/50 rounded-lg p-2">
+                                        <div className="text-xs text-muted-foreground">Duração</div>
+                                        <div className="font-bold text-primary">{request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}</div>
+                                    </div>
+                                </div>
+
+                                {request.observations && (
+                                    <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
+                                        {request.observations}
+                                    </p>
+                                )}
+
+                                <div className="text-[11px] text-muted-foreground">
+                                    Registrado em {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

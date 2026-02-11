@@ -188,22 +188,6 @@ export default function ServiceReportsPage() {
                     </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {profs.map(prof => {
-                        const stats = getMonthlyStats(prof.id, prof);
-                        if (stats.workedDays === 0) return null;
-                        return (
-                            <div key={prof.id} className="bg-muted/50 rounded-lg p-3 border border-border">
-                                <p className="font-medium text-sm truncate">{prof.name}</p>
-                                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                                    <span>{stats.workedDays} dias</span>
-                                    <span className="text-amber-600 dark:text-amber-400">{stats.weekendDays} FDS</span>
-                                    <span className="text-primary font-medium">+{stats.creditsGenerated} créditos</span>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
             </div>
         );
     };
