@@ -8,7 +8,7 @@ import { CreditsStatsTable } from '@/components/service-schedule/CreditsStatsTab
 
 export default function ServiceScheduleNurses() {
     const { getNurses } = useServiceProfessionals();
-    const { getTotalCreditsUsedByProfessional } = useLeaveRequests();
+    const { requests, getTotalCreditsUsedByProfessional } = useLeaveRequests();
     const {
         entries,
         allEntries,
@@ -40,6 +40,7 @@ export default function ServiceScheduleNurses() {
                 onAddEntry={addEntry}
                 onRemoveEntry={removeEntry}
                 getEntriesForDate={getEntriesForDate}
+                leaveRequests={requests}
             />
 
             <CreditsStatsTable

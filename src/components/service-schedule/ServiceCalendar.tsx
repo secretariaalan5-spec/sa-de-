@@ -7,7 +7,8 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths,
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Plus, X, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ServiceProfessional, ServiceScheduleEntry } from '@/types/serviceSchedule';
+import { ServiceProfessional, ServiceScheduleEntry, LeaveRequest } from '@/types/serviceSchedule';
+import { toast } from 'sonner';
 
 interface ServiceCalendarProps {
     type: 'nurse' | 'tech';
@@ -17,6 +18,7 @@ interface ServiceCalendarProps {
     onAddEntry: (professionalId: string, date: string) => boolean;
     onRemoveEntry: (entryId: string) => void;
     getEntriesForDate: (date: string) => ServiceScheduleEntry[];
+    leaveRequests?: LeaveRequest[];
 }
 
 export function ServiceCalendar({
@@ -27,6 +29,7 @@ export function ServiceCalendar({
     onAddEntry,
     onRemoveEntry,
     getEntriesForDate,
+    leaveRequests = [],
 }: ServiceCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -45,6 +48,16 @@ export function ServiceCalendar({
 
     const handleAddProfessional = () => {
         if (selectedDate && selectedProfessional) {
+            // Check if professional is on leave on this date
+            const isOnLeave = leaveRequests.some(r =>
+                r.professionalId === selectedProfessional &&
+                r.status === 'approved' &&
+                r.leaveDates.includes(selectedDate)
+            );
+            if (isOnLeave) {
+                toast.error('Este profissional está de folga/afastado nesta data.');
+                return;
+            }
             const success = onAddEntry(selectedProfessional, selectedDate);
             if (success) {
                 setSelectedProfessional('');
