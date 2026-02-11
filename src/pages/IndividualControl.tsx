@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useServiceStats } from '@/hooks/useServiceStats';
-import { Stethoscope, Syringe, Calendar, TrendingUp, TrendingDown, Download } from 'lucide-react';
+import { Stethoscope, Syringe, Calendar, TrendingUp, TrendingDown, Download, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { parseISO, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -289,8 +291,13 @@ export default function IndividualControlPage() {
         doc.save(`controle-${prof.name.toLowerCase().replace(/\s+/g, '-')}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     };
 
-    const nurses = professionals.filter(p => p.category === 'nurse');
-    const techs = professionals.filter(p => p.category === 'tech');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredProfessionals = professionals.filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const nurses = filteredProfessionals.filter(p => p.category === 'nurse');
+    const techs = filteredProfessionals.filter(p => p.category === 'tech');
 
     const renderProfessionalCard = (prof: typeof professionals[0]) => {
         const stats = getFullStatsForProfessional(prof);
@@ -384,6 +391,16 @@ export default function IndividualControlPage() {
                 title="Controle Individual"
                 description="Visualize os créditos e folgas de cada profissional"
             />
+
+            <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar profissional..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                />
+            </div>
 
             <div>
                 <div className="flex items-center gap-2 mb-4">
