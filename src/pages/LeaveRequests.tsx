@@ -58,12 +58,32 @@ export default function LeaveRequestsPage() {
             return;
         }
 
+        // Check for date conflicts with existing leave requests
         const startDate = new Date(form.leaveStartDate + 'T00:00:00');
-        const leaveDates: string[] = [];
+        const newLeaveDates: string[] = [];
         for (let i = 0; i < daysRequested; i++) {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
-            leaveDates.push(format(date, 'yyyy-MM-dd'));
+            newLeaveDates.push(format(date, 'yyyy-MM-dd'));
+        }
+
+        const existingDates = requests
+            .filter(r => r.professionalId === form.professionalId && r.status === 'approved')
+            .flatMap(r => r.leaveDates);
+
+        const conflictDate = newLeaveDates.find(d => existingDates.includes(d));
+        if (conflictDate) {
+            toast.error(`Já existe um afastamento registrado para ${format(new Date(conflictDate + 'T00:00:00'), 'dd/MM/yyyy')}`);
+            return;
+        }
+
+        // Check for conflicts with schedule entries
+        const scheduleConflict = newLeaveDates.find(d =>
+            allEntries.some(e => e.professionalId === form.professionalId && e.date === d)
+        );
+        if (scheduleConflict) {
+            toast.error(`Profissional está escalado em ${format(new Date(scheduleConflict + 'T00:00:00'), 'dd/MM/yyyy')}. Remova da escala antes.`);
+            return;
         }
 
         addRequest({
@@ -71,7 +91,7 @@ export default function LeaveRequestsPage() {
             category: selectedProfessional?.category || 'nurse',
             leaveType: form.leaveType as LeaveType,
             requestDate: form.requestDate,
-            leaveDates,
+            leaveDates: newLeaveDates,
             daysRequested,
             observations: form.observations,
         });
