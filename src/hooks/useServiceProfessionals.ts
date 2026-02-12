@@ -6,7 +6,8 @@ const STORAGE_KEY = 'serviceProfessionals';
 export function useServiceProfessionals() {
     const [professionals, setProfessionals] = useState<ServiceProfessional[]>(() => {
         const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : [];
+        const list: ServiceProfessional[] = stored ? JSON.parse(stored) : [];
+        return list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     });
 
     useEffect(() => {
@@ -18,13 +19,13 @@ export function useServiceProfessionals() {
             ...professional,
             id: crypto.randomUUID(),
         };
-        setProfessionals(prev => [...prev, newProfessional]);
+        setProfessionals(prev => [...prev, newProfessional].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
         return newProfessional;
     }, []);
 
     const updateProfessional = useCallback((id: string, updates: Partial<ServiceProfessional>) => {
         setProfessionals(prev => 
-            prev.map(p => p.id === id ? { ...p, ...updates } : p)
+            prev.map(p => p.id === id ? { ...p, ...updates } : p).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
         );
     }, []);
 

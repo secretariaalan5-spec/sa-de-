@@ -238,7 +238,7 @@ export default function LeaveRequestsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {requests.map(request => {
+                    {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(request => {
                         const prof = professionals.find(p => p.id === request.professionalId);
                         const startDate = request.leaveDates[0];
                         const endDate = request.leaveDates[request.leaveDates.length - 1];
