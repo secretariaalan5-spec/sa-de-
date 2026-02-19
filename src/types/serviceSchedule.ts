@@ -37,6 +37,7 @@ export interface LeaveRequest {
     requestDate: string;
     leaveDates: string[];
     daysRequested: number;
+    absenceType?: 'folga' | 'ferias' | 'licenca' | 'atestado'; // Tipo de ausência
     observations?: string;
     status: 'pending' | 'approved' | 'rejected';
     createdAt: string;

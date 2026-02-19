@@ -1,9 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Copy, Link, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
 // Storage keys for service schedule data
 const SERVICE_STORAGE_KEYS = {
   professionals: 'serviceProfessionals',
@@ -27,11 +29,47 @@ interface FullBackupData {
 export default function Settings() {
   const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // ── Link do portal ──
+  const portalUrl = `${window.location.origin}/portal`;
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedKey(key);
+      toast.success('Copiado!');
+      setTimeout(() => setCopiedKey(null), 2000);
+    });
+  };
+
+  const portalGroups = [
+    {
+      key: 'emult',
+      label: 'eMult',
+      code: 'EMULT2025',
+      color: 'bg-primary/10 border-primary/30 text-primary',
+      badge: 'bg-primary/10 text-primary',
+    },
+    {
+      key: 'nurse',
+      label: 'Enfermeiros',
+      code: 'ENFERMEIRO2025',
+      color: 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300',
+      badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    },
+    {
+      key: 'tech',
+      label: 'Técnicos',
+      code: 'TECNICO2025',
+      color: 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300',
+      badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    },
+  ];
 
   const handleExport = () => {
     // Get eMult data
     const emultData = JSON.parse(exportData());
-    
+
     // Get service schedule data from localStorage
     const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
     const serviceEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]');
@@ -72,18 +110,18 @@ export default function Settings() {
       const content = e.target?.result as string;
       try {
         const parsed = JSON.parse(content);
-        
+
         // Check if it's the new full backup format (version 2)
         if (parsed.backupVersion === 2 && parsed.emult && parsed.serviceSchedule) {
           // Import eMult data
           const emultSuccess = importData(JSON.stringify(parsed.emult));
-          
+
           // Import service schedule data
           localStorage.setItem(SERVICE_STORAGE_KEYS.professionals, JSON.stringify(parsed.serviceSchedule.professionals || []));
           localStorage.setItem(SERVICE_STORAGE_KEYS.entries, JSON.stringify(parsed.serviceSchedule.entries || []));
           localStorage.setItem(SERVICE_STORAGE_KEYS.creditsUsed, JSON.stringify(parsed.serviceSchedule.creditsUsed || {}));
           localStorage.setItem(SERVICE_STORAGE_KEYS.leaveRequests, JSON.stringify(parsed.serviceSchedule.leaveRequests || []));
-          
+
           if (emultSuccess) {
             toast.success('Backup completo importado com sucesso');
             // Reload to refresh all hooks
@@ -117,13 +155,13 @@ export default function Settings() {
       if (confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos.')) {
         // Reset eMult data
         resetData();
-        
+
         // Reset service schedule data
         localStorage.removeItem(SERVICE_STORAGE_KEYS.professionals);
         localStorage.removeItem(SERVICE_STORAGE_KEYS.entries);
         localStorage.removeItem(SERVICE_STORAGE_KEYS.creditsUsed);
         localStorage.removeItem(SERVICE_STORAGE_KEYS.leaveRequests);
-        
+
         toast.success('Todos os dados foram resetados');
         window.location.reload();
       }
@@ -135,10 +173,107 @@ export default function Settings() {
     <div className="animate-fade-in">
       <PageHeader
         title="Configurações"
-        description="Backup e restauração de dados"
+        description="Backup, restauração e links de acesso"
       />
 
       <div className="space-y-6 max-w-2xl">
+
+        {/* ── Link do Portal ── */}
+        <div className="form-section">
+          <h3 className="font-semibold mb-1 flex items-center gap-2">
+            <Link className="w-4 h-4 text-primary" />
+            Link do Portal de Visualização
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Copie o link abaixo e envie para os profissionais. Cada grupo usa um código diferente para acessar apenas a sua escala.
+          </p>
+
+          {/* URL */}
+          <div className="flex items-center gap-2 mb-5 flex-wrap">
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-muted rounded-lg px-4 py-2.5 font-mono text-sm border border-border text-primary underline underline-offset-2 hover:bg-muted/70 transition-colors truncate block"
+            >
+              {portalUrl}
+            </a>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => window.open(portalUrl, '_blank')}
+              >
+                <Link className="w-4 h-4" />
+                Abrir Portal
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => copyToClipboard(portalUrl, 'url')}
+              >
+                {copiedKey === 'url'
+                  ? <Check className="w-4 h-4 text-green-600" />
+                  : <Copy className="w-4 h-4" />}
+                {copiedKey === 'url' ? 'Copiado!' : 'Copiar'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Códigos por grupo */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            Códigos de acesso por grupo
+          </p>
+          <div className="space-y-3">
+            {portalGroups.map(group => (
+              <div
+                key={group.key}
+                className={cn('rounded-xl border p-4 flex items-center justify-between gap-3', group.color)}
+              >
+                <div className="min-w-0">
+                  <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full mb-1 inline-block', group.badge)}>
+                    {group.label}
+                  </span>
+                  <div className="font-mono font-bold text-xl tracking-widest">{group.code}</div>
+                  <p className="text-xs opacity-60 mt-0.5 truncate">
+                    "{`Acesse ${portalUrl} — código: ${group.code}`}"
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-8 text-xs"
+                    onClick={() => copyToClipboard(group.code, `code-${group.key}`)}
+                  >
+                    {copiedKey === `code-${group.key}`
+                      ? <Check className="w-3.5 h-3.5" />
+                      : <Copy className="w-3.5 h-3.5" />}
+                    Código
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-8 text-xs"
+                    onClick={() =>
+                      copyToClipboard(
+                        `Acesse ${portalUrl} e use o código ${group.code} para visualizar sua escala.`,
+                        `msg-${group.key}`
+                      )
+                    }
+                  >
+                    {copiedKey === `msg-${group.key}`
+                      ? <Check className="w-3.5 h-3.5" />
+                      : <Copy className="w-3.5 h-3.5" />}
+                    Mensagem
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Backup */}
         <div className="form-section">
