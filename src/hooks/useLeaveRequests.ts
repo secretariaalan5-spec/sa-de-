@@ -1,34 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
-import { supabase } from '@/integrations/supabase/client';
-
-const BASE_STORAGE_KEY = 'leaveRequests';
+import { useServiceState } from './useServiceState';
 
 export function useLeaveRequests() {
-    const [userId, setUserId] = useState<string | null>(null);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
-
-    const [requests, setRequests] = useState<LeaveRequest[]>(() => {
-        const stored = localStorage.getItem(storageKey);
-        return stored ? JSON.parse(stored) : [];
-    });
-
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(requests));
-    }, [requests, storageKey]);
+    const { state, updateServiceState, loading } = useServiceState();
+    const requests = state.requests;
 
     const addRequest = useCallback((request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
         const newRequest: LeaveRequest = {
@@ -37,19 +13,26 @@ export function useLeaveRequests() {
             status: 'approved', // Auto-approved since it's manual registration
             createdAt: new Date().toISOString(),
         };
-        setRequests(prev => [...prev, newRequest]);
+        updateServiceState(prev => ({
+            ...prev,
+            requests: [...prev.requests, newRequest]
+        }));
         return newRequest;
-    }, []);
+    }, [updateServiceState]);
 
     const updateRequest = useCallback((id: string, updates: Partial<LeaveRequest>) => {
-        setRequests(prev =>
-            prev.map(r => r.id === id ? { ...r, ...updates } : r)
-        );
-    }, []);
+        updateServiceState(prev => ({
+            ...prev,
+            requests: prev.requests.map(r => r.id === id ? { ...r, ...updates } : r)
+        }));
+    }, [updateServiceState]);
 
     const deleteRequest = useCallback((id: string) => {
-        setRequests(prev => prev.filter(r => r.id !== id));
-    }, []);
+        updateServiceState(prev => ({
+            ...prev,
+            requests: prev.requests.filter(r => r.id !== id)
+        }));
+    }, [updateServiceState]);
 
     const getRequestsByProfessional = useCallback((professionalId: string) => {
         return requests.filter(r => r.professionalId === professionalId);
@@ -63,6 +46,7 @@ export function useLeaveRequests() {
 
     return {
         requests,
+        loading,
         addRequest,
         updateRequest,
         deleteRequest,

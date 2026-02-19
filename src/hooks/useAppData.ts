@@ -10,6 +10,7 @@ import {
 } from '@/types';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const DEFAULT_FUNCTIONS: ProfessionalFunction[] = [
   { id: '1', name: 'Psicólogo', color: '#8B5CF6' },
@@ -28,11 +29,12 @@ const INITIAL_DATA: AppData = {
   restrictions: [],
 };
 
-const BASE_STORAGE_KEY = 'emult-escala-data';
-
 export function useAppData() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [data, setData] = useState<AppData>(INITIAL_DATA);
+  const [loading, setLoading] = useState(true);
 
+  // Sync with Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id || null);
@@ -45,119 +47,176 @@ export function useAppData() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
-  const [data, setData] = useLocalStorage<AppData>(storageKey, INITIAL_DATA);
+  // Fetch from Supabase when userId is available
+  useEffect(() => {
+    if (!userId) {
+      setData(INITIAL_DATA);
+      setLoading(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const { data: stateData, error } = await (supabase
+          .from('admin_states' as any)
+          .select('emult_state')
+          .eq('user_id', userId)
+          .maybeSingle() as any);
+
+        if (error) throw error;
+        if (stateData?.emult_state) {
+          setData(stateData.emult_state as unknown as AppData);
+        } else {
+          setData(INITIAL_DATA);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados do eMulti:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId]);
+
+  // Save to Supabase helper
+  const saveToSupabase = async (newData: AppData) => {
+    if (!userId) return;
+    try {
+      const { error } = await (supabase
+        .from('admin_states' as any)
+        .upsert({
+          user_id: userId,
+          emult_state: newData as any,
+          updated_at: new Date().toISOString()
+        }) as any);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Erro ao salvar dados no Supabase:', err);
+      toast.error('Erro ao sincronizar dados com a nuvem.');
+    }
+  };
+
+  // Wrapped update function
+  const updateData = useCallback((updater: AppData | ((prev: AppData) => AppData)) => {
+    setData(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      saveToSupabase(next);
+      return next;
+    });
+  }, [userId]);
 
   // Professionals
   const addProfessional = useCallback((professional: Omit<Professional, 'id'>) => {
     const newProfessional = { ...professional, id: crypto.randomUUID() };
-    setData(prev => ({ ...prev, professionals: [...prev.professionals, newProfessional] }));
+    updateData(prev => ({ ...prev, professionals: [...prev.professionals, newProfessional] }));
     return newProfessional;
-  }, [setData]);
+  }, [updateData]);
 
   const updateProfessional = useCallback((id: string, updates: Partial<Professional>) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       professionals: prev.professionals.map(p => p.id === id ? { ...p, ...updates } : p)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   const deleteProfessional = useCallback((id: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       professionals: prev.professionals.filter(p => p.id !== id),
       schedule: prev.schedule.filter(s => s.professionalId !== id),
       restrictions: prev.restrictions.filter(r => r.professionalId !== id && r.targetId !== id)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   // Units
   const addUnit = useCallback((unit: Omit<Unit, 'id'>) => {
     const newUnit = { ...unit, id: crypto.randomUUID() };
-    setData(prev => ({ ...prev, units: [...prev.units, newUnit] }));
+    updateData(prev => ({ ...prev, units: [...prev.units, newUnit] }));
     return newUnit;
-  }, [setData]);
+  }, [updateData]);
 
   const updateUnit = useCallback((id: string, updates: Partial<Unit>) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       units: prev.units.map(u => u.id === id ? { ...u, ...updates } : u)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   const deleteUnit = useCallback((id: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       units: prev.units.filter(u => u.id !== id),
       schedule: prev.schedule.filter(s => s.unitId !== id),
       restrictions: prev.restrictions.filter(r => r.targetId !== id)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   // Functions
   const addFunction = useCallback((func: Omit<ProfessionalFunction, 'id'>) => {
     const newFunc = { ...func, id: crypto.randomUUID() };
-    setData(prev => ({ ...prev, functions: [...prev.functions, newFunc] }));
+    updateData(prev => ({ ...prev, functions: [...prev.functions, newFunc] }));
     return newFunc;
-  }, [setData]);
+  }, [updateData]);
 
   const updateFunction = useCallback((id: string, updates: Partial<ProfessionalFunction>) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       functions: prev.functions.map(f => f.id === id ? { ...f, ...updates } : f)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   const deleteFunction = useCallback((id: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       functions: prev.functions.filter(f => f.id !== id)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   // Schedule
   const addScheduleEntry = useCallback((entry: Omit<ScheduleEntry, 'id'>) => {
     const newEntry = { ...entry, id: crypto.randomUUID() };
-    setData(prev => ({ ...prev, schedule: [...prev.schedule, newEntry] }));
+    updateData(prev => ({ ...prev, schedule: [...prev.schedule, newEntry] }));
     return newEntry;
-  }, [setData]);
+  }, [updateData]);
 
   const updateScheduleEntry = useCallback((id: string, updates: Partial<ScheduleEntry>) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       schedule: prev.schedule.map(s => s.id === id ? { ...s, ...updates } : s)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   const deleteScheduleEntry = useCallback((id: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       schedule: prev.schedule.filter(s => s.id !== id)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   const clearScheduleForProfessional = useCallback((professionalId: string, day?: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       schedule: prev.schedule.filter(s =>
         !(s.professionalId === professionalId && (!day || s.dayOfWeek === day))
       )
     }));
-  }, [setData]);
+  }, [updateData]);
 
   // Restrictions
   const addRestriction = useCallback((restriction: Omit<Restriction, 'id'>) => {
     const newRestriction = { ...restriction, id: crypto.randomUUID() };
-    setData(prev => ({ ...prev, restrictions: [...prev.restrictions, newRestriction] }));
+    updateData(prev => ({ ...prev, restrictions: [...prev.restrictions, newRestriction] }));
     return newRestriction;
-  }, [setData]);
+  }, [updateData]);
 
   const deleteRestriction = useCallback((id: string) => {
-    setData(prev => ({
+    updateData(prev => ({
       ...prev,
       restrictions: prev.restrictions.filter(r => r.id !== id)
     }));
-  }, [setData]);
+  }, [updateData]);
 
   // Validation helpers
   const getWeeklyHoursUsed = useCallback((professionalId: string) => {
@@ -242,19 +301,20 @@ export function useAppData() {
   const importData = useCallback((jsonString: string) => {
     try {
       const imported = JSON.parse(jsonString) as AppData;
-      setData(imported);
+      updateData(imported);
       return true;
     } catch {
       return false;
     }
-  }, [setData]);
+  }, [updateData]);
 
   const resetData = useCallback(() => {
-    setData(INITIAL_DATA);
-  }, [setData]);
+    updateData(INITIAL_DATA);
+  }, [updateData]);
 
   return {
     data,
+    loading,
     // Professionals
     addProfessional,
     updateProfessional,
@@ -284,5 +344,6 @@ export function useAppData() {
     exportData,
     importData,
     resetData,
+    userId
   };
 }

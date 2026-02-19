@@ -1,54 +1,39 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';
-import { supabase } from '@/integrations/supabase/client';
-
-const BASE_STORAGE_KEY = 'serviceProfessionals';
+import { useServiceState } from './useServiceState';
 
 export function useServiceProfessionals() {
-    const [userId, setUserId] = useState<string | null>(null);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
-
-    const [professionals, setProfessionals] = useState<ServiceProfessional[]>(() => {
-        const stored = localStorage.getItem(storageKey);
-        const list: ServiceProfessional[] = stored ? JSON.parse(stored) : [];
-        return list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    });
-
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(professionals));
-    }, [professionals, storageKey]);
+    const { state, updateServiceState, loading } = useServiceState();
+    const professionals = state.professionals;
 
     const addProfessional = useCallback((professional: Omit<ServiceProfessional, 'id'>) => {
         const newProfessional: ServiceProfessional = {
             ...professional,
             id: crypto.randomUUID(),
         };
-        setProfessionals(prev => [...prev, newProfessional].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
+        updateServiceState(prev => ({
+            ...prev,
+            professionals: [...prev.professionals, newProfessional].sort((a, b) =>
+                a.name.localeCompare(b.name, 'pt-BR')
+            )
+        }));
         return newProfessional;
-    }, []);
+    }, [updateServiceState]);
 
     const updateProfessional = useCallback((id: string, updates: Partial<ServiceProfessional>) => {
-        setProfessionals(prev =>
-            prev.map(p => p.id === id ? { ...p, ...updates } : p).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-        );
-    }, []);
+        updateServiceState(prev => ({
+            ...prev,
+            professionals: prev.professionals.map(p => p.id === id ? { ...p, ...updates } : p)
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+        }));
+    }, [updateServiceState]);
 
     const deleteProfessional = useCallback((id: string) => {
-        setProfessionals(prev => prev.filter(p => p.id !== id));
-    }, []);
+        updateServiceState(prev => ({
+            ...prev,
+            professionals: prev.professionals.filter(p => p.id !== id)
+        }));
+    }, [updateServiceState]);
 
     const getNurses = useCallback(() => {
         return professionals.filter(p => p.category === 'nurse' && p.active);
@@ -60,6 +45,7 @@ export function useServiceProfessionals() {
 
     return {
         professionals,
+        loading,
         addProfessional,
         updateProfessional,
         deleteProfessional,

@@ -1,38 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ServiceScheduleEntry } from '@/types/serviceSchedule';
 import { isWeekend, parseISO } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-
-const BASE_STORAGE_KEY_ENTRIES = 'serviceSchedule_entries';
+import { useServiceState } from './useServiceState';
 
 export function useServiceSchedule(type: 'nurse' | 'tech') {
-    const [userId, setUserId] = useState<string | null>(null);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUserId(session?.user?.id || null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
-
-    const storageKey = userId ? `${BASE_STORAGE_KEY_ENTRIES}:${userId}` : BASE_STORAGE_KEY_ENTRIES;
-
-    const [allEntries, setAllEntries] = useState<ServiceScheduleEntry[]>(() => {
-        const stored = localStorage.getItem(storageKey);
-        return stored ? JSON.parse(stored) : [];
-    });
+    const { state, updateServiceState, loading } = useServiceState();
+    const allEntries = state.entries;
 
     // Filter entries by type
     const entries = allEntries.filter(e => e.type === type);
-
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(allEntries));
-    }, [allEntries, storageKey]);
 
     const addEntry = useCallback((professionalId: string, date: string, status?: ServiceScheduleEntry['status']) => {
         // Check if entry already exists for this professional on this date
@@ -58,13 +34,19 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
             isWeekend: isWeekendDay,
         };
 
-        setAllEntries(prev => [...prev, newEntry]);
+        updateServiceState(prev => ({
+            ...prev,
+            entries: [...prev.entries, newEntry]
+        }));
         return true;
-    }, [allEntries, type]);
+    }, [allEntries, type, updateServiceState]);
 
     const removeEntry = useCallback((entryId: string) => {
-        setAllEntries(prev => prev.filter(e => e.id !== entryId));
-    }, []);
+        updateServiceState(prev => ({
+            ...prev,
+            entries: prev.entries.filter(e => e.id !== entryId)
+        }));
+    }, [updateServiceState]);
 
     const getEntriesForDate = useCallback((date: string) => {
         return entries.filter(e => e.date === date);
@@ -73,6 +55,7 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
     return {
         entries,
         allEntries,
+        loading,
         addEntry,
         removeEntry,
         getEntriesForDate,

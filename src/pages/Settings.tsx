@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
@@ -8,29 +8,26 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-// Storage keys for service schedule data
-const SERVICE_STORAGE_KEYS = {
-  professionals: 'serviceProfessionals',
-  entries: 'serviceSchedule_entries',
-  creditsUsed: 'serviceSchedule_creditsUsed',
-  leaveRequests: 'leaveRequests',
-};
+import { useServiceState } from '@/hooks/useServiceState';
+import { useSettingsActions } from '@/hooks/useSettingsActions';
 
 interface FullBackupData {
-  emult: ReturnType<typeof JSON.parse>;
+  emult: any;
   serviceSchedule: {
-    professionals: unknown[];
-    entries: unknown[];
+    professionals: any[];
+    entries: any[];
     creditsUsed: Record<string, number>;
-    leaveRequests: unknown[];
+    leaveRequests: any[];
   };
   backupVersion: number;
   backupDate: string;
 }
 
 export default function Settings() {
-  const { exportData, importData, resetData } = useAppData();
+  const { exportData, importData } = useAppData();
+  const { state: serviceState, updateServiceState } = useServiceState();
+  const { resetAllCloudData } = useSettingsActions();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [lastPublished, setLastPublished] = useState<string | null>(null);
@@ -94,22 +91,16 @@ export default function Settings() {
   ];
 
   const handleExport = () => {
-    // Get eMult data
+    // Get eMult data from cloud hook
     const emultData = JSON.parse(exportData());
-
-    // Get service schedule data from localStorage
-    const serviceProfessionals = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.professionals) || '[]');
-    const serviceEntries = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.entries) || '[]');
-    const serviceCreditsUsed = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.creditsUsed) || '{}');
-    const leaveRequests = JSON.parse(localStorage.getItem(SERVICE_STORAGE_KEYS.leaveRequests) || '[]');
 
     const fullBackup: FullBackupData = {
       emult: emultData,
       serviceSchedule: {
-        professionals: serviceProfessionals,
-        entries: serviceEntries,
-        creditsUsed: serviceCreditsUsed,
-        leaveRequests: leaveRequests,
+        professionals: serviceState.professionals,
+        entries: serviceState.entries,
+        creditsUsed: {}, // Placeholder as it's computed now
+        leaveRequests: serviceState.requests,
       },
       backupVersion: 2,
       backupDate: new Date().toISOString(),
@@ -128,12 +119,12 @@ export default function Settings() {
     toast.success('Backup completo exportado (eMult + Escalas de Serviço)');
   };
 
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const content = e.target?.result as string;
       try {
         const parsed = JSON.parse(content);
@@ -143,16 +134,17 @@ export default function Settings() {
           // Import eMult data
           const emultSuccess = importData(JSON.stringify(parsed.emult));
 
-          // Import service schedule data
-          localStorage.setItem(SERVICE_STORAGE_KEYS.professionals, JSON.stringify(parsed.serviceSchedule.professionals || []));
-          localStorage.setItem(SERVICE_STORAGE_KEYS.entries, JSON.stringify(parsed.serviceSchedule.entries || []));
-          localStorage.setItem(SERVICE_STORAGE_KEYS.creditsUsed, JSON.stringify(parsed.serviceSchedule.creditsUsed || {}));
-          localStorage.setItem(SERVICE_STORAGE_KEYS.leaveRequests, JSON.stringify(parsed.serviceSchedule.leaveRequests || []));
+          // Import service schedule data directly to cloud state
+          updateServiceState(() => ({
+            professionals: parsed.serviceSchedule.professionals || [],
+            entries: parsed.serviceSchedule.entries || [],
+            requests: parsed.serviceSchedule.leaveRequests || [],
+          }));
 
           if (emultSuccess) {
             toast.success('Backup completo importado com sucesso');
-            // Reload to refresh all hooks
-            window.location.reload();
+            // Reload to ensure all components sync with new cloud state
+            setTimeout(() => window.location.reload(), 1000);
           } else {
             toast.error('Erro ao importar dados eMult');
           }
@@ -165,7 +157,8 @@ export default function Settings() {
             toast.error('Erro ao importar dados. Verifique o arquivo.');
           }
         }
-      } catch {
+      } catch (err) {
+        console.error('Erro na importação:', err);
         toast.error('Erro ao ler arquivo de backup');
       }
     };
@@ -177,20 +170,11 @@ export default function Settings() {
     }
   };
 
-  const handleReset = () => {
-    if (confirm('ATENÇÃO: Isso apagará TODOS os dados (eMult + Escalas de Serviço). Esta ação não pode ser desfeita. Continuar?')) {
-      if (confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos.')) {
-        // Reset eMult data
-        resetData();
-
-        // Reset service schedule data
-        localStorage.removeItem(SERVICE_STORAGE_KEYS.professionals);
-        localStorage.removeItem(SERVICE_STORAGE_KEYS.entries);
-        localStorage.removeItem(SERVICE_STORAGE_KEYS.creditsUsed);
-        localStorage.removeItem(SERVICE_STORAGE_KEYS.leaveRequests);
-
-        toast.success('Todos os dados foram resetados');
-        window.location.reload();
+  const handleReset = async () => {
+    if (confirm('ATENÇÃO: Isso apagará TODOS os dados (eMult + Escalas de Serviço) na NUVEM. Esta ação não pode ser desfeita. Continuar?')) {
+      if (confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos para sempre em todos os seus dispositivos.')) {
+        await resetAllCloudData();
+        setTimeout(() => window.location.reload(), 1000);
       }
     }
   };
