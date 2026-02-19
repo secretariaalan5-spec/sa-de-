@@ -8,29 +8,68 @@ import { toast } from 'sonner';
 import { LogIn, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function Login() {
+    const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
+            if (mode === 'login') {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+                if (error) throw error;
+                toast.success('Bem-vindo de volta!');
+            } else {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            full_name: fullName,
+                        },
+                    },
+                });
+                if (error) throw error;
 
-            if (error) throw error;
+                // Se o Supabase retornar uma sessão imediatamente (confirmação automática ligada)
+                if (data?.session) {
+                    toast.success('Conta criada e logada com sucesso!');
+                    navigate('/');
+                    return;
+                }
 
-            toast.success('Bem-vindo de volta! Login realizado com sucesso.');
+                toast.success('Conta criada! Verifique seu e-mail para confirmar (se necessário) e faça login.');
+                setMode('login');
+                setLoading(false);
+                return;
+            }
+
             navigate('/');
         } catch (error: any) {
-            console.error('Erro no login:', error.message);
-            toast.error('Erro ao entrar. Verifique suas credenciais.');
+            console.error('Erro na autenticação:', error);
+
+            let errorMessage = 'Erro na autenticação. Verifique seus dados.';
+
+            if (error.message === 'User already registered') {
+                errorMessage = 'Este e-mail já está cadastrado.';
+            } else if (error.message === 'Email not confirmed') {
+                errorMessage = 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
+            } else if (error.message === 'Invalid login credentials') {
+                errorMessage = 'E-mail ou senha incorretos.';
+            } else {
+                errorMessage = error.message || errorMessage;
+            }
+
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -47,13 +86,33 @@ export default function Login() {
                                 <LogIn className="w-8 h-8 text-white" />
                             </div>
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-1">Área Administrativa</h1>
+                        <h1 className="text-2xl font-bold text-white mb-1">
+                            {mode === 'login' ? 'Área Administrativa' : 'Criar Nova Conta'}
+                        </h1>
                         <p className="text-white/80 text-sm">Escala eMulti & Serviços</p>
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleLogin} className="p-8 space-y-6">
+                    <form onSubmit={handleAuth} className="p-8 space-y-5">
                         <div className="space-y-4">
+                            {mode === 'signup' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="fullName">Nome Completo</Label>
+                                    <div className="relative">
+                                        <LogIn className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <Input
+                                            id="fullName"
+                                            type="text"
+                                            placeholder="Seu nome"
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            className="pl-10"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <Label htmlFor="email">E-mail</Label>
                                 <div className="relative">
@@ -102,15 +161,27 @@ export default function Login() {
                             {loading ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Entrando...
+                                    {mode === 'login' ? 'Entrando...' : 'Criando Conta...'}
                                 </>
                             ) : (
-                                'Entrar no Sistema'
+                                mode === 'login' ? 'Entrar no Sistema' : 'Cadastrar Administrador'
                             )}
                         </Button>
 
-                        <div className="pt-2 text-center">
-                            <p className="text-xs text-slate-400">
+                        <div className="text-center pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                                className="text-sm font-medium text-primary hover:underline"
+                            >
+                                {mode === 'login'
+                                    ? 'Não tem uma conta? Clique aqui para criar'
+                                    : 'Já tem uma conta? Clique aqui para entrar'}
+                            </button>
+                        </div>
+
+                        <div className="pt-2 text-center border-t border-slate-100 italic">
+                            <p className="text-[10px] text-slate-400">
                                 Acesso restrito a administradores autorizados.
                             </p>
                         </div>
