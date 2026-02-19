@@ -1,18 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';
+import { supabase } from '@/integrations/supabase/client';
 
-const STORAGE_KEY = 'serviceProfessionals';
+const BASE_STORAGE_KEY = 'serviceProfessionals';
 
 export function useServiceProfessionals() {
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
+
     const [professionals, setProfessionals] = useState<ServiceProfessional[]>(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(storageKey);
         const list: ServiceProfessional[] = stored ? JSON.parse(stored) : [];
         return list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     });
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(professionals));
-    }, [professionals]);
+        localStorage.setItem(storageKey, JSON.stringify(professionals));
+    }, [professionals, storageKey]);
 
     const addProfessional = useCallback((professional: Omit<ServiceProfessional, 'id'>) => {
         const newProfessional: ServiceProfessional = {
@@ -24,7 +41,7 @@ export function useServiceProfessionals() {
     }, []);
 
     const updateProfessional = useCallback((id: string, updates: Partial<ServiceProfessional>) => {
-        setProfessionals(prev => 
+        setProfessionals(prev =>
             prev.map(p => p.id === id ? { ...p, ...updates } : p).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
         );
     }, []);

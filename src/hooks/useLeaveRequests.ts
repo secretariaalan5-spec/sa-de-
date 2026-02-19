@@ -1,17 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
+import { supabase } from '@/integrations/supabase/client';
 
-const STORAGE_KEY = 'leaveRequests';
+const BASE_STORAGE_KEY = 'leaveRequests';
 
 export function useLeaveRequests() {
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
+
     const [requests, setRequests] = useState<LeaveRequest[]>(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(storageKey);
         return stored ? JSON.parse(stored) : [];
     });
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
-    }, [requests]);
+        localStorage.setItem(storageKey, JSON.stringify(requests));
+    }, [requests, storageKey]);
 
     const addRequest = useCallback((request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
         const newRequest: LeaveRequest = {
@@ -25,7 +42,7 @@ export function useLeaveRequests() {
     }, []);
 
     const updateRequest = useCallback((id: string, updates: Partial<LeaveRequest>) => {
-        setRequests(prev => 
+        setRequests(prev =>
             prev.map(r => r.id === id ? { ...r, ...updates } : r)
         );
     }, []);

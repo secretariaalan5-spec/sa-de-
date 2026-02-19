@@ -1,12 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ServiceScheduleEntry } from '@/types/serviceSchedule';
 import { isWeekend, parseISO } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
-const STORAGE_KEY_ENTRIES = 'serviceSchedule_entries';
+const BASE_STORAGE_KEY_ENTRIES = 'serviceSchedule_entries';
 
 export function useServiceSchedule(type: 'nurse' | 'tech') {
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const storageKey = userId ? `${BASE_STORAGE_KEY_ENTRIES}:${userId}` : BASE_STORAGE_KEY_ENTRIES;
+
     const [allEntries, setAllEntries] = useState<ServiceScheduleEntry[]>(() => {
-        const stored = localStorage.getItem(STORAGE_KEY_ENTRIES);
+        const stored = localStorage.getItem(storageKey);
         return stored ? JSON.parse(stored) : [];
     });
 
@@ -14,17 +31,17 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
     const entries = allEntries.filter(e => e.type === type);
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(allEntries));
-    }, [allEntries]);
+        localStorage.setItem(storageKey, JSON.stringify(allEntries));
+    }, [allEntries, storageKey]);
 
     const addEntry = useCallback((professionalId: string, date: string, status?: ServiceScheduleEntry['status']) => {
         // Check if entry already exists for this professional on this date
-        const exists = allEntries.some(e => 
-            e.professionalId === professionalId && 
-            e.date === date && 
+        const exists = allEntries.some(e =>
+            e.professionalId === professionalId &&
+            e.date === date &&
             e.type === type
         );
-        
+
         if (exists) {
             return false;
         }
@@ -40,7 +57,7 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
             status: status || 'normal',
             isWeekend: isWeekendDay,
         };
-        
+
         setAllEntries(prev => [...prev, newEntry]);
         return true;
     }, [allEntries, type]);

@@ -1,14 +1,15 @@
 import { useLocalStorage } from './useLocalStorage';
-import { 
-  AppData, 
-  Professional, 
-  Unit, 
-  ProfessionalFunction, 
-  ScheduleEntry, 
+import {
+  AppData,
+  Professional,
+  Unit,
+  ProfessionalFunction,
+  ScheduleEntry,
   Restriction,
   PERIODS
 } from '@/types';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_FUNCTIONS: ProfessionalFunction[] = [
   { id: '1', name: 'Psicólogo', color: '#8B5CF6' },
@@ -27,8 +28,25 @@ const INITIAL_DATA: AppData = {
   restrictions: [],
 };
 
+const BASE_STORAGE_KEY = 'emult-escala-data';
+
 export function useAppData() {
-  const [data, setData] = useLocalStorage<AppData>('emult-escala-data', INITIAL_DATA);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const storageKey = userId ? `${BASE_STORAGE_KEY}:${userId}` : BASE_STORAGE_KEY;
+  const [data, setData] = useLocalStorage<AppData>(storageKey, INITIAL_DATA);
 
   // Professionals
   const addProfessional = useCallback((professional: Omit<Professional, 'id'>) => {
@@ -121,7 +139,7 @@ export function useAppData() {
   const clearScheduleForProfessional = useCallback((professionalId: string, day?: string) => {
     setData(prev => ({
       ...prev,
-      schedule: prev.schedule.filter(s => 
+      schedule: prev.schedule.filter(s =>
         !(s.professionalId === professionalId && (!day || s.dayOfWeek === day))
       )
     }));
@@ -159,16 +177,16 @@ export function useAppData() {
 
   const checkProfessionalRestriction = useCallback((prof1Id: string, prof2Id: string) => {
     return data.restrictions.find(
-      r => r.type === 'professional' && 
+      r => r.type === 'professional' &&
         ((r.professionalId === prof1Id && r.targetId === prof2Id) ||
-         (r.professionalId === prof2Id && r.targetId === prof1Id))
+          (r.professionalId === prof2Id && r.targetId === prof1Id))
     );
   }, [data.restrictions]);
 
   const validateScheduleEntry = useCallback((entry: Omit<ScheduleEntry, 'id'>) => {
     const errors: string[] = [];
     const professional = data.professionals.find(p => p.id === entry.professionalId);
-    
+
     if (!professional) {
       errors.push('Profissional não encontrado');
       return errors;
@@ -189,11 +207,11 @@ export function useAppData() {
 
     // Check professional conflicts (same day, same period)
     const sameDayEntries = data.schedule.filter(
-      s => s.dayOfWeek === entry.dayOfWeek && 
-           s.unitId === entry.unitId && 
-           s.professionalId !== entry.professionalId
+      s => s.dayOfWeek === entry.dayOfWeek &&
+        s.unitId === entry.unitId &&
+        s.professionalId !== entry.professionalId
     );
-    
+
     for (const existing of sameDayEntries) {
       const restriction = checkProfessionalRestriction(entry.professionalId, existing.professionalId);
       if (restriction) {
@@ -208,9 +226,9 @@ export function useAppData() {
     );
 
     if (entry.period === 'integral' && existingEntriesOnDay.length > 0) {
-       errors.push('Não é possível adicionar turno Integral pois já existem agendamentos neste dia.');
+      errors.push('Não é possível adicionar turno Integral pois já existem agendamentos neste dia.');
     } else if (existingEntriesOnDay.some(s => s.period === 'integral')) {
-       errors.push('Não é possível adicionar turno pois já existe um agendamento Integral neste dia.');
+      errors.push('Não é possível adicionar turno pois já existe um agendamento Integral neste dia.');
     }
 
     return errors;

@@ -73,7 +73,16 @@ export function Sidebar() {
   const handlePublish = async () => {
     setIsPublishing(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
+      if (!userId) {
+        toast.error('Você precisa estar logado para publicar.');
+        return;
+      }
+
       const payload = {
+        user_id: userId,
         emult_data: {
           professionals: emultData.professionals,
           units: emultData.units,
