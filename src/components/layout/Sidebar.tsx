@@ -19,10 +19,21 @@ import {
   UserPlus,
   CalendarOff,
   BarChart3,
-  FileText
+  FileText,
+  CloudUpload,
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useAppData } from '@/hooks/useAppData';
+import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
+import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useLeaveRequests } from '@/hooks/useLeaveRequests';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -48,7 +59,55 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isEscalasOpen, setIsEscalasOpen] = useState(false);
   const [isServicosOpen, setIsServicosOpen] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // ── Dados para Publicação ──
+  const { data: emultData } = useAppData();
+  const { professionals: serviceProfs } = useServiceProfessionals();
+  const { allEntries: nurseEntries } = useServiceSchedule('nurse');
+  const { allEntries: techEntries } = useServiceSchedule('tech');
+  const { requests: leaveRequests } = useLeaveRequests();
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const payload = {
+        emult_data: {
+          professionals: emultData.professionals,
+          units: emultData.units,
+          functions: emultData.functions,
+          schedule: emultData.schedule,
+        },
+        service_data: {
+          professionals: serviceProfs,
+          nurseEntries: nurseEntries,
+          techEntries: techEntries,
+          leaveRequests: leaveRequests,
+        },
+        published_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('portal_schedules')
+        .insert([payload as any]);
+
+      if (error) throw error;
+      toast.success('Escalas publicadas no portal com sucesso!');
+    } catch (err) {
+      console.error('Erro ao publicar:', err);
+      toast.error('Erro ao publicar escalas.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success('Você saiu do sistema.');
+    navigate('/login');
+  };
 
   return (
     <>
@@ -153,9 +212,25 @@ export function Sidebar() {
               ))}
             </div>
           )}
+
+          {/* Global Publish Button */}
+          <div className="px-2 pt-4">
+            <Button
+              onClick={handlePublish}
+              disabled={isPublishing}
+              className="w-full bg-primary hover:bg-primary/90 text-white shadow-md gap-2 h-10 transition-all active:scale-95"
+            >
+              {isPublishing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <CloudUpload className="w-4 h-4" />
+              )}
+              {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
+            </Button>
+          </div>
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border space-y-1">
           <NavLink
             to="/configuracoes"
             onClick={() => setMobileOpen(false)}
@@ -167,6 +242,14 @@ export function Sidebar() {
             <Settings size={20} />
             <span>Configurações</span>
           </NavLink>
+
+          <button
+            onClick={handleLogout}
+            className="nav-item w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group text-red-500 hover:text-red-600"
+          >
+            <LogOut size={20} />
+            <span>Sair do Sistema</span>
+          </button>
         </div>
       </aside>
     </>
