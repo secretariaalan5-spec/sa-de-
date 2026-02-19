@@ -65,6 +65,8 @@ export default function Login() {
                 errorMessage = 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
             } else if (error.message === 'Invalid login credentials') {
                 errorMessage = 'E-mail ou senha incorretos.';
+            } else if (error.message.includes('Email rate limit exceeded')) {
+                errorMessage = 'Muitas tentativas de cadastro seguidas. Por favor, aguarde alguns minutos ou desative a confirmação de e-mail no Supabase.';
             } else {
                 errorMessage = error.message || errorMessage;
             }
