@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle, Copy, Link, Check, RefreshCw } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Copy, Link, Check, RefreshCw, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,9 +24,15 @@ interface FullBackupData {
 }
 
 export default function Settings() {
-  const { exportData, importData } = useAppData();
+  const { exportData, importData, userId, portalCodes, updatePortalCodes } = useAppData();
   const { state: serviceState, updateServiceState } = useServiceState();
   const { resetAllCloudData } = useSettingsActions();
+
+  const [localCodes, setLocalCodes] = useState(portalCodes);
+
+  useEffect(() => {
+    setLocalCodes(portalCodes);
+  }, [portalCodes]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export default function Settings() {
   }, []);
 
   // ── Link do portal ──
-  const portalUrl = `${window.location.origin}/portal`;
+  const portalUrl = `${window.location.origin}/portal?admin=${userId || ''}`;
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -70,21 +76,21 @@ export default function Settings() {
     {
       key: 'emult',
       label: 'eMult',
-      code: 'EMULT2025',
+      code: portalCodes.emult,
       color: 'bg-primary/10 border-primary/30 text-primary',
       badge: 'bg-primary/10 text-primary',
     },
     {
       key: 'nurse',
       label: 'Enfermeiros',
-      code: 'ENFERMEIRO2025',
+      code: portalCodes.nurse,
       color: 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300',
       badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     },
     {
       key: 'tech',
       label: 'Técnicos',
-      code: 'TECNICO2025',
+      code: portalCodes.tech,
       color: 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300',
       badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     },
@@ -253,6 +259,54 @@ export default function Settings() {
                 {copiedKey === 'url' ? 'Copiado!' : 'Copiar'}
               </Button>
             </div>
+          </div>
+
+          {/* Edição de Códigos */}
+          <div className="bg-muted/30 rounded-xl p-4 border border-border mb-6">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5 text-primary" />
+              Personalizar Códigos de Acesso
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">eMult</label>
+                <input
+                  type="text"
+                  value={localCodes.emult}
+                  onChange={e => setLocalCodes({ ...localCodes, emult: e.target.value.toUpperCase() })}
+                  className="w-full bg-background border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Enfermeiros</label>
+                <input
+                  type="text"
+                  value={localCodes.nurse}
+                  onChange={e => setLocalCodes({ ...localCodes, nurse: e.target.value.toUpperCase() })}
+                  className="w-full bg-background border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Técnicos</label>
+                <input
+                  type="text"
+                  value={localCodes.tech}
+                  onChange={e => setLocalCodes({ ...localCodes, tech: e.target.value.toUpperCase() })}
+                  className="w-full bg-background border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                />
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="mt-4 w-full sm:w-auto h-8 text-xs gap-2"
+              onClick={() => {
+                updatePortalCodes(localCodes);
+                toast.success('Códigos atualizados com sucesso!');
+              }}
+            >
+              <Check className="w-3.5 h-3.5" />
+              Salvar Novos Códigos
+            </Button>
           </div>
 
           {/* Códigos por grupo */}

@@ -25,6 +25,9 @@ import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
+import { AppDataProvider } from "./contexts/AppDataContext";
+import { ServiceStateProvider } from "./contexts/ServiceStateContext";
+
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -44,7 +47,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) return null; // Ou um loading spinner
+  if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
 
   return <>{children}</>;
@@ -53,34 +56,38 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+      <AppDataProvider>
+        <ServiceStateProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/profissionais" element={<Professionals />} />
-            <Route path="/unidades" element={<Units />} />
-            <Route path="/funcoes" element={<Functions />} />
-            <Route path="/restricoes" element={<Restrictions />} />
-            <Route path="/escala" element={<Schedule />} />
-            <Route path="/visualizacao" element={<Visualization />} />
-            <Route path="/exportar" element={<Export />} />
-            <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
-            <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
-            <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
-            <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
-            <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
-            <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
-            <Route path="/configuracoes" element={<Settings />} />
-          </Route>
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/profissionais" element={<Professionals />} />
+                <Route path="/unidades" element={<Units />} />
+                <Route path="/funcoes" element={<Functions />} />
+                <Route path="/restricoes" element={<Restrictions />} />
+                <Route path="/escala" element={<Schedule />} />
+                <Route path="/visualizacao" element={<Visualization />} />
+                <Route path="/exportar" element={<Export />} />
+                <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
+                <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
+                <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
+                <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
+                <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
+                <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
+                <Route path="/configuracoes" element={<Settings />} />
+              </Route>
 
-          <Route path="/portal" element={<Portal />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+              <Route path="/portal" element={<Portal />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ServiceStateProvider>
+      </AppDataProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

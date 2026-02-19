@@ -40,16 +40,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 
-// ─────────────────────────────────────────
-// Códigos de acesso por grupo
-// ─────────────────────────────────────────
-const ACCESS_CODES: Record<string, AccessLevel> = {
-  EMULT2025: 'emult',
-  ENFERMEIRO2025: 'nurse',
-  TECNICO2025: 'tech',
-};
-
 type AccessLevel = 'emult' | 'nurse' | 'tech';
+
+interface PortalCodes {
+  emult: string;
+  nurse: string;
+  tech: string;
+}
+
+const DEFAULT_PORTAL_CODES: PortalCodes = {
+  emult: 'EMULT2025',
+  nurse: 'ENFERMEIRO2025',
+  tech: 'TECNICO2025',
+};
 
 // ─────────────────────────────────────────
 // Tipos portal
@@ -116,7 +119,13 @@ const PERIODS = [
 // ─────────────────────────────────────────
 // Tela de Login
 // ─────────────────────────────────────────
-function LoginScreen({ onAccess }: { onAccess: (level: AccessLevel) => void }) {
+function LoginScreen({
+  onAccess,
+  portalCodes
+}: {
+  onAccess: (level: AccessLevel) => void,
+  portalCodes: PortalCodes | null
+}) {
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
@@ -125,10 +134,14 @@ function LoginScreen({ onAccess }: { onAccess: (level: AccessLevel) => void }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = code.trim().toUpperCase();
-    const level = ACCESS_CODES[trimmed];
-    if (level) {
-      setError('');
-      onAccess(level);
+
+    // Validar contra códigos do admin (ou default se falhar)
+    if (trimmed === (portalCodes?.emult || DEFAULT_PORTAL_CODES.emult)) {
+      onAccess('emult');
+    } else if (trimmed === (portalCodes?.nurse || DEFAULT_PORTAL_CODES.nurse)) {
+      onAccess('nurse');
+    } else if (trimmed === (portalCodes?.tech || DEFAULT_PORTAL_CODES.tech)) {
+      onAccess('tech');
     } else {
       setError('Código inválido. Verifique e tente novamente.');
       setShaking(true);
@@ -225,8 +238,34 @@ function LoginScreen({ onAccess }: { onAccess: (level: AccessLevel) => void }) {
 export default function Portal() {
   const [accessLevel, setAccessLevel] = useState<AccessLevel | null>(null);
   const [portalData, setPortalData] = useState<PortalData | null>(null);
+  const [portalCodes, setPortalCodes] = useState<PortalCodes | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
+
+  // ── Pegar adminId da URL ──
+  const searchParams = new URLSearchParams(window.location.search);
+  const adminId = searchParams.get('admin');
+
+  // ── Buscar códigos e dados ──
+  useEffect(() => {
+    const fetchAdminConfig = async () => {
+      if (!adminId) return;
+      try {
+        const { data: config, error } = await (supabase
+          .from('admin_states' as any)
+          .select('portal_codes')
+          .eq('user_id', adminId)
+          .maybeSingle() as any);
+
+        if (config?.portal_codes) {
+          setPortalCodes(config.portal_codes as PortalCodes);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar config do admin:', err);
+      }
+    };
+    fetchAdminConfig();
+  }, [adminId]);
 
   // ── Hooks de dados locais (usados apenas como fallback ou interface) ──
   const { professionals: localProfessionals } = useServiceProfessionals();
@@ -243,18 +282,20 @@ export default function Portal() {
   const { getStatsForProfessional } = useServiceStats({
     allEntries: [...nurseEntries, ...techEntries],
     getTotalCreditsUsedByProfessional: (id) => {
-      return requests
+      return (requests as any[])
         .filter((r: any) => r.professionalId === id && r.status === 'approved')
         .reduce((acc: number, r: any) => acc + (r.daysRequested || 0), 0);
     },
-  });
+  } as any);
 
   const fetchPortalData = async () => {
+    if (!adminId) return;
     setLoadingPortal(true);
     try {
       const { data, error } = await supabase
         .from('portal_schedules')
         .select('*')
+        .eq('user_id', adminId)
         .order('published_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -306,7 +347,7 @@ export default function Portal() {
 
   // ── Tela de Login ──
   if (!accessLevel) {
-    return <LoginScreen onAccess={setAccessLevel} />;
+    return <LoginScreen onAccess={setAccessLevel} portalCodes={portalCodes} />;
   }
 
   // ── Carregando ──
