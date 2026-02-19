@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Trash2, AlertTriangle, Copy, Link, Check } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Copy, Link, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // Storage keys for service schedule data
 const SERVICE_STORAGE_KEYS = {
@@ -30,6 +33,30 @@ export default function Settings() {
   const { exportData, importData, resetData } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [lastPublished, setLastPublished] = useState<string | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
+  // ── Buscar status do portal ──
+  const fetchLastPublish = async () => {
+    setLoadingStatus(true);
+    try {
+      const { data, error } = await supabase
+        .from('portal_schedules')
+        .select('published_at')
+        .order('published_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) setLastPublished(data.published_at);
+    } catch (err) {
+      console.error('Erro ao buscar status:', err);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLastPublish();
+  }, []);
 
   // ── Link do portal ──
   const portalUrl = `${window.location.origin}/portal`;
@@ -187,6 +214,28 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground mb-4">
             Copie o link abaixo e envie para os profissionais. Cada grupo usa um código diferente para acessar apenas a sua escala.
           </p>
+
+          {/* Status da Publicação */}
+          <div className="mb-4 flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Status do Portal:</span>
+            {loadingStatus ? (
+              <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />
+            ) : lastPublished ? (
+              <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Publicado em {format(new Date(lastPublished), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </span>
+            ) : (
+              <span className="text-amber-600 font-medium">Nunca publicado</span>
+            )}
+            <button
+              onClick={fetchLastPublish}
+              className="ml-auto text-primary hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Atualizar status
+            </button>
+          </div>
 
           {/* URL */}
           <div className="flex items-center gap-2 mb-5 flex-wrap">

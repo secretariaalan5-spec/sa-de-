@@ -59,7 +59,7 @@ interface ServiceProfessionalPortal {
   name: string;
   category: 'tech' | 'nurse';
   monthlyHours: number;
-  isActive: boolean;
+  active: boolean;
 }
 interface ServiceScheduleEntry {
   id: string;
@@ -228,14 +228,25 @@ export default function Portal() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
 
-  // ── Hooks de dados locais ──
-  const { professionals } = useServiceProfessionals();
-  const { requests, getTotalCreditsUsedByProfessional } = useLeaveRequests();
-  const { allEntries: nurseEntries } = useServiceSchedule('nurse');
-  const { allEntries: techEntries } = useServiceSchedule('tech');
+  // ── Hooks de dados locais (usados apenas como fallback ou interface) ──
+  const { professionals: localProfessionals } = useServiceProfessionals();
+  const { requests: localRequests, getTotalCreditsUsedByProfessional } = useLeaveRequests();
+  const { allEntries: localNurseEntries } = useServiceSchedule('nurse');
+  const { allEntries: localTechEntries } = useServiceSchedule('tech');
+
+  // ── Dados efetivos (Supabase ou Local) ──
+  const professionals = portalData?.service?.professionals || localProfessionals;
+  const nurseEntries = portalData?.service?.nurseEntries || localNurseEntries;
+  const techEntries = portalData?.service?.techEntries || localTechEntries;
+  const requests = (portalData?.service as any)?.leaveRequests || localRequests;
+
   const { getStatsForProfessional } = useServiceStats({
     allEntries: [...nurseEntries, ...techEntries],
-    getTotalCreditsUsedByProfessional,
+    getTotalCreditsUsedByProfessional: (id) => {
+      return requests
+        .filter((r: any) => r.professionalId === id && r.status === 'approved')
+        .reduce((acc: number, r: any) => acc + (r.daysRequested || 0), 0);
+    },
   });
 
   const fetchPortalData = async () => {

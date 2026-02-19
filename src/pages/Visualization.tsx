@@ -2,13 +2,65 @@ import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { DAYS_OF_WEEK, PERIODS } from '@/types';
-import { Building2, Users } from 'lucide-react';
+import { Building2, Users, CloudUpload, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
+import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useLeaveRequests } from '@/hooks/useLeaveRequests';
+import { useServiceStats } from '@/hooks/useServiceStats';
 
 type ViewMode = 'unit' | 'professional';
 
 export default function Visualization() {
   const { data } = useAppData();
   const [viewMode, setViewMode] = useState<ViewMode>('professional');
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  // ── Dados de Serviço (Local) ──
+  const { professionals: serviceProfs } = useServiceProfessionals();
+  const { allEntries: nurseEntries } = useServiceSchedule('nurse');
+  const { allEntries: techEntries } = useServiceSchedule('tech');
+  const { requests } = useLeaveRequests();
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      // 1. Consolidar dados eMult
+      const emultData = {
+        professionals: data.professionals,
+        units: data.units,
+        functions: data.functions,
+        schedule: data.schedule,
+      };
+
+      // 2. Consolidar dados de Serviço
+      const serviceData = {
+        professionals: serviceProfs,
+        nurseEntries: nurseEntries,
+        techEntries: techEntries,
+        leaveRequests: requests,
+      };
+
+      // 3. Enviar para o Supabase
+      const { error } = await supabase
+        .from('portal_schedules')
+        .insert([{
+          emult_data: emultData as any,
+          service_data: serviceData as any,
+          published_at: new Date().toISOString()
+        }]);
+
+      if (error) throw error;
+      toast.success('Escalas publicadas com sucesso! Todos os dados estão disponíveis no portal.');
+    } catch (err) {
+      console.error('Erro ao publicar:', err);
+      toast.error('Erro ao publicar escalas. Verifique sua conexão.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   const getProfessional = (id: string) => data.professionals.find(p => p.id === id);
   const getUnit = (id: string) => data.units.find(u => u.id === id);
@@ -33,14 +85,14 @@ export default function Visualization() {
     const entries = data.schedule.filter(
       s => s.professionalId === professionalId && s.dayOfWeek === day
     );
-    
+
     if (entries.length === 0) return '-';
-    
+
     return entries.map(entry => {
       const unit = getUnit(entry.unitId);
       const period = PERIODS.find(p => p.key === entry.period);
-      const periodSuffix = period?.key === 'manha' ? ' - MANHÃ' : 
-                          period?.key === 'tarde' ? ' - TARDE' : '';
+      const periodSuffix = period?.key === 'manha' ? ' - MANHÃ' :
+        period?.key === 'tarde' ? ' - TARDE' : '';
       return `${unit?.name || ''}${periodSuffix}`;
     }).join('\n');
   };
@@ -50,41 +102,53 @@ export default function Visualization() {
     const entries = data.schedule.filter(
       s => s.unitId === unitId && s.dayOfWeek === day
     );
-    
+
     if (entries.length === 0) return '-';
-    
+
     return entries.map(entry => {
       const prof = getProfessional(entry.professionalId);
       const period = PERIODS.find(p => p.key === entry.period);
-      const periodSuffix = period?.key === 'manha' ? ' (M)' : 
-                          period?.key === 'tarde' ? ' (T)' : '';
+      const periodSuffix = period?.key === 'manha' ? ' (M)' :
+        period?.key === 'tarde' ? ' (T)' : '';
       return `${prof?.name || ''}${periodSuffix}`;
     }).join('\n');
   };
 
   return (
     <div className="animate-fade-in">
-      <PageHeader 
-        title="Visualização" 
+      <PageHeader
+        title="Visualização"
         description="Visualize a escala por profissional ou por unidade"
       />
 
-      {/* View mode toggle */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setViewMode('professional')}
-          className={`view-toggle-btn flex items-center gap-2 ${viewMode === 'professional' ? 'active' : ''}`}
+      {/* View mode toggle and Publish button */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode('professional')}
+            className={`view-toggle-btn flex items-center gap-2 ${viewMode === 'professional' ? 'active' : ''}`}
+          >
+            <Users className="w-4 h-4" />
+            Por Profissional
+          </button>
+          <button
+            onClick={() => setViewMode('unit')}
+            className={`view-toggle-btn flex items-center gap-2 ${viewMode === 'unit' ? 'active' : ''}`}
+          >
+            <Building2 className="w-4 h-4" />
+            Por Unidade
+          </button>
+        </div>
+
+        <Button
+          onClick={handlePublish}
+          disabled={isPublishing}
+          variant="default"
+          className="bg-primary hover:bg-primary/90 text-white shadow-lg gap-2 w-full sm:w-auto"
         >
-          <Users className="w-4 h-4" />
-          Por Profissional
-        </button>
-        <button
-          onClick={() => setViewMode('unit')}
-          className={`view-toggle-btn flex items-center gap-2 ${viewMode === 'unit' ? 'active' : ''}`}
-        >
-          <Building2 className="w-4 h-4" />
-          Por Unidade
-        </button>
+          {isPublishing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
+          {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
+        </Button>
       </div>
 
       {viewMode === 'professional' ? (
@@ -95,7 +159,7 @@ export default function Visualization() {
 
             return (
               <div key={funcId} className="form-section overflow-x-auto">
-                <h3 
+                <h3
                   className="font-bold text-lg mb-4 pb-2 border-b-2"
                   style={{ borderColor: func?.color || '#888' }}
                 >
@@ -104,7 +168,7 @@ export default function Visualization() {
                 <table className="schedule-table">
                   <thead>
                     <tr>
-                      <th className="text-left w-48">PROFISSIONAL<br/>{func?.name?.toUpperCase()}</th>
+                      <th className="text-left w-48">PROFISSIONAL<br />{func?.name?.toUpperCase()}</th>
                       {DAYS_OF_WEEK.map(day => (
                         <th key={day.key} className="text-center">{day.label.toUpperCase()}</th>
                       ))}
