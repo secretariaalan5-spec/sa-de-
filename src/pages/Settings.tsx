@@ -135,13 +135,13 @@ export default function Settings() {
   const fetchLastPublish = async () => {
     setLoadingStatus(true);
     try {
-      const { data, error } = await (supabase
-        .from('portal_schedules' as any)
+      const { data, error } = await supabase
+        .from('portal_schedules')
         .select('published_at')
         .eq('user_id', userId)
         .order('published_at', { ascending: false })
         .limit(1)
-        .maybeSingle() as any);
+        .maybeSingle();
       if (error) throw error;
       if (data) setLastPublished(data.published_at);
     } catch (err) {
@@ -158,25 +158,11 @@ export default function Settings() {
 
   // ── Clipboard ──
   const copyToClipboard = (text: string, key: string) => {
-    if (!text) {
-      toast.error('O link ainda não está pronto. Aguarde um momento.');
-      return;
-    }
-
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-      document.execCommand('copy');
+    navigator.clipboard.writeText(text).then(() => {
       setCopiedKey(key);
       toast.success('Copiado!');
       setTimeout(() => setCopiedKey(null), 2000);
-    } catch (err) {
-      console.error('Fallback copy failed', err);
-      toast.error('Erro ao copiar. Tente selecionar o texto manualmente.');
-    }
-    document.body.removeChild(textArea);
+    });
   };
 
   // ── Regeneração de códigos ──
