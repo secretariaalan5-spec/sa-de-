@@ -5,10 +5,11 @@ import { useServiceState } from './useServiceState';
 
 export function useServiceSchedule(type: 'nurse' | 'tech') {
     const { state, updateServiceState, loading } = useServiceState();
-    const allEntries = state.entries;
+    const allEntries = state?.entries || [];
 
     // Filter entries by type
     const entries = allEntries.filter(e => e.type === type);
+
 
     const addEntry = useCallback((professionalId: string, date: string, status?: ServiceScheduleEntry['status']) => {
         // Check if entry already exists for this professional on this date

@@ -3,11 +3,23 @@ import { ServiceProfessional, ServiceScheduleEntry, LeaveRequest } from '@/types
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// ── Tipos ──────────────────────────────────────────────────────────────────
+
 export interface ServiceState {
     professionals: ServiceProfessional[];
     entries: ServiceScheduleEntry[];
     requests: LeaveRequest[];
 }
+
+interface ServiceStateContextType {
+    state: ServiceState;
+    /** Aplica uma atualização funcional ao estado e persiste na nuvem. */
+    updateServiceState: (updater: (prev: ServiceState) => ServiceState) => void;
+    loading: boolean;
+    userId: string | null;
+}
+
+// ── Estado inicial ─────────────────────────────────────────────────────────
 
 const INITIAL_SERVICE_STATE: ServiceState = {
     professionals: [],
@@ -15,20 +27,18 @@ const INITIAL_SERVICE_STATE: ServiceState = {
     requests: [],
 };
 
-interface ServiceStateContextType {
-    state: ServiceState;
-    updateServiceState: (updater: (prev: ServiceState) => ServiceState) => void;
-    loading: boolean;
-    userId: string | null;
-}
+// ── Context ────────────────────────────────────────────────────────────────
 
 const ServiceStateContext = createContext<ServiceStateContextType | undefined>(undefined);
+
+// ── Provider ───────────────────────────────────────────────────────────────
 
 export function ServiceStateProvider({ children }: { children: React.ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null);
     const [state, setState] = useState<ServiceState>(INITIAL_SERVICE_STATE);
     const [loading, setLoading] = useState(true);
 
+    // Escuta mudanças de sessão para obter o userId atual
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUserId(session?.user?.id || null);
@@ -41,6 +51,7 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         return () => subscription.unsubscribe();
     }, []);
 
+    // Busca o estado de serviços na nuvem sempre que o usuário muda
     useEffect(() => {
         if (!userId) {
             setState(INITIAL_SERVICE_STATE);
@@ -58,11 +69,18 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
                     .maybeSingle() as any);
 
                 if (error) throw error;
+
                 if (adminData?.service_state) {
-                    setState(adminData.service_state as ServiceState);
+                    const loadedState = adminData.service_state as any;
+                    setState({
+                        professionals: loadedState.professionals || [],
+                        entries: loadedState.entries || [],
+                        requests: loadedState.requests || [],
+                    });
                 } else {
                     setState(INITIAL_SERVICE_STATE);
                 }
+
             } catch (err) {
                 console.error('Erro ao buscar estado de serviços:', err);
                 toast.error('Erro ao buscar dados de serviços da nuvem.');
@@ -74,6 +92,7 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         fetchServiceState();
     }, [userId]);
 
+    /** Persiste o estado de serviços na tabela admin_states do Supabase. */
     const saveServiceState = async (newState: ServiceState) => {
         if (!userId) return;
         try {
@@ -82,7 +101,7 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
                 .upsert({
                     user_id: userId,
                     service_state: newState as any,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 }) as any);
             if (error) throw error;
         } catch (err) {
@@ -91,6 +110,7 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         }
     };
 
+    /** Aplica o updater ao estado local e dispara a persistência em nuvem. */
     const updateServiceState = useCallback((updater: (prev: ServiceState) => ServiceState) => {
         setState(prev => {
             const next = updater(prev);
@@ -106,8 +126,12 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
     );
 }
 
+// ── Hook de consumo ────────────────────────────────────────────────────────
+
 export function useServiceStateContext() {
     const context = useContext(ServiceStateContext);
-    if (context === undefined) throw new Error('useServiceStateContext must be used within ServiceStateProvider');
+    if (context === undefined) {
+        throw new Error('useServiceStateContext deve ser usado dentro de ServiceStateProvider');
+    }
     return context;
 }

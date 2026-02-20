@@ -3,6 +3,8 @@ import { AppData, Professional, Unit, ProfessionalFunction, ScheduleEntry, Restr
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// ── Tipos ──────────────────────────────────────────────────────────────────
+
 interface AppDataContextType {
     data: AppData;
     loading: boolean;
@@ -38,11 +40,30 @@ export interface PortalCodes {
     tech: string;
 }
 
-const DEFAULT_PORTAL_CODES: PortalCodes = {
-    emult: 'EMULT2025',
-    nurse: 'ENFERMEIRO2025',
-    tech: 'TECNICO2025',
-};
+// ── Geração de códigos exclusivos ──────────────────────────────────────────
+
+/**
+ * Gera um código de acesso único no formato PREFIX-XXXXXX.
+ * Usa apenas caracteres sem ambiguidade (sem 0, 1, I, O).
+ */
+export function generatePortalCode(prefix: string): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const code = Array.from({ length: 6 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+    ).join('');
+    return `${prefix}-${code}`;
+}
+
+/** Gera um conjunto completo de códigos exclusivos para todos os grupos. */
+export function generatePortalCodes(): PortalCodes {
+    return {
+        emult: generatePortalCode('EMT'),
+        nurse: generatePortalCode('ENF'),
+        tech: generatePortalCode('TEC'),
+    };
+}
+
+// ── Dados iniciais ─────────────────────────────────────────────────────────
 
 const DEFAULT_FUNCTIONS: ProfessionalFunction[] = [
     { id: '1', name: 'Psicólogo', color: '#8B5CF6' },
@@ -61,14 +82,22 @@ const INITIAL_DATA: AppData = {
     restrictions: [],
 };
 
+// Usado apenas como estado inicial enquanto os dados não são carregados
+const PLACEHOLDER_CODES: PortalCodes = { emult: '...', nurse: '...', tech: '...' };
+
+// ── Context ────────────────────────────────────────────────────────────────
+
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
+
+// ── Provider ───────────────────────────────────────────────────────────────
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null);
     const [data, setData] = useState<AppData>(INITIAL_DATA);
-    const [portalCodes, setPortalCodes] = useState<PortalCodes>(DEFAULT_PORTAL_CODES);
+    const [portalCodes, setPortalCodes] = useState<PortalCodes>(PLACEHOLDER_CODES);
     const [loading, setLoading] = useState(true);
 
+    // Escuta mudanças de sessão
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUserId(session?.user?.id || null);
@@ -81,6 +110,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
+    // Carrega dados do Supabase e garante códigos exclusivos para cada admin
     useEffect(() => {
         if (!userId) {
             setData(INITIAL_DATA);
@@ -98,16 +128,48 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                     .maybeSingle() as any);
 
                 if (error) throw error;
+
                 if (stateData) {
-                    if (stateData.emult_state && Object.keys(stateData.emult_state).length > 0) {
-                        setData(stateData.emult_state as unknown as AppData);
+                    // Restaura dados eMult com fallback para arrays vazios se campos estiverem faltando
+                    if (stateData.emult_state) {
+                        const loadedEmult = stateData.emult_state as any;
+                        setData({
+                            professionals: loadedEmult.professionals || [],
+                            units: loadedEmult.units || [],
+                            functions: loadedEmult.functions || DEFAULT_FUNCTIONS,
+                            schedule: loadedEmult.schedule || [],
+                            restrictions: loadedEmult.restrictions || [],
+                        });
                     }
+
+
+                    // Restaura códigos existentes ou gera novos exclusivos
                     if (stateData.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
                         setPortalCodes(stateData.portal_codes as PortalCodes);
+                    } else {
+                        // Usuário existente sem códigos salvos → gera e persiste
+                        const newCodes = generatePortalCodes();
+                        setPortalCodes(newCodes);
+                        await (supabase
+                            .from('admin_states' as any)
+                            .upsert({
+                                user_id: userId,
+                                portal_codes: newCodes as any,
+                                updated_at: new Date().toISOString(),
+                            }) as any);
                     }
                 } else {
+                    // Novo usuário → inicializa com dados padrão e gera códigos exclusivos
                     setData(INITIAL_DATA);
-                    setPortalCodes(DEFAULT_PORTAL_CODES);
+                    const newCodes = generatePortalCodes();
+                    setPortalCodes(newCodes);
+                    await (supabase
+                        .from('admin_states' as any)
+                        .upsert({
+                            user_id: userId,
+                            portal_codes: newCodes as any,
+                            updated_at: new Date().toISOString(),
+                        }) as any);
                 }
             } catch (err) {
                 console.error('Erro ao carregar dados do eMulti:', err);
@@ -129,7 +191,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                     user_id: userId,
                     emult_state: newData as any,
                     portal_codes: (newCodes || portalCodes) as any,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 }) as any);
             if (error) throw error;
         } catch (err) {
@@ -289,7 +351,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             errors.push(`Carga horária excedida (${currentHours + newPeriodHours}h > ${professional.weeklyHours}h)`);
         }
 
-        const sameDayEntries = data.schedule.filter(s => s.dayOfWeek === entry.dayOfWeek && s.unitId === entry.unitId && s.professionalId !== entry.professionalId);
+        const sameDayEntries = data.schedule.filter(
+            s => s.dayOfWeek === entry.dayOfWeek && s.unitId === entry.unitId && s.professionalId !== entry.professionalId
+        );
         for (const existing of sameDayEntries) {
             const res = checkProfessionalRestriction(entry.professionalId, existing.professionalId);
             if (res) {
@@ -315,7 +379,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const updatePortalCodes = useCallback((codes: PortalCodes) => {
         setPortalCodes(codes);
         saveToSupabase(data, codes);
-    }, [userId, data, portalCodes]);
+    }, [userId, data]);
 
     return (
         <AppDataContext.Provider value={{
@@ -326,15 +390,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             addScheduleEntry, updateScheduleEntry, deleteScheduleEntry,
             clearScheduleForProfessional, addRestriction, deleteRestriction,
             getWeeklyHoursUsed, validateScheduleEntry, importData, exportData, resetData,
-            portalCodes, updatePortalCodes
+            portalCodes, updatePortalCodes,
         }}>
             {children}
         </AppDataContext.Provider>
     );
 }
 
+// ── Hook de consumo ────────────────────────────────────────────────────────
+
 export function useAppDataContext() {
     const context = useContext(AppDataContext);
-    if (context === undefined) throw new Error('useAppDataContext must be used within AppDataProvider');
+    if (context === undefined) throw new Error('useAppDataContext deve ser usado dentro de AppDataProvider');
     return context;
 }

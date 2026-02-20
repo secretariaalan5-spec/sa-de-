@@ -1,23 +1,31 @@
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
-import { DAYS_OF_WEEK, PERIODS } from '@/types';
+import { DAYS_OF_WEEK } from '@/types';
 import { Building2, Users } from 'lucide-react';
 
 type ViewMode = 'unit' | 'professional';
+
+/** Retorna o sufixo de período para exibição na escala. */
+const getPeriodSuffix = (period: string, format: 'long' | 'short') => {
+  if (period === 'manha') return format === 'long' ? ' - MANHÃ' : ' (M)';
+  if (period === 'tarde') return format === 'long' ? ' - TARDE' : ' (T)';
+  return '';
+};
 
 export default function Visualization() {
   const { data } = useAppData();
   const [viewMode, setViewMode] = useState<ViewMode>('professional');
 
+  // ── Lookups por ID ──
   const getProfessional = (id: string) => data.professionals.find(p => p.id === id);
-  const getUnit = (id: string) => data.units.find(u => u.id === id);
-  const getFunction = (id: string) => data.functions.find(f => f.id === id);
+  const getUnit         = (id: string) => data.units.find(u => u.id === id);
+  const getFunction     = (id: string) => data.functions.find(f => f.id === id);
 
   const activeProfessionals = data.professionals.filter(p => p.active);
-  const activeUnits = data.units.filter(u => u.active);
+  const activeUnits         = data.units.filter(u => u.active);
 
-  // Group by function for professional view
+  // ── Agrupa profissionais por função para a view "Por Profissional" ──
   const professionalsByFunction = useMemo(() => {
     const grouped: Record<string, typeof activeProfessionals> = {};
     activeProfessionals.forEach(prof => {
@@ -28,37 +36,29 @@ export default function Visualization() {
     return grouped;
   }, [activeProfessionals]);
 
-  // Get schedule entries formatted for display
+  /** Texto de escala de um profissional em um dia específico. */
   const getScheduleText = (professionalId: string, day: string) => {
     const entries = data.schedule.filter(
       s => s.professionalId === professionalId && s.dayOfWeek === day
     );
-
     if (entries.length === 0) return '-';
 
     return entries.map(entry => {
       const unit = getUnit(entry.unitId);
-      const period = PERIODS.find(p => p.key === entry.period);
-      const periodSuffix = period?.key === 'manha' ? ' - MANHÃ' :
-        period?.key === 'tarde' ? ' - TARDE' : '';
-      return `${unit?.name || ''}${periodSuffix}`;
+      return `${unit?.name || ''}${getPeriodSuffix(entry.period, 'long')}`;
     }).join('\n');
   };
 
-  // Get professionals working at unit on specific day
+  /** Texto de escala de uma unidade em um dia específico. */
   const getUnitSchedule = (unitId: string, day: string) => {
     const entries = data.schedule.filter(
       s => s.unitId === unitId && s.dayOfWeek === day
     );
-
     if (entries.length === 0) return '-';
 
     return entries.map(entry => {
       const prof = getProfessional(entry.professionalId);
-      const period = PERIODS.find(p => p.key === entry.period);
-      const periodSuffix = period?.key === 'manha' ? ' (M)' :
-        period?.key === 'tarde' ? ' (T)' : '';
-      return `${prof?.name || ''}${periodSuffix}`;
+      return `${prof?.name || ''}${getPeriodSuffix(entry.period, 'short')}`;
     }).join('\n');
   };
 
@@ -69,7 +69,7 @@ export default function Visualization() {
         description="Visualize a escala por profissional ou por unidade"
       />
 
-      {/* View mode toggle */}
+      {/* ── Alternador de modo de visualização ── */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setViewMode('professional')}
@@ -87,6 +87,7 @@ export default function Visualization() {
         </button>
       </div>
 
+      {/* ── View: Por Profissional ── */}
       {viewMode === 'professional' ? (
         <div className="space-y-8">
           {Object.entries(professionalsByFunction).map(([funcId, profs]) => {
@@ -104,7 +105,9 @@ export default function Visualization() {
                 <table className="schedule-table">
                   <thead>
                     <tr>
-                      <th className="text-left w-48">PROFISSIONAL<br />{func?.name?.toUpperCase()}</th>
+                      <th className="text-left w-48">
+                        PROFISSIONAL<br />{func?.name?.toUpperCase()}
+                      </th>
                       {DAYS_OF_WEEK.map(day => (
                         <th key={day.key} className="text-center">{day.label.toUpperCase()}</th>
                       ))}
@@ -134,9 +137,9 @@ export default function Visualization() {
           )}
         </div>
       ) : (
+        /* ── View: Por Unidade ── */
         <div className="space-y-8">
           {activeUnits.map(unit => {
-            // Check if unit has any schedules
             const hasSchedules = data.schedule.some(s => s.unitId === unit.id);
             if (!hasSchedules) return null;
 

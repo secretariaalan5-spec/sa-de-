@@ -4,7 +4,7 @@ import { useServiceState } from './useServiceState';
 
 export function useLeaveRequests() {
     const { state, updateServiceState, loading } = useServiceState();
-    const requests = state.requests;
+    const requests = state?.requests || [];
 
     const addRequest = useCallback((request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
         const newRequest: LeaveRequest = {

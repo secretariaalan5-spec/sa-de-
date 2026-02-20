@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -25,7 +25,6 @@ import {
   LogOut
 } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -63,13 +62,14 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ── Dados para Publicação ──
+  // ── Dados necessários para montar o payload de publicação ──
   const { data: emultData } = useAppData();
   const { professionals: serviceProfs } = useServiceProfessionals();
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
   const { requests: leaveRequests } = useLeaveRequests();
 
+  /** Publica todas as escalas (eMult + Serviços) no portal público. */
   const handlePublish = async () => {
     setIsPublishing(true);
     try {

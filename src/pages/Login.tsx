@@ -16,6 +16,7 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
+    /** Trata login e cadastro dependendo do modo ativo. */
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
