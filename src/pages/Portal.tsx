@@ -177,12 +177,14 @@ function LoginScreen({
     setError('');
 
     // 1. Verifica códigos fixos (emult/nurse/tech)
-    if (trimmed === (portalCodes?.emult || DEFAULT_PORTAL_CODES.emult)) {
-      setChecking(false); return onAccess('emult');
-    } else if (trimmed === (portalCodes?.nurse || DEFAULT_PORTAL_CODES.nurse)) {
-      setChecking(false); return onAccess('nurse');
-    } else if (trimmed === (portalCodes?.tech || DEFAULT_PORTAL_CODES.tech)) {
-      setChecking(false); return onAccess('tech');
+    if (portalCodes) {
+      if (trimmed === (portalCodes.emult || DEFAULT_PORTAL_CODES.emult)) {
+        setChecking(false); return onAccess('emult');
+      } else if (trimmed === (portalCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) {
+        setChecking(false); return onAccess('nurse');
+      } else if (trimmed === (portalCodes.tech || DEFAULT_PORTAL_CODES.tech)) {
+        setChecking(false); return onAccess('tech');
+      }
     }
 
     // 2. Verifica na tabela de convites (portal_invites)
@@ -194,7 +196,7 @@ function LoginScreen({
     }
 
     setChecking(false);
-    setError('Código inválido. Verifique e tente novamente.');
+    setError('Código inválido ou ainda não publicado. Verifique com o administrador.');
     setShaking(true);
     setTimeout(() => setShaking(false), 600);
   };
@@ -242,6 +244,7 @@ function LoginScreen({
                     className={cn('pr-10 text-center text-lg tracking-widest font-medium h-12', error && 'border-destructive')}
                     autoFocus
                     autoComplete="off"
+                    disabled={checking}
                   />
                   <button
                     type="button"
@@ -252,7 +255,7 @@ function LoginScreen({
                   </button>
                 </div>
                 {error && (
-                  <div className="flex items-center gap-2 text-destructive text-sm">
+                  <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 p-2 rounded-md">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     <span>{error}</span>
                   </div>
@@ -263,6 +266,11 @@ function LoginScreen({
                 {checking ? 'Verificando...' : 'Acessar'}
               </Button>
             </form>
+            {adminId && !portalCodes && (
+              <div className="mt-4 text-center">
+                <p className="text-[10px] text-muted-foreground animate-pulse">Carregando configurações do portal...</p>
+              </div>
+            )}
             <p className="text-center text-xs text-muted-foreground mt-6">
               Não tem o código? Entre em contato com a secretaria.
             </p>

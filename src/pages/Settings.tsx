@@ -43,18 +43,23 @@ export default function Settings() {
   const [loadingStatus, setLoadingStatus] = useState(false);
 
   // ── Status do portal ──
+  const [publishedCodes, setPublishedCodes] = useState<PortalCodes | null>(null);
+
   const fetchLastPublish = async () => {
     setLoadingStatus(true);
     try {
       const { data, error } = await supabase
         .from('portal_schedules')
-        .select('published_at')
+        .select('published_at, portal_codes')
         .eq('user_id', userId)
         .order('published_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      if (data) setLastPublished(data.published_at);
+      if (data) {
+        setLastPublished(data.published_at);
+        setPublishedCodes(data.portal_codes as unknown as PortalCodes);
+      }
     } catch (err) {
       console.error('Erro ao buscar status do portal:', err);
     } finally {
@@ -62,10 +67,17 @@ export default function Settings() {
     }
   };
 
-  useEffect(() => { fetchLastPublish(); }, []);
+  useEffect(() => { if (userId) fetchLastPublish(); }, [userId]);
 
   // ── URL do portal ──
   const portalUrl = `${window.location.origin}/portal?admin=${userId || ''}`;
+
+  // ── Verifica se os códigos estão sincronizados ──
+  const codesInSync = !lastPublished || !publishedCodes || (
+    publishedCodes.emult === portalCodes.emult &&
+    publishedCodes.nurse === portalCodes.nurse &&
+    publishedCodes.tech === portalCodes.tech
+  );
 
   // ── Clipboard ──
   const copyToClipboard = (text: string, key: string) => {
@@ -118,12 +130,12 @@ export default function Settings() {
   ];
 
   const shareOnWhatsApp = (label: string, code: string) => {
+    const fullLink = `${portalUrl}&code=${code}`;
     const text =
       `*Escala eMulti - ${label}*\n\n` +
       `Olá equipe! A escala foi atualizada.\n\n` +
-      `🔗 *Link:* ${portalUrl}\n` +
-      `🔑 *Código de Acesso:* ${code}\n\n` +
-      `_Acesse o link e digite o código para visualizar._`;
+      `🔗 *Acesso Direto:* ${fullLink}\n\n` +
+      `_Caso peça o código, use:_ *${code}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -230,25 +242,34 @@ export default function Settings() {
           </p>
 
           {/* Status de publicação */}
-          <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-lg px-3 py-2 mb-4">
-            <span className="text-muted-foreground font-medium">Status:</span>
-            {loadingStatus ? (
-              <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />
-            ) : lastPublished ? (
-              <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                Publicado em {format(new Date(lastPublished), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-              </span>
-            ) : (
-              <span className="text-amber-600 font-medium">Nunca publicado</span>
+          <div className="flex flex-col gap-2 mb-4">
+            <div className="flex items-center gap-2 text-xs bg-muted/40 rounded-lg px-3 py-2">
+              <span className="text-muted-foreground font-medium">Status:</span>
+              {loadingStatus ? (
+                <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />
+              ) : lastPublished ? (
+                <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Publicado em {format(new Date(lastPublished), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </span>
+              ) : (
+                <span className="text-amber-600 font-medium">Nunca publicado</span>
+              )}
+              <button
+                onClick={fetchLastPublish}
+                className="ml-auto text-primary hover:text-primary/70 flex items-center gap-1 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Atualizar
+              </button>
+            </div>
+
+            {!codesInSync && (
+              <div className="flex items-center gap-2 text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 animate-in fade-in slide-in-from-top-1">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <p>Os códigos foram alterados mas ainda não foram publicados. <strong>Publique a escala</strong> para ativar os novos códigos no portal.</p>
+              </div>
             )}
-            <button
-              onClick={fetchLastPublish}
-              className="ml-auto text-primary hover:text-primary/70 flex items-center gap-1 transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" />
-              Atualizar
-            </button>
           </div>
 
           {/* Cards por equipe */}

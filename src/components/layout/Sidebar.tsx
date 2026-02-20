@@ -81,6 +81,7 @@ export function Sidebar() {
         return;
       }
 
+      // Payload higienizado para garantir serialização correta
       const payload = {
         user_id: userId,
         emult_data: {
@@ -88,6 +89,7 @@ export function Sidebar() {
           units: emultData.units,
           functions: emultData.functions,
           schedule: emultData.schedule,
+          restrictions: emultData.restrictions, // Adicionado para persistência completa
         },
         service_data: {
           professionals: serviceProfs,
@@ -101,13 +103,17 @@ export function Sidebar() {
 
       const { error } = await supabase
         .from('portal_schedules')
-        .insert([payload as any]);
+        .insert(payload); // Inserção de objeto único é mais robusta
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+      }
+
       toast.success('Escalas publicadas no portal com sucesso!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao publicar:', err);
-      toast.error('Erro ao publicar escalas.');
+      toast.error(`Erro ao publicar escalas: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setIsPublishing(false);
     }
