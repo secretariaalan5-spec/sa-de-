@@ -39,6 +39,7 @@ import { useServiceStats } from '@/hooks/useServiceStats';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
+import { type InviteAccessLevel } from '@/hooks/usePortalInvites';
 
 type AccessLevel = 'emult' | 'nurse' | 'tech';
 
@@ -117,36 +118,85 @@ const PERIODS = [
 ];
 
 // ─────────────────────────────────────────
+// helper: valida código de convite no banco
+// ─────────────────────────────────────────
+async function validateInviteInDB(
+  adminId: string,
+  code: string
+): Promise<InviteAccessLevel | null> {
+  try {
+    const { data, error } = await supabase
+      .from('portal_invites' as any)
+      .select('*')
+      .eq('admin_id', adminId)
+      .eq('code', code.trim().toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const invite = data as any;
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
+    if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return null;
+
+    // Incrementa usos (fire-and-forget)
+    supabase
+      .from('portal_invites' as any)
+      .update({ uses_count: (invite.uses_count || 0) + 1 })
+      .eq('id', invite.id)
+      .then(() => { });
+
+    return invite.access_level as InviteAccessLevel;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────
 // Tela de Login
 // ─────────────────────────────────────────
 function LoginScreen({
   onAccess,
-  portalCodes
+  portalCodes,
+  adminId,
 }: {
   onAccess: (level: AccessLevel) => void,
-  portalCodes: PortalCodes | null
+  portalCodes: PortalCodes | null,
+  adminId: string | null,
 }) {
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = code.trim().toUpperCase();
+    setChecking(true);
+    setError('');
 
-    // Validar contra códigos do admin (ou default se falhar)
+    // 1. Verifica códigos fixos (emult/nurse/tech)
     if (trimmed === (portalCodes?.emult || DEFAULT_PORTAL_CODES.emult)) {
-      onAccess('emult');
+      setChecking(false); return onAccess('emult');
     } else if (trimmed === (portalCodes?.nurse || DEFAULT_PORTAL_CODES.nurse)) {
-      onAccess('nurse');
+      setChecking(false); return onAccess('nurse');
     } else if (trimmed === (portalCodes?.tech || DEFAULT_PORTAL_CODES.tech)) {
-      onAccess('tech');
-    } else {
-      setError('Código inválido. Verifique e tente novamente.');
-      setShaking(true);
-      setTimeout(() => setShaking(false), 600);
+      setChecking(false); return onAccess('tech');
     }
+
+    // 2. Verifica na tabela de convites (portal_invites)
+    if (adminId) {
+      const inviteLevel = await validateInviteInDB(adminId, trimmed);
+      if (inviteLevel) {
+        setChecking(false); return onAccess(inviteLevel);
+      }
+    }
+
+    setChecking(false);
+    setError('Código inválido. Verifique e tente novamente.');
+    setShaking(true);
+    setTimeout(() => setShaking(false), 600);
   };
 
   return (
@@ -188,7 +238,7 @@ function LoginScreen({
                     type={showCode ? 'text' : 'password'}
                     value={code}
                     onChange={(e) => { setCode(e.target.value); setError(''); }}
-                    placeholder="Ex: EMULT2025"
+                    placeholder="Ex: EMT-A1B2C3"
                     className={cn('pr-10 text-center text-lg tracking-widest font-medium h-12', error && 'border-destructive')}
                     autoFocus
                     autoComplete="off"
@@ -208,9 +258,9 @@ function LoginScreen({
                   </div>
                 )}
               </div>
-              <Button type="submit" className="w-full h-12 text-base font-semibold gap-2">
-                <Lock className="h-4 w-4" />
-                Acessar
+              <Button type="submit" disabled={checking} className="w-full h-12 text-base font-semibold gap-2">
+                {checking ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                {checking ? 'Verificando...' : 'Acessar'}
               </Button>
             </form>
             <p className="text-center text-xs text-muted-foreground mt-6">
@@ -249,17 +299,27 @@ export default function Portal() {
 
   // ── Tentar acesso automático se houver código na URL ──
   useEffect(() => {
-    if (urlCode && portalCodes && !accessLevel) {
+    if (!urlCode || accessLevel) return;
+
+    const tryAutoAccess = async () => {
       const trimmed = urlCode.trim().toUpperCase();
-      if (trimmed === (portalCodes.emult)) {
-        setAccessLevel('emult');
-      } else if (trimmed === (portalCodes.nurse)) {
-        setAccessLevel('nurse');
-      } else if (trimmed === (portalCodes.tech)) {
-        setAccessLevel('tech');
+
+      // 1. Verifica códigos fixos
+      if (portalCodes) {
+        if (trimmed === portalCodes.emult) { setAccessLevel('emult'); return; }
+        if (trimmed === portalCodes.nurse) { setAccessLevel('nurse'); return; }
+        if (trimmed === portalCodes.tech) { setAccessLevel('tech'); return; }
       }
-    }
-  }, [urlCode, portalCodes, accessLevel]);
+
+      // 2. Verifica convites na tabela portal_invites
+      if (adminId) {
+        const inviteLevel = await validateInviteInDB(adminId, trimmed);
+        if (inviteLevel) { setAccessLevel(inviteLevel); return; }
+      }
+    };
+
+    tryAutoAccess();
+  }, [urlCode, portalCodes, accessLevel, adminId]);
 
   // ── Buscar códigos e dados ──
   useEffect(() => {
@@ -383,7 +443,7 @@ export default function Portal() {
 
   // ── Tela de Login ──
   if (!accessLevel) {
-    return <LoginScreen onAccess={setAccessLevel} portalCodes={portalCodes} />;
+    return <LoginScreen onAccess={setAccessLevel} portalCodes={portalCodes} adminId={adminId} />;
   }
 
   // ── Carregando ──
