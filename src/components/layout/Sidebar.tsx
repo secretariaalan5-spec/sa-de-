@@ -63,7 +63,7 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   // ── Dados necessários para montar o payload de publicação ──
-  const { data: emultData } = useAppData();
+  const { data: emultData, portalCodes } = useAppData();
   const { professionals: serviceProfs } = useServiceProfessionals();
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
@@ -95,6 +95,7 @@ export function Sidebar() {
           techEntries: techEntries,
           leaveRequests: leaveRequests,
         },
+        portal_codes: portalCodes,
         published_at: new Date().toISOString()
       };
 

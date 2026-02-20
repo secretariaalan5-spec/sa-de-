@@ -248,23 +248,40 @@ export default function Portal() {
 
   // ── Buscar códigos e dados ──
   useEffect(() => {
-    const fetchAdminConfig = async () => {
+    const fetchInitialData = async () => {
       if (!adminId) return;
+      setLoadingPortal(true);
       try {
-        const { data: config, error } = await (supabase
-          .from('admin_states' as any)
-          .select('portal_codes')
+        const { data, error } = await supabase
+          .from('portal_schedules')
+          .select('*')
           .eq('user_id', adminId)
-          .maybeSingle() as any);
+          .order('published_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (config?.portal_codes) {
-          setPortalCodes(config.portal_codes as PortalCodes);
+        if (error) throw error;
+
+        if (data) {
+          // Carrega os códigos da publicação (ou usa os padrões se for uma publicação antiga)
+          const codes = data.portal_codes as PortalCodes;
+          setPortalCodes(codes || DEFAULT_PORTAL_CODES);
+
+          // Armazena os dados da publicação
+          setPortalData({
+            publishedAt: data.published_at,
+            emult: data.emult_data as unknown as PortalData['emult'],
+            service: data.service_data as unknown as PortalData['service'],
+          });
         }
       } catch (err) {
-        console.error('Erro ao buscar config do admin:', err);
+        console.error('Erro ao carregar dados iniciais do portal:', err);
+      } finally {
+        setLoadingPortal(false);
       }
     };
-    fetchAdminConfig();
+
+    fetchInitialData();
   }, [adminId]);
 
   // ── Hooks de dados locais (usados apenas como fallback ou interface) ──
@@ -289,6 +306,7 @@ export default function Portal() {
   } as any);
 
   const fetchPortalData = async () => {
+    // Agora os dados já são carregados no efeito inicial, mas mantemos para compatibilidade
     if (!adminId) return;
     setLoadingPortal(true);
     try {
@@ -299,8 +317,11 @@ export default function Portal() {
         .order('published_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
       if (error) throw error;
+
       if (data) {
+        if (data.portal_codes) setPortalCodes(data.portal_codes as PortalCodes);
         setPortalData({
           publishedAt: data.published_at,
           emult: data.emult_data as unknown as PortalData['emult'],
@@ -308,7 +329,7 @@ export default function Portal() {
         });
       }
     } catch (err) {
-      console.error('Erro ao carregar dados do portal:', err);
+      console.error('Erro ao atualizar dados do portal:', err);
     } finally {
       setLoadingPortal(false);
     }
