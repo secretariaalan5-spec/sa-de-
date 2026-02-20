@@ -105,9 +105,16 @@ export function Sidebar() {
 
       if (error) throw error;
       toast.success('Escalas publicadas no portal com sucesso!');
-    } catch (err) {
-      console.error('Erro ao publicar:', err);
-      toast.error('Erro ao publicar escalas.');
+
+      // Atualiza o status de publicação na tela de configurações se estiver aberta
+      window.dispatchEvent(new CustomEvent('portal-published'));
+    } catch (err: any) {
+      console.error('Erro detalhado ao publicar:', err);
+      const msg = err.message || 'Erro desconhecido';
+      toast.error(`Erro ao publicar escalas: ${msg}`);
+      if (msg.includes('column "portal_codes" of relation "portal_schedules" does not exist')) {
+        toast.error('Erro de banco de dados: A coluna de códigos ainda não foi criada no Supabase.');
+      }
     } finally {
       setIsPublishing(false);
     }
