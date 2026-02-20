@@ -103,7 +103,7 @@ export function Sidebar() {
 
       const { error } = await supabase
         .from('portal_schedules')
-        .insert(payload); // Inserção de objeto único é mais robusta
+        .insert(payload as any); // Inserção de objeto único é mais robusta
 
       if (error) {
         console.error('Supabase insert error:', error);
