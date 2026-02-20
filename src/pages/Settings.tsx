@@ -52,7 +52,8 @@ function CodeCard({
   onCopy, onRegenerate,
 }: CodeCardProps) {
   const shareOnWhatsApp = () => {
-    const text = `*Escala eMulti - ${label}*\n\nOlá equipe! A escala foi atualizada.\n\n🔗 *Link:* ${portalUrl}\n🔑 *Código de Acesso:* ${code}\n\n_Acesse o link e digite o código para visualizar._`;
+    const fullUrl = `${portalUrl}&code=${code}`;
+    const text = `*Escala eMulti - ${label}*\n\nOlá equipe! A escala foi atualizada.\n\n🔗 *Link Direto:* ${fullUrl}\n🔑 *Código:* ${code}\n\n_Basta clicar no link acima para visualizar._`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -95,7 +96,7 @@ function CodeCard({
             size="sm"
             variant="outline"
             className="gap-1 h-8 text-[11px] bg-white/50 hover:bg-white/80"
-            onClick={() => onCopy(portalUrl, `${copyKey}-link`)}
+            onClick={() => onCopy(`${portalUrl}&code=${code}`, `${copyKey}-link`)}
           >
             {copiedKey === `${copyKey}-link`
               ? <Check className="w-3 h-3 text-green-600" />

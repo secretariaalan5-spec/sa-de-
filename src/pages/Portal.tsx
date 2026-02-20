@@ -242,9 +242,24 @@ export default function Portal() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
 
-  // ── Pegar adminId da URL ──
+  // ── Pegar adminId e code da URL ──
   const searchParams = new URLSearchParams(window.location.search);
   const adminId = searchParams.get('admin');
+  const urlCode = searchParams.get('code');
+
+  // ── Tentar acesso automático se houver código na URL ──
+  useEffect(() => {
+    if (urlCode && portalCodes && !accessLevel) {
+      const trimmed = urlCode.trim().toUpperCase();
+      if (trimmed === (portalCodes.emult)) {
+        setAccessLevel('emult');
+      } else if (trimmed === (portalCodes.nurse)) {
+        setAccessLevel('nurse');
+      } else if (trimmed === (portalCodes.tech)) {
+        setAccessLevel('tech');
+      }
+    }
+  }, [urlCode, portalCodes, accessLevel]);
 
   // ── Buscar códigos e dados ──
   useEffect(() => {
@@ -264,7 +279,7 @@ export default function Portal() {
 
         if (data) {
           // Carrega os códigos da publicação (ou usa os padrões se for uma publicação antiga)
-          const codes = data.portal_codes as PortalCodes;
+          const codes = (data as any).portal_codes as PortalCodes;
           setPortalCodes(codes || DEFAULT_PORTAL_CODES);
 
           // Armazena os dados da publicação
@@ -321,7 +336,7 @@ export default function Portal() {
       if (error) throw error;
 
       if (data) {
-        if (data.portal_codes) setPortalCodes(data.portal_codes as PortalCodes);
+        if ((data as any).portal_codes) setPortalCodes((data as any).portal_codes as PortalCodes);
         setPortalData({
           publishedAt: data.published_at,
           emult: data.emult_data as unknown as PortalData['emult'],
