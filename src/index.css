@@ -172,6 +172,10 @@
   }
 }
 
+.safe-area-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem);
+}
+
 @media print {
   .no-print {
     display: none !important;
