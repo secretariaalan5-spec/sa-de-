@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
+import { generateId } from '@/lib/uuid';
 
 export function useLeaveRequests() {
     const { state, updateServiceState, loading } = useServiceState();
@@ -9,7 +10,7 @@ export function useLeaveRequests() {
     const addRequest = useCallback((request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
         const newRequest: LeaveRequest = {
             ...request,
-            id: crypto.randomUUID(),
+            id: generateId(),
             status: 'approved', // Auto-approved since it's manual registration
             createdAt: new Date().toISOString(),
         };
