@@ -163,12 +163,14 @@ function LoginScreen({
   adminId,
   onInstall,
   showInstall,
+  loading,
 }: {
   onAccess: (level: AccessLevel) => void,
   portalCodes: PortalCodes | null,
   adminId: string | null,
   onInstall: () => void,
   showInstall: boolean,
+  loading: boolean,
 }) {
   const [code, setCode] = useState('');
   const [showCode, setShowCode] = useState(false);
@@ -269,7 +271,7 @@ function LoginScreen({
                       )}
                       autoFocus
                       autoComplete="off"
-                      disabled={checking}
+                      disabled={checking || loading}
                     />
                     <button
                       type="button"
@@ -289,13 +291,13 @@ function LoginScreen({
 
                 <Button
                   type="submit"
-                  disabled={checking}
+                  disabled={checking || loading}
                   className="w-full h-16 text-lg font-bold rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-primary/25 gap-3"
                 >
-                  {checking ? (
+                  {checking || loading ? (
                     <>
                       <RefreshCw className="h-5 w-5 animate-spin" />
-                      <span>Acessando...</span>
+                      <span>{loading ? 'Carregando portal...' : 'Acessando...'}</span>
                     </>
                   ) : (
                     <>
@@ -407,6 +409,7 @@ export default function Portal() {
 
     const tryAutoAccess = async () => {
       const trimmed = codeToTry.trim().toUpperCase();
+      if (!trimmed || trimmed === '...') return;
 
       // 1. Verifica códigos fixos
       const effectiveCodes = portalCodes || DEFAULT_PORTAL_CODES;
@@ -584,6 +587,7 @@ export default function Portal() {
         adminId={adminId}
         onInstall={handleInstall}
         showInstall={!!deferredPrompt}
+        loading={loadingPortal}
       />
     );
   }

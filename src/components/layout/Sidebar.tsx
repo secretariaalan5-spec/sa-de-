@@ -81,6 +81,12 @@ export function Sidebar() {
         return;
       }
 
+      // Evita publicar códigos em branco se ainda estiverem carregando
+      if (!portalCodes.emult || !portalCodes.nurse || !portalCodes.tech) {
+        toast.error('Aguarde o carregamento dos códigos de acesso antes de publicar.');
+        return;
+      }
+
       // Payload higienizado para garantir serialização correta
       const payload = {
         user_id: userId,

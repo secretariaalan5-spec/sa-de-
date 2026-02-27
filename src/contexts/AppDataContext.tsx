@@ -85,7 +85,7 @@ const INITIAL_DATA: AppData = {
 };
 
 // Usado apenas como estado inicial enquanto os dados não são carregados
-const PLACEHOLDER_CODES: PortalCodes = { emult: '...', nurse: '...', tech: '...' };
+const PLACEHOLDER_CODES: PortalCodes = { emult: '', nurse: '', tech: '' };
 
 // ── Context ────────────────────────────────────────────────────────────────
 

@@ -298,8 +298,8 @@ export default function Settings() {
                   </span>
 
                   {/* Código */}
-                  <div className={cn('font-mono font-bold text-xl tracking-widest text-center py-1 select-all', team.codeColor)}>
-                    {team.code}
+                  <div className={cn('font-mono font-bold text-xl tracking-widest text-center py-1 select-all flex items-center justify-center min-h-[1.75rem]', team.codeColor)}>
+                    {team.code || <RefreshCw className="w-4 h-4 animate-spin opacity-30" />}
                   </div>
 
                   {/* Ações */}
