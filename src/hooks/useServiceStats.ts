@@ -35,15 +35,18 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
         });
 
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
-        const creditsGenerated = weekendEntries.length * 2;
+        // Cada dia de final de semana trabalhado gera 1 crédito (totalizando 2 por final de semana completo)
+        // Usamos Set para contar apenas uma vez por dia, mesmo que haja múltiplos períodos
+        const uniqueWeekendDates = new Set(weekendEntries.map(e => e.date));
+        const creditsGenerated = uniqueWeekendDates.size;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return {
             professionalId,
             professionalName,
             category,
-            workedDays: pastEntries.length,
-            weekendDays: weekendEntries.length,
+            workedDays: new Set(pastEntries.map(e => e.date)).size,
+            weekendDays: uniqueWeekendDates.size,
             creditsGenerated,
             creditsUsed,
             creditsBalance: creditsGenerated - creditsUsed,
@@ -69,7 +72,8 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
             return entryDate <= today;
         });
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
-        const creditsGenerated = weekendEntries.length * 2;
+        const uniqueWeekendDates = new Set(weekendEntries.map(e => e.date));
+        const creditsGenerated = uniqueWeekendDates.size;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return creditsGenerated - creditsUsed;
@@ -91,22 +95,28 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
         const profEntries = allEntries.filter(e => {
             const entryDate = new Date(e.date);
             return e.professionalId === professionalId &&
-                   entryDate >= monthStart &&
-                   entryDate <= monthEnd;
+                entryDate >= monthStart &&
+                entryDate <= monthEnd;
         });
 
         // Only count past weekend entries for credits
         const weekendEntries = profEntries.filter(e => e.isWeekend);
-        const workedWeekendEntries = weekendEntries.filter(e => new Date(e.date) <= today);
-        const creditsGenerated = workedWeekendEntries.length * 2;
+        const uniqueWeekendDates = new Set(weekendEntries.map(e => e.date));
+        const workedWeekendDates = new Set(
+            weekendEntries
+                .filter(e => new Date(e.date) <= today)
+                .map(e => e.date)
+        );
+
+        const creditsGenerated = workedWeekendDates.size;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return {
             professionalId,
             professionalName,
             category,
-            workedDays: profEntries.length,
-            weekendDays: weekendEntries.length,
+            workedDays: new Set(profEntries.map(e => e.date)).size,
+            weekendDays: uniqueWeekendDates.size,
             creditsGenerated,
             creditsUsed,
             creditsBalance: creditsGenerated - creditsUsed,
