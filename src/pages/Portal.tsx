@@ -361,6 +361,7 @@ export default function Portal() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [emultSearch, setEmultSearch] = useState('');
 
   // ── Listener para PWA Install ──
   useEffect(() => {
@@ -732,88 +733,149 @@ export default function Portal() {
       </div>
     );
 
-    // Agrupar profissionais por função (Fisioterapeutas, Psicólogos, etc)
+    const filteredEmultProfs = emultSearch.trim()
+      ? emultProfs.filter(p => p.name.toLowerCase().includes(emultSearch.toLowerCase()))
+      : emultProfs;
+
+    // Agrupar profissionais filtrados por função
     const profsByFunction = functions.map(func => ({
       ...func,
-      profs: emultProfs.filter(p => p.functionId === func.id)
+      profs: filteredEmultProfs.filter(p => p.functionId === func.id)
     })).filter(f => f.profs.length > 0);
 
     return (
-      <div className="space-y-12">
-        {profsByFunction.map(funcGroup => (
-          <div key={funcGroup.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-md overflow-hidden transition-all duration-500 hover:shadow-xl">
-            <div className="p-6 md:p-8 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transform rotate-3"
-                  style={{ backgroundColor: funcGroup.color }}
-                >
-                  <Users className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Grupo de Atuação</span>
-                  {funcGroup.name.toUpperCase()}
-                </div>
-              </h3>
-              <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">Escala Semanal</span>
-              </div>
-            </div>
+      <div className="space-y-8">
+        {/* Search Bar */}
+        <div className="relative max-w-md mx-auto mb-10 no-print">
+          <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <Input
+            placeholder="Buscar profissional na eMult..."
+            value={emultSearch}
+            onChange={(e) => setEmultSearch(e.target.value)}
+            className="pl-12 h-14 rounded-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-lg shadow-primary/5 text-lg font-medium transition-all"
+          />
+        </div>
 
-            <div className="overflow-x-auto selection:bg-primary/10">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                    <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-slate-50/95 dark:bg-slate-800/95 z-20 min-w-[200px] shadow-[2px_0_10px_rgba(0,0,0,0.02)]">Profissional</th>
-                    {DAYS_OF_WEEK.map(day => (
-                      <th key={day} className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] min-w-[160px] border-r border-slate-100 dark:border-slate-800 last:border-r-0">{day}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        {profsByFunction.length === 0 ? (
+          <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-slate-500 font-medium whitespace-nowrap">Nenhum profissional encontrado com esse nome.</p>
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {profsByFunction.map(funcGroup => (
+              <div key={funcGroup.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-md overflow-hidden transition-all duration-500 hover:shadow-xl">
+                <div className="p-6 md:p-8 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transform rotate-3"
+                      style={{ backgroundColor: funcGroup.color }}
+                    >
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Grupo de Atuação</span>
+                      {funcGroup.name.toUpperCase()}
+                    </div>
+                  </h3>
+                  <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">Escala Semanal</span>
+                  </div>
+                </div>
+
+                {/* Mobile: View por Card (Profissional) */}
+                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
                   {funcGroup.profs.map(prof => (
-                    <tr key={prof.id} className="hover:bg-primary/[0.02] transition-colors group">
-                      <td className="p-6 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 group-hover:text-primary transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
-                        {prof.name.toUpperCase()}
-                      </td>
-                      {DAYS_OF_WEEK.map(day => {
-                        const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day);
+                    <div key={prof.id} className="p-5 space-y-4">
+                      <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{prof.name}</h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {DAYS_OF_WEEK.map(day => {
+                          const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day);
+                          if (dayEntries.length === 0) return null;
 
-                        return (
-                          <td key={day} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
-                            {dayEntries.length > 0 ? (
-                              <div className="space-y-2">
+                          return (
+                            <div key={day} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day}</span>
+                              <div className="flex-1 space-y-1">
                                 {dayEntries.map(entry => {
                                   const unit = units.find(u => u.id === entry.unitId);
                                   const periodLabel = PERIODS.find(p => p.key === entry.period)?.label;
                                   return (
-                                    <div key={entry.id} className="group/unit transform transition-all hover:scale-105">
-                                      <span className="block font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight leading-tight">
-                                        {unit?.name || '?'}
-                                      </span>
-                                      {entry.period !== 'integral' && (
-                                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-1">
-                                          {periodLabel}
-                                        </span>
-                                      )}
+                                    <div key={entry.id} className="flex items-center justify-between gap-2">
+                                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{unit?.name}</span>
+                                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-400 uppercase">{periodLabel}</span>
                                     </div>
                                   );
                                 })}
                               </div>
-                            ) : (
-                              <span className="text-slate-300 dark:text-slate-700 font-bold opacity-50">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                            </div>
+                          );
+                        })}
+                        {DAYS_OF_WEEK.every(day => schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day).length === 0) && (
+                          <p className="text-xs italic text-slate-400 text-center py-2">Sem atividades programadas nesta semana.</p>
+                        )}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+
+                {/* Desktop: Tradicional Table Layout */}
+                <div className="hidden md:block overflow-x-auto selection:bg-primary/10">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                        <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-slate-50/95 dark:bg-slate-800/95 z-20 min-w-[200px] shadow-[2px_0_10px_rgba(0,0,0,0.02)]">Profissional</th>
+                        {DAYS_OF_WEEK.map(day => (
+                          <th key={day} className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] min-w-[160px] border-r border-slate-100 dark:border-slate-800 last:border-r-0">{day}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {funcGroup.profs.map(prof => (
+                        <tr key={prof.id} className="hover:bg-primary/[0.02] transition-colors group">
+                          <td className="p-6 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 group-hover:text-primary transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
+                            {prof.name.toUpperCase()}
+                          </td>
+                          {DAYS_OF_WEEK.map(day => {
+                            const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day);
+
+                            return (
+                              <td key={day} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
+                                {dayEntries.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {dayEntries.map(entry => {
+                                      const unit = units.find(u => u.id === entry.unitId);
+                                      const periodLabel = PERIODS.find(p => p.key === entry.period)?.label;
+                                      return (
+                                        <div key={entry.id} className="group/unit transform transition-all hover:scale-105">
+                                          <span className="block font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight leading-tight">
+                                            {unit?.name || '?'}
+                                          </span>
+                                          {entry.period !== 'integral' && (
+                                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-1">
+                                              {periodLabel}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 dark:text-slate-700 font-bold opacity-50">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     );
   };
