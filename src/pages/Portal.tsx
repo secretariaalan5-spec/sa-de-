@@ -41,6 +41,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LEAVE_TYPE_LABELS, LeaveRequest } from '@/types/serviceSchedule';
 import { type InviteAccessLevel } from '@/hooks/usePortalInvites';
+import { DAYS_OF_WEEK as EMULT_DAYS, PERIODS as EMULT_PERIODS } from '@/types';
 
 type AccessLevel = 'emult' | 'nurse' | 'tech';
 
@@ -112,12 +113,7 @@ interface PortalData {
   };
 }
 
-const DAYS_OF_WEEK = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-const PERIODS = [
-  { key: 'manha', label: 'Manhã' },
-  { key: 'tarde', label: 'Tarde' },
-  { key: 'integral', label: 'Integral' },
-];
+const DAYS_OF_WEEK_LABELS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 
 // ─────────────────────────────────────────
 // helper: valida código de convite no banco
@@ -794,17 +790,17 @@ export default function Portal() {
                     <div key={prof.id} className="p-5 space-y-4">
                       <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{prof.name}</h4>
                       <div className="grid grid-cols-1 gap-2">
-                        {DAYS_OF_WEEK.map(day => {
-                          const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day);
+                        {EMULT_DAYS.map(day => {
+                          const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key);
                           if (dayEntries.length === 0) return null;
 
                           return (
-                            <div key={day} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day}</span>
+                            <div key={day.key} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day.label}</span>
                               <div className="flex-1 space-y-1">
                                 {dayEntries.map(entry => {
                                   const unit = units.find(u => u.id === entry.unitId);
-                                  const periodLabel = PERIODS.find(p => p.key === entry.period)?.label;
+                                  const periodLabel = EMULT_PERIODS.find(p => p.key === entry.period)?.label;
                                   return (
                                     <div key={entry.id} className="flex items-center justify-between gap-2">
                                       <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{unit?.name}</span>
@@ -816,7 +812,7 @@ export default function Portal() {
                             </div>
                           );
                         })}
-                        {DAYS_OF_WEEK.every(day => schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day).length === 0) && (
+                        {EMULT_DAYS.every(day => schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key).length === 0) && (
                           <p className="text-xs italic text-slate-400 text-center py-2">Sem atividades programadas nesta semana.</p>
                         )}
                       </div>
@@ -830,8 +826,8 @@ export default function Portal() {
                     <thead>
                       <tr className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm">
                         <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-slate-50/95 dark:bg-slate-800/95 z-20 min-w-[200px] shadow-[2px_0_10px_rgba(0,0,0,0.02)]">Profissional</th>
-                        {DAYS_OF_WEEK.map(day => (
-                          <th key={day} className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] min-w-[160px] border-r border-slate-100 dark:border-slate-800 last:border-r-0">{day}</th>
+                        {EMULT_DAYS.map(day => (
+                          <th key={day.key} className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] min-w-[160px] border-r border-slate-100 dark:border-slate-800 last:border-r-0">{day.label}</th>
                         ))}
                       </tr>
                     </thead>
@@ -841,16 +837,16 @@ export default function Portal() {
                           <td className="p-6 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 group-hover:text-primary transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
                             {prof.name.toUpperCase()}
                           </td>
-                          {DAYS_OF_WEEK.map(day => {
-                            const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day);
+                          {EMULT_DAYS.map(day => {
+                            const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key);
 
                             return (
-                              <td key={day} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
+                              <td key={day.key} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
                                 {dayEntries.length > 0 ? (
                                   <div className="space-y-2">
                                     {dayEntries.map(entry => {
                                       const unit = units.find(u => u.id === entry.unitId);
-                                      const periodLabel = PERIODS.find(p => p.key === entry.period)?.label;
+                                      const periodLabel = EMULT_PERIODS.find(p => p.key === entry.period)?.label;
                                       return (
                                         <div key={entry.id} className="group/unit transform transition-all hover:scale-105">
                                           <span className="block font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight leading-tight">
