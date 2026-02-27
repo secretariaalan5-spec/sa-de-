@@ -1,10 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
 
 export function useLeaveRequests() {
     const { state, updateServiceState, loading } = useServiceState();
-    const requests = state?.requests || [];
+    const requests = useMemo(() => state?.requests || [], [state?.requests]);
 
     const addRequest = useCallback((request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
         const newRequest: LeaveRequest = {

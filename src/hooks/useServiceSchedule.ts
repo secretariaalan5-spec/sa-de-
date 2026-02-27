@@ -1,14 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ServiceScheduleEntry } from '@/types/serviceSchedule';
 import { isWeekend, parseISO } from 'date-fns';
 import { useServiceState } from './useServiceState';
 
 export function useServiceSchedule(type: 'nurse' | 'tech') {
     const { state, updateServiceState, loading } = useServiceState();
-    const allEntries = state?.entries || [];
+    const allEntries = useMemo(() => state?.entries || [], [state?.entries]);
 
     // Filter entries by type
-    const entries = allEntries.filter(e => e.type === type);
+    const entries = useMemo(() => allEntries.filter(e => e.type === type), [allEntries, type]);
 
 
     const addEntry = useCallback((professionalId: string, date: string, status?: ServiceScheduleEntry['status']) => {

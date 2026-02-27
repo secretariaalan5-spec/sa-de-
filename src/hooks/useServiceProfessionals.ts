@@ -2,13 +2,13 @@
  * Hook para gerenciar profissionais de serviço (enfermeiros e técnicos).
  * Todas as mutações são automaticamente persistidas na nuvem via ServiceStateContext.
  */
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
 
 export function useServiceProfessionals() {
     const { state, updateServiceState, loading } = useServiceState();
-    const professionals = state?.professionals || [];
+    const professionals = useMemo(() => state?.professionals || [], [state?.professionals]);
 
     /** Adiciona um novo profissional, mantendo a lista ordenada por nome. */
     const addProfessional = useCallback((professional: Omit<ServiceProfessional, 'id'>) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,10 @@ export default function ServiceProfessionalsPage() {
     const paginatedTechs = techs.slice(0, techPage * ITEMS_PER_PAGE);
 
     // Reset pages when search changes
-    useMemo(() => { setNursePage(1); setTechPage(1); }, [searchTerm]);
+    useEffect(() => {
+        setNursePage(1);
+        setTechPage(1);
+    }, [searchTerm]);
 
     const showNurses = categoryFilter === 'all' || categoryFilter === 'nurse';
     const showTechs = categoryFilter === 'all' || categoryFilter === 'tech';
@@ -115,7 +118,7 @@ export default function ServiceProfessionalsPage() {
                             className="pl-9"
                         />
                     </div>
-                    <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
+                    <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as 'all' | 'nurse' | 'tech')}>
                         <SelectTrigger className="w-full sm:w-44">
                             <SelectValue />
                         </SelectTrigger>

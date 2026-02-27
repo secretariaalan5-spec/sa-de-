@@ -32,6 +32,7 @@ interface AppDataContextType {
     resetData: () => void;
     portalCodes: PortalCodes;
     updatePortalCodes: (codes: PortalCodes) => void;
+    regeneratePortalCodes: () => void;
 }
 
 export interface PortalCodes {
@@ -381,6 +382,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         saveToSupabase(data, codes);
     }, [userId, data]);
 
+    const regeneratePortalCodes = useCallback(() => {
+        const newCodes = generatePortalCodes();
+        updatePortalCodes(newCodes);
+        toast.info('Novos códigos gerados. Não esqueça de publicar para ativar!');
+    }, [updatePortalCodes]);
+
     return (
         <AppDataContext.Provider value={{
             data, loading, userId, updateData,
@@ -390,7 +397,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             addScheduleEntry, updateScheduleEntry, deleteScheduleEntry,
             clearScheduleForProfessional, addRestriction, deleteRestriction,
             getWeeklyHoursUsed, validateScheduleEntry, importData, exportData, resetData,
-            portalCodes, updatePortalCodes,
+            portalCodes, updatePortalCodes, regeneratePortalCodes,
         }}>
             {children}
         </AppDataContext.Provider>

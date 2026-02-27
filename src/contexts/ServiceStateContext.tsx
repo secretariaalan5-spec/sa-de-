@@ -62,16 +62,16 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         const fetchServiceState = async () => {
             setLoading(true);
             try {
-                const { data: adminData, error } = await (supabase
-                    .from('admin_states' as any)
+                const { data: adminData, error } = await supabase
+                    .from('admin_states')
                     .select('service_state')
                     .eq('user_id', userId)
-                    .maybeSingle() as any);
+                    .maybeSingle();
 
                 if (error) throw error;
 
                 if (adminData?.service_state) {
-                    const loadedState = adminData.service_state as any;
+                    const loadedState = adminData.service_state as unknown as ServiceState;
                     setState({
                         professionals: loadedState.professionals || [],
                         entries: loadedState.entries || [],
@@ -96,13 +96,13 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
     const saveServiceState = async (newState: ServiceState) => {
         if (!userId) return;
         try {
-            const { error } = await (supabase
-                .from('admin_states' as any)
+            const { error } = await supabase
+                .from('admin_states')
                 .upsert({
                     user_id: userId,
                     service_state: newState as any,
                     updated_at: new Date().toISOString(),
-                }) as any);
+                });
             if (error) throw error;
         } catch (err) {
             console.error('Erro ao salvar estado de serviços:', err);

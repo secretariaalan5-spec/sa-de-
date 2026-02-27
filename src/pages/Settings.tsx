@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { generatePortalCode } from '@/contexts/AppDataContext';
@@ -16,15 +16,17 @@ import { ptBR } from 'date-fns/locale';
 import { useServiceState } from '@/hooks/useServiceState';
 import { useSettingsActions } from '@/hooks/useSettingsActions';
 
+import { ServiceProfessional, ServiceScheduleEntry, LeaveRequest } from '@/types/serviceSchedule';
+
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
 interface FullBackupData {
-  emult: any;
+  emult: Record<string, unknown>;
   serviceSchedule: {
-    professionals: any[];
-    entries: any[];
+    professionals: ServiceProfessional[];
+    entries: ServiceScheduleEntry[];
     creditsUsed: Record<string, number>;
-    leaveRequests: any[];
+    leaveRequests: LeaveRequest[];
   };
   backupVersion: number;
   backupDate: string;
@@ -33,7 +35,7 @@ interface FullBackupData {
 // ── Página principal ───────────────────────────────────────────────────────
 
 export default function Settings() {
-  const { exportData, importData, userId, portalCodes, updatePortalCodes } = useAppData();
+  const { exportData, importData, userId, portalCodes, regeneratePortalCodes } = useAppData();
   const { state: serviceState, updateServiceState } = useServiceState();
   const { resetAllCloudData } = useSettingsActions();
 
@@ -45,7 +47,7 @@ export default function Settings() {
   // ── Status do portal ──
   const [publishedCodes, setPublishedCodes] = useState<PortalCodes | null>(null);
 
-  const fetchLastPublish = async () => {
+  const fetchLastPublish = useCallback(async () => {
     setLoadingStatus(true);
     try {
       const { data, error } = await supabase
@@ -65,9 +67,9 @@ export default function Settings() {
     } finally {
       setLoadingStatus(false);
     }
-  };
+  }, [userId]);
 
-  useEffect(() => { if (userId) fetchLastPublish(); }, [userId]);
+  useEffect(() => { if (userId) fetchLastPublish(); }, [userId, fetchLastPublish]);
 
   // ── URL do portal ──
   const portalUrl = `${window.location.origin}/portal?admin=${userId || ''}`;
@@ -239,6 +241,17 @@ export default function Settings() {
           </div>
           <p className="text-sm text-muted-foreground mb-4">
             Compartilhe o link e o código de cada equipe. O acesso é separado por grupo.
+            <button
+              onClick={() => {
+                if (confirm('Deseja realmente gerar novos códigos? Os códigos anteriores deixarão de funcionar após a próxima publicação.')) {
+                  regeneratePortalCodes();
+                }
+              }}
+              className="ml-2 text-xs text-primary hover:underline flex items-center gap-1 inline-flex"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Gerar novos códigos
+            </button>
           </p>
 
           {/* Status de publicação */}

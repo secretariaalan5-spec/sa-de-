@@ -48,14 +48,14 @@ export function usePortalInvites(userId: string | null) {
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .select('*')
                 .eq('admin_id', userId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
             setInvites((data as unknown as PortalInvite[]) || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error('Erro ao buscar convites:', err);
         } finally {
             setLoading(false);
@@ -77,7 +77,7 @@ export function usePortalInvites(userId: string | null) {
 
         try {
             const { data, error } = await supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .insert({
                     admin_id: userId,
                     code,
@@ -95,7 +95,7 @@ export function usePortalInvites(userId: string | null) {
             setInvites(prev => [invite, ...prev]);
             toast.success('Convite criado com sucesso!');
             return invite;
-        } catch (err: any) {
+        } catch (err) {
             console.error('Erro ao criar convite:', err);
             toast.error('Erro ao criar convite. Tente novamente.');
             return null;
@@ -106,10 +106,10 @@ export function usePortalInvites(userId: string | null) {
     const toggleInvite = async (id: string, is_active: boolean) => {
         try {
             const { error } = await supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .update({ is_active })
                 .eq('id', id)
-                .eq('admin_id', userId);
+                .eq('admin_id', userId as string);
 
             if (error) throw error;
 
@@ -117,7 +117,7 @@ export function usePortalInvites(userId: string | null) {
                 prev.map(inv => inv.id === id ? { ...inv, is_active } : inv)
             );
             toast.success(is_active ? 'Convite reativado!' : 'Convite revogado!');
-        } catch (err: any) {
+        } catch (err) {
             console.error('Erro ao atualizar convite:', err);
             toast.error('Erro ao atualizar convite.');
         }
@@ -127,16 +127,16 @@ export function usePortalInvites(userId: string | null) {
     const deleteInvite = async (id: string) => {
         try {
             const { error } = await supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .delete()
                 .eq('id', id)
-                .eq('admin_id', userId);
+                .eq('admin_id', userId as string);
 
             if (error) throw error;
 
             setInvites(prev => prev.filter(inv => inv.id !== id));
             toast.success('Convite removido.');
-        } catch (err: any) {
+        } catch (err) {
             console.error('Erro ao deletar convite:', err);
             toast.error('Erro ao deletar convite.');
         }
@@ -149,7 +149,7 @@ export function usePortalInvites(userId: string | null) {
     ): Promise<InviteAccessLevel | null> => {
         try {
             const { data, error } = await supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .select('*')
                 .eq('admin_id', adminId)
                 .eq('code', code.trim().toUpperCase())
@@ -168,7 +168,7 @@ export function usePortalInvites(userId: string | null) {
 
             // Incrementa contador de usos (fire-and-forget)
             supabase
-                .from('portal_invites' as any)
+                .from('portal_invites')
                 .update({ uses_count: invite.uses_count + 1 })
                 .eq('id', invite.id)
                 .then(() => { });
