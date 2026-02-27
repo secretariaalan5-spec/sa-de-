@@ -494,7 +494,7 @@ export default function Portal() {
     allEntries: [...nurseEntries, ...techEntries],
     getTotalCreditsUsedByProfessional: (id: string) => {
       return (requests as LeaveRequest[])
-        .filter((r) => r.professionalId === id && r.status === 'approved')
+        .filter((r) => r.professionalId === id && r.status === 'approved' && r.leaveType === 'folga_credito')
         .reduce((acc: number, r) => acc + (r.daysRequested || 0), 0);
     },
   });
@@ -910,9 +910,13 @@ export default function Portal() {
     const absenceLabel = (type?: string) => {
       switch (type) {
         case 'ferias': return { label: 'Férias', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200 dark:border-blue-500/20' };
-        case 'licenca': return { label: 'Licença', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200 dark:border-purple-500/20' };
-        case 'atestado': return { label: 'Atestado', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border-orange-200 dark:border-orange-500/20' };
-        default: return { label: 'Folga', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' };
+        case 'licenca':
+        case 'licenca_medica': return { label: 'Licença', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200 dark:border-purple-500/20' };
+        case 'atestado': return { label: 'Atestado', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200 dark:border-rose-500/20' };
+        case 'folga_feriado': return { label: 'Feriado', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' };
+        case 'capacitacao': return { label: 'Capacitação', cls: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 border-cyan-200 dark:border-cyan-500/20' };
+        case 'folga_credito': return { label: 'Folga (Crédito)', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' };
+        default: return { label: 'Afastamento', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border-slate-200 dark:border-slate-500/20' };
       }
     };
 
@@ -924,7 +928,7 @@ export default function Portal() {
             .sort((a, b) => b.requestDate.localeCompare(a.requestDate))
             .map(req => {
               const prof = professionals.find(p => p.id === req.professionalId);
-              const abs = absenceLabel(req.absenceType);
+              const abs = absenceLabel(req.leaveType);
               return (
                 <div key={req.id} className="bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                   <div className={cn("absolute top-0 right-0 w-16 h-16 opacity-5 -mr-4 -mt-4 transform rotate-12 transition-transform group-hover:scale-110", abs.cls.split(' ')[0])}>
@@ -990,7 +994,7 @@ export default function Portal() {
                   .sort((a, b) => b.requestDate.localeCompare(a.requestDate))
                   .map(req => {
                     const prof = professionals.find(p => p.id === req.professionalId);
-                    const abs = absenceLabel(req.absenceType);
+                    const abs = absenceLabel(req.leaveType);
                     return (
                       <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
                         <td className="p-6 font-bold text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{prof?.name || 'Desconhecido'}</td>
@@ -1061,7 +1065,7 @@ export default function Portal() {
       {deferredPrompt && (
         <Button
           onClick={handleInstall}
-          className="fixed bottom-6 right-6 z-[100] h-14 px-6 rounded-2xl shadow-2xl bg-primary hover:bg-primary/90 text-white font-bold gap-2 animate-bounce hover:animate-none transition-all"
+          className="fixed bottom-6 right-6 z-[100] h-14 px-6 rounded-2xl shadow-2xl bg-primary hover:bg-primary/90 text-white font-bold gap-2 animate-bounce hover:animate-none transition-all no-print"
         >
           <Download className="h-5 w-5" />
           <span className="hidden sm:inline">Instalar App</span>
@@ -1222,7 +1226,7 @@ export default function Portal() {
           )}
 
           {/* Mobile Bottom Navigation Bar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 no-print">
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-2">
               <TabsList className="bg-transparent h-16 w-full grid grid-cols-3 gap-1">
                 {currentTabs.map(tab => (

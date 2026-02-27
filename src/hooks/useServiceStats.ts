@@ -35,10 +35,10 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
         });
 
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
-        // Cada dia de final de semana trabalhado gera 1 crédito (totalizando 2 por final de semana completo)
+        // Cada dia de final de semana trabalhado gera 2 créditos (totalizando 4 por final de semana completo)
         // Usamos Set para contar apenas uma vez por dia, mesmo que haja múltiplos períodos
         const uniqueWeekendDates = new Set(weekendEntries.map(e => e.date));
-        const creditsGenerated = uniqueWeekendDates.size;
+        const creditsGenerated = uniqueWeekendDates.size * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return {
@@ -73,7 +73,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
         });
         const weekendEntries = pastEntries.filter(e => e.isWeekend);
         const uniqueWeekendDates = new Set(weekendEntries.map(e => e.date));
-        const creditsGenerated = uniqueWeekendDates.size;
+        const creditsGenerated = uniqueWeekendDates.size * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return creditsGenerated - creditsUsed;
@@ -108,7 +108,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
                 .map(e => e.date)
         );
 
-        const creditsGenerated = workedWeekendDates.size;
+        const creditsGenerated = workedWeekendDates.size * 2;
         const creditsUsed = getTotalCreditsUsedByProfessional(professionalId);
 
         return {

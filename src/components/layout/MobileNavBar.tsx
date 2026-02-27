@@ -26,7 +26,7 @@ export function MobileNavBar() {
   if (location.pathname.startsWith("/portal")) return null;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-lg shadow-inner lg:hidden safe-area-bottom">
+    <nav className="fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-lg shadow-inner lg:hidden safe-area-bottom no-print">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-1 py-1">
         {items.map((item) => {
           const Icon = item.icon;
