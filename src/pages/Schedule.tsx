@@ -93,16 +93,31 @@ export default function Schedule() {
 
   const handleSave = () => {
     if (!handleValidate()) return;
-    const exists = data.schedule.some(
-      (s) =>
-        s.professionalId === form.professionalId &&
-        s.dayOfWeek === form.dayOfWeek &&
-        s.period === form.period
+
+    // Conflito de Integral vs Parcial
+    const dayEntries = data.schedule.filter(s =>
+      s.professionalId === form.professionalId && s.dayOfWeek === form.dayOfWeek
     );
-    if (exists) {
-      toast.error('Já existe escala para este profissional neste dia/período');
+
+    const hasIntegral = dayEntries.some(s => s.period === 'integral');
+    const isAddingIntegral = form.period === 'integral';
+
+    if (hasIntegral) {
+      toast.error('O profissional já possui escala INTEGRAL neste dia');
       return;
     }
+
+    if (isAddingIntegral && dayEntries.length > 0) {
+      toast.error('Remova as escalas parciais antes de adicionar uma INTEGRAL');
+      return;
+    }
+
+    const exists = dayEntries.some(s => s.period === form.period);
+    if (exists) {
+      toast.error('Já existe escala para este profissional neste período');
+      return;
+    }
+
     addScheduleEntry({
       professionalId: form.professionalId,
       unitId: form.unitId,
@@ -128,14 +143,21 @@ export default function Schedule() {
   const getFunction = (id: string) => data.functions.find((f) => f.id === id);
 
   const getEntriesForCell = (professionalId: string, day: DayOfWeek): ScheduleEntry[] =>
-    data.schedule.filter(
-      (s) => s.professionalId === professionalId && s.dayOfWeek === day
-    );
+    data.schedule
+      .filter((s) => s.professionalId === professionalId && s.dayOfWeek === day)
+      .sort((a, b) => {
+        const order = { manha: 0, tarde: 1, integral: 2 };
+        return (order[a.period as keyof typeof order] ?? 99) - (order[b.period as keyof typeof order] ?? 99);
+      });
 
   const formatEntry = (entry: ScheduleEntry) => {
     const unit = getUnit(entry.unitId)?.name ?? '';
-    const suffix =
-      entry.period === 'manha' ? ' - MANHÃ' : entry.period === 'tarde' ? ' - TARDE' : '';
+    const suffixMap = {
+      manha: ' - MANHÃ',
+      tarde: ' - TARDE',
+      integral: ' - INTEGRAL'
+    };
+    const suffix = suffixMap[entry.period as keyof typeof suffixMap] || '';
     const prof = getProfessional(entry.professionalId);
     const func = getFunction(prof?.functionId || '');
     return {

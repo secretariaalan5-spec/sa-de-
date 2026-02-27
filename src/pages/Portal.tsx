@@ -791,7 +791,12 @@ export default function Portal() {
                       <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{prof.name}</h4>
                       <div className="grid grid-cols-1 gap-2">
                         {EMULT_DAYS.map(day => {
-                          const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key);
+                          const dayEntries = schedule
+                            .filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key)
+                            .sort((a, b) => {
+                              const order = { manha: 0, tarde: 1, integral: 2 };
+                              return (order[a.period as keyof typeof order] ?? 99) - (order[b.period as keyof typeof order] ?? 99);
+                            });
                           if (dayEntries.length === 0) return null;
 
                           return (
@@ -838,12 +843,17 @@ export default function Portal() {
                             {prof.name.toUpperCase()}
                           </td>
                           {EMULT_DAYS.map(day => {
-                            const dayEntries = schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key);
+                            const dayEntries = schedule
+                              .filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key)
+                              .sort((a, b) => {
+                                const order = { manha: 0, tarde: 1, integral: 2 };
+                                return (order[a.period as keyof typeof order] ?? 99) - (order[b.period as keyof typeof order] ?? 99);
+                              });
 
                             return (
                               <td key={day.key} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
                                 {dayEntries.length > 0 ? (
-                                  <div className="space-y-2">
+                                  <div className="space-y-4">
                                     {dayEntries.map(entry => {
                                       const unit = units.find(u => u.id === entry.unitId);
                                       const periodLabel = EMULT_PERIODS.find(p => p.key === entry.period)?.label;
@@ -852,11 +862,14 @@ export default function Portal() {
                                           <span className="block font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight leading-tight">
                                             {unit?.name || '?'}
                                           </span>
-                                          {entry.period !== 'integral' && (
-                                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-1">
-                                              {periodLabel}
-                                            </span>
-                                          )}
+                                          <span className={cn(
+                                            "inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter mt-1",
+                                            entry.period === 'integral'
+                                              ? "bg-primary/10 text-primary border border-primary/20"
+                                              : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                                          )}>
+                                            {periodLabel}
+                                          </span>
                                         </div>
                                       );
                                     })}
