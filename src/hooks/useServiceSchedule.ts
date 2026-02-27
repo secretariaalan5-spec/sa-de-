@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { ServiceScheduleEntry } from '@/types/serviceSchedule';
 import { isWeekend, parseISO } from 'date-fns';
 import { useServiceState } from './useServiceState';
+import { generateId } from '@/lib/uuid';
 
 export function useServiceSchedule(type: 'nurse' | 'tech') {
     const { state, updateServiceState, loading } = useServiceState();
@@ -27,7 +28,7 @@ export function useServiceSchedule(type: 'nurse' | 'tech') {
         const isWeekendDay = isWeekend(dateObj);
 
         const newEntry: ServiceScheduleEntry = {
-            id: crypto.randomUUID(),
+            id: generateId(),
             professionalId,
             date,
             type,

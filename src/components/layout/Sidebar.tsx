@@ -33,6 +33,7 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -152,7 +153,7 @@ export function Sidebar() {
           <img
             src="/logo-saude-plus.png"
             alt="Saúde+"
-            className="w-full h-auto max-w-[200px] object-contain"
+            className="w-full h-auto max-h-[140px] drop-shadow-md transition-all hover:scale-105"
           />
         </div>
 
@@ -246,7 +247,12 @@ export function Sidebar() {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border space-y-1">
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          <div className="flex items-center justify-between px-2 py-1">
+            <span className="text-xs font-bold text-sidebar-foreground/60 uppercase tracking-widest">Tema</span>
+            <ThemeToggle />
+          </div>
+
           <NavLink
             to="/configuracoes"
             onClick={() => setMobileOpen(false)}

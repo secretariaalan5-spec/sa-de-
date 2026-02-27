@@ -5,6 +5,7 @@
 import { useCallback, useMemo } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
+import { generateId } from '@/lib/uuid';
 
 export function useServiceProfessionals() {
     const { state, updateServiceState, loading } = useServiceState();
@@ -14,7 +15,7 @@ export function useServiceProfessionals() {
     const addProfessional = useCallback((professional: Omit<ServiceProfessional, 'id'>) => {
         const newProfessional: ServiceProfessional = {
             ...professional,
-            id: crypto.randomUUID(),
+            id: generateId(),
         };
         updateServiceState(prev => ({
             ...prev,

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { AppData, Professional, Unit, ProfessionalFunction, ScheduleEntry, Restriction, PERIODS } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateId } from '@/lib/uuid';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     const addProfessional = useCallback((professional: Omit<Professional, 'id'>) => {
-        const newProfessional = { ...professional, id: crypto.randomUUID() };
+        const newProfessional = { ...professional, id: generateId() };
         updateData(prev => ({ ...prev, professionals: [...prev.professionals, newProfessional] }));
         return newProfessional;
     }, [updateData]);
@@ -232,7 +233,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }, [updateData]);
 
     const addUnit = useCallback((unit: Omit<Unit, 'id'>) => {
-        const newUnit = { ...unit, id: crypto.randomUUID() };
+        const newUnit = { ...unit, id: generateId() };
         updateData(prev => ({ ...prev, units: [...prev.units, newUnit] }));
         return newUnit;
     }, [updateData]);
@@ -254,7 +255,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }, [updateData]);
 
     const addFunction = useCallback((func: Omit<ProfessionalFunction, 'id'>) => {
-        const newFunc = { ...func, id: crypto.randomUUID() };
+        const newFunc = { ...func, id: generateId() };
         updateData(prev => ({ ...prev, functions: [...prev.functions, newFunc] }));
         return newFunc;
     }, [updateData]);
@@ -274,7 +275,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }, [updateData]);
 
     const addScheduleEntry = useCallback((entry: Omit<ScheduleEntry, 'id'>) => {
-        const newEntry = { ...entry, id: crypto.randomUUID() };
+        const newEntry = { ...entry, id: generateId() };
         updateData(prev => ({ ...prev, schedule: [...prev.schedule, newEntry] }));
         return newEntry;
     }, [updateData]);
@@ -303,7 +304,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }, [updateData]);
 
     const addRestriction = useCallback((restriction: Omit<Restriction, 'id'>) => {
-        const newRestriction = { ...restriction, id: crypto.randomUUID() };
+        const newRestriction = { ...restriction, id: generateId() };
         updateData(prev => ({ ...prev, restrictions: [...prev.restrictions, newRestriction] }));
         return newRestriction;
     }, [updateData]);

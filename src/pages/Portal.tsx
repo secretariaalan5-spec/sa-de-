@@ -32,6 +32,7 @@ import {
   FileText,
   Download,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
@@ -183,17 +184,16 @@ function LoginScreen({
     setError('');
 
     // 1. Verifica códigos fixos (emult/nurse/tech)
-    if (portalCodes) {
-      if (trimmed === (portalCodes.emult || DEFAULT_PORTAL_CODES.emult)) {
-        localStorage.setItem('portal_last_code', trimmed);
-        setChecking(false); return onAccess('emult');
-      } else if (trimmed === (portalCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) {
-        localStorage.setItem('portal_last_code', trimmed);
-        setChecking(false); return onAccess('nurse');
-      } else if (trimmed === (portalCodes.tech || DEFAULT_PORTAL_CODES.tech)) {
-        localStorage.setItem('portal_last_code', trimmed);
-        setChecking(false); return onAccess('tech');
-      }
+    const effectiveCodes = portalCodes || DEFAULT_PORTAL_CODES;
+    if (trimmed === (effectiveCodes.emult || DEFAULT_PORTAL_CODES.emult)) {
+      localStorage.setItem('portal_last_code', trimmed);
+      setChecking(false); return onAccess('emult');
+    } else if (trimmed === (effectiveCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) {
+      localStorage.setItem('portal_last_code', trimmed);
+      setChecking(false); return onAccess('nurse');
+    } else if (trimmed === (effectiveCodes.tech || DEFAULT_PORTAL_CODES.tech)) {
+      localStorage.setItem('portal_last_code', trimmed);
+      setChecking(false); return onAccess('tech');
     }
 
     // 2. Verifica na tabela de convites (portal_invites)
@@ -409,17 +409,16 @@ export default function Portal() {
       const trimmed = codeToTry.trim().toUpperCase();
 
       // 1. Verifica códigos fixos
-      if (portalCodes) {
-        let level: AccessLevel | null = null;
-        if (trimmed === (portalCodes.emult || DEFAULT_PORTAL_CODES.emult)) level = 'emult';
-        else if (trimmed === (portalCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) level = 'nurse';
-        else if (trimmed === (portalCodes.tech || DEFAULT_PORTAL_CODES.tech)) level = 'tech';
+      const effectiveCodes = portalCodes || DEFAULT_PORTAL_CODES;
+      let level: AccessLevel | null = null;
+      if (trimmed === (effectiveCodes.emult || DEFAULT_PORTAL_CODES.emult)) level = 'emult';
+      else if (trimmed === (effectiveCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) level = 'nurse';
+      else if (trimmed === (effectiveCodes.tech || DEFAULT_PORTAL_CODES.tech)) level = 'tech';
 
-        if (level) {
-          setAccessLevel(level);
-          localStorage.setItem('portal_last_code', trimmed);
-          return;
-        }
+      if (level) {
+        setAccessLevel(level);
+        localStorage.setItem('portal_last_code', trimmed);
+        return;
       }
 
       // 2. Verifica convites na tabela portal_invites
@@ -565,8 +564,19 @@ export default function Portal() {
     tech: 'Técnicos',
   };
 
-  // ── Tela de Login ──
+  // ── Tela de Login (Garante que carregou os códigos antes se houver adminId) ──
   if (!accessLevel) {
+    if (loadingPortal && !portalCodes) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
+          <div className="space-y-4 w-full max-w-md px-4 text-center">
+            <RefreshCw className="h-10 w-10 animate-spin mx-auto text-primary" />
+            <p className="text-slate-500 font-medium">Carregando portal...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <LoginScreen
         onAccess={setAccessLevel}
@@ -578,8 +588,8 @@ export default function Portal() {
     );
   }
 
-  // ── Carregando ──
-  if (loadingPortal && accessLevel === 'emult') {
+  // ── Carregando dados após login ──
+  if (loadingPortal && (accessLevel === 'emult' || !portalData)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
         <div className="space-y-4 w-full max-w-2xl px-4">
@@ -1062,11 +1072,11 @@ export default function Portal() {
       <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="container mx-auto px-4 h-20 md:h-24 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 md:gap-5">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0 transform hover:rotate-3 transition-transform">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 shrink-0 transform hover:rotate-3 transition-transform overflow-hidden border border-slate-100 dark:border-slate-700">
               <img
                 src="/logo-saude-plus.png"
                 alt="Saúde+"
-                className="h-8 md:h-10 w-auto brightness-0 invert"
+                className="h-full w-full object-cover"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </div>
@@ -1093,6 +1103,9 @@ export default function Portal() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Última Atualização</p>
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{updatedLabel}</p>
             </div>
+
+            <ThemeToggle />
+
             <Button
               variant="outline"
               size="icon"
