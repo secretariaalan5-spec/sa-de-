@@ -6,9 +6,8 @@ import type { PortalCodes } from '@/contexts/AppDataContext';
 import { Button } from '@/components/ui/button';
 import {
   Download, Upload, Trash2, AlertTriangle, Copy,
-  Check, RefreshCw, Globe, Database, ExternalLink, Moon, Sun, Monitor
+  Check, RefreshCw, Globe, Database, ExternalLink,
 } from 'lucide-react';
-import { useTheme } from '@/components/ThemeProvider';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +38,6 @@ export default function Settings() {
   const { exportData, importData, userId, portalCodes, regeneratePortalCodes } = useAppData();
   const { state: serviceState, updateServiceState } = useServiceState();
   const { resetAllCloudData } = useSettingsActions();
-  const { theme, setTheme } = useTheme();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -344,43 +342,6 @@ export default function Settings() {
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        {/* ── Aparência ── */}
-        <section className="form-section">
-          <h3 className="font-semibold flex items-center gap-2 mb-1">
-            <Sun className="w-4 h-4 text-primary" />
-            Aparência do Sistema
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Escolha entre o modo claro, escuro ou seguir as configurações do seu dispositivo.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Button
-              variant={theme === 'light' ? 'default' : 'outline'}
-              onClick={() => setTheme('light')}
-              className="gap-2"
-            >
-              <Sun className="w-4 h-4" />
-              Claro
-            </Button>
-            <Button
-              variant={theme === 'dark' ? 'default' : 'outline'}
-              onClick={() => setTheme('dark')}
-              className="gap-2"
-            >
-              <Moon className="w-4 h-4" />
-              Escuro
-            </Button>
-            <Button
-              variant={theme === 'system' ? 'default' : 'outline'}
-              onClick={() => setTheme('system')}
-              className="gap-2"
-            >
-              <Monitor className="w-4 h-4" />
-              Sistema
-            </Button>
           </div>
         </section>
 

@@ -32,7 +32,6 @@ import {
   FileText,
   Download,
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
@@ -1103,8 +1102,6 @@ export default function Portal() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Última Atualização</p>
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{updatedLabel}</p>
             </div>
-
-            <ThemeToggle />
 
             <Button
               variant="outline"
