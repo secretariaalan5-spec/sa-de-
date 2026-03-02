@@ -5,6 +5,7 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useServiceStats } from '@/hooks/useServiceStats';
+import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +20,7 @@ import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
     const { requests, addRequest, deleteRequest, getTotalCreditsUsedByProfessional } = useLeaveRequests();
+    const { logActivity } = useProfile();
     const { allEntries } = useServiceSchedule('nurse');
 
     const { getAvailableCredits } = useServiceStats({
@@ -97,6 +99,11 @@ export default function LeaveRequestsPage() {
         });
 
         toast.success('Pedido de folga registrado com sucesso');
+        logActivity('leave_request_created', {
+            professionalName: selectedProfessional?.name,
+            leaveType: LEAVE_TYPE_LABELS[form.leaveType as LeaveType],
+            days: daysRequested,
+        });
         setForm({
             professionalId: '',
             leaveType: '',
@@ -258,7 +265,14 @@ export default function LeaveRequestsPage() {
                                         size="icon"
                                         variant="ghost"
                                         className="h-7 w-7"
-                                        onClick={() => deleteRequest(request.id)}
+                                        onClick={() => {
+                                            const profName = prof?.name || 'Desconhecido';
+                                            deleteRequest(request.id);
+                                            logActivity('leave_request_deleted', {
+                                                professionalName: profName,
+                                                leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
+                                            });
+                                        }}
                                     >
                                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                                     </Button>

@@ -22,7 +22,8 @@ import {
   FileText,
   CloudUpload,
   RefreshCw,
-  LogOut
+  LogOut,
+  UserCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -253,6 +254,18 @@ export function Sidebar() {
         </nav>
 
         <div className="p-4 border-t border-sidebar-border space-y-1">
+          <NavLink
+            to="/perfil"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) => cn(
+              "nav-item",
+              isActive && "active"
+            )}
+          >
+            <UserCircle size={20} />
+            <span>Perfil & Equipe</span>
+          </NavLink>
+
           <NavLink
             to="/configuracoes"
             onClick={() => setMobileOpen(false)}

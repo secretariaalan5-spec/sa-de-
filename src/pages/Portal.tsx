@@ -123,25 +123,25 @@ async function validateInviteInDB(
   code: string
 ): Promise<InviteAccessLevel | null> {
   try {
-    const { data, error } = await supabase
-      .from('portal_invites')
+    const { data, error } = await (supabase
+      .from('portal_invites' as any)
       .select('*')
       .eq('admin_id', adminId)
       .eq('code', code.trim().toUpperCase())
       .eq('is_active', true)
-      .maybeSingle();
+      .maybeSingle() as any);
 
     if (error || !data) return null;
 
-    const invite = data;
+    const invite = data as any;
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
     if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return null;
 
     // Incrementa usos (fire-and-forget)
-    supabase
-      .from('portal_invites')
-      .update({ uses_count: (invite.uses_count || 0) + 1 })
-      .eq('id', invite.id)
+    (supabase
+      .from('portal_invites' as any)
+      .update({ uses_count: (invite.uses_count || 0) + 1 } as any)
+      .eq('id', invite.id) as any)
       .then(() => { });
 
     return invite.access_level as InviteAccessLevel;
