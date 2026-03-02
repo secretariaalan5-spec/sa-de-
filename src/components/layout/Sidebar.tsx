@@ -25,7 +25,7 @@ import {
   LogOut,
   UserCircle
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -126,6 +126,16 @@ export function Sidebar() {
     }
   };
 
+  const [adminEmail, setAdminEmail] = useState('');
+
+  useEffect(() => {
+    const getUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) setAdminEmail(user.email);
+    };
+    getUserData();
+  }, []);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success('Você saiu do sistema.');
@@ -164,6 +174,52 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Admin Info Section (Superior Esquerda) */}
+          <div className="mb-6 px-2 py-3 bg-muted/30 rounded-xl border border-border/50">
+            <div className="flex flex-col gap-1 mb-3 ml-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground/60">Admin Logado</span>
+              <span className="text-xs font-medium truncate text-primary" title={adminEmail}>
+                {adminEmail || 'Carregando...'}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <NavLink
+                to="/perfil"
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => cn(
+                  "nav-item text-xs h-9",
+                  isActive && "active"
+                )}
+              >
+                <UserCircle size={16} />
+                <span>Perfil & Equipe</span>
+              </NavLink>
+
+              <NavLink
+                to="/configuracoes"
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => cn(
+                  "nav-item text-xs h-9",
+                  isActive && "active"
+                )}
+              >
+                <Settings size={16} />
+                <span>Configurações</span>
+              </NavLink>
+
+              <button
+                onClick={handleLogout}
+                className="nav-item w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors group h-9"
+              >
+                <LogOut size={16} />
+                <span>Sair do Sistema</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="h-px bg-border/50 my-4 mx-2" />
+
           {/* Service Group Header - First */}
           <button
             onClick={() => setIsServicosOpen(!isServicosOpen)}
@@ -252,40 +308,6 @@ export function Sidebar() {
             </Button>
           </div>
         </nav>
-
-        <div className="p-4 border-t border-sidebar-border space-y-1">
-          <NavLink
-            to="/perfil"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) => cn(
-              "nav-item",
-              isActive && "active"
-            )}
-          >
-            <UserCircle size={20} />
-            <span>Perfil & Equipe</span>
-          </NavLink>
-
-          <NavLink
-            to="/configuracoes"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) => cn(
-              "nav-item",
-              isActive && "active"
-            )}
-          >
-            <Settings size={20} />
-            <span>Configurações</span>
-          </NavLink>
-
-          <button
-            onClick={handleLogout}
-            className="nav-item w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors group text-red-500 hover:text-red-600"
-          >
-            <LogOut size={20} />
-            <span>Sair do Sistema</span>
-          </button>
-        </div>
       </aside>
     </>
   );
