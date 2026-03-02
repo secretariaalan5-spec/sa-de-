@@ -11,14 +11,20 @@ import { Plus, Pencil, Trash2, Stethoscope, Syringe, Search } from 'lucide-react
 import { cn } from '@/lib/utils';
 import { ServiceProfessional } from '@/types/serviceSchedule';
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+import { useLeaveRequests } from '@/hooks/useLeaveRequests';
+import { format } from 'date-fns';
+
 const ITEMS_PER_PAGE = 10;
 
 export default function ServiceProfessionalsPage() {
     const { professionals, addProfessional, updateProfessional, deleteProfessional } = useServiceProfessionals();
+    const { requests } = useLeaveRequests();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState<'all' | 'nurse' | 'tech'>('all');
+    const [activeTab, setActiveTab] = useState<'nurse' | 'tech'>('nurse');
     const [nursePage, setNursePage] = useState(1);
     const [techPage, setTechPage] = useState(1);
     const [form, setForm] = useState({
@@ -76,62 +82,80 @@ export default function ServiceProfessionalsPage() {
         setTechPage(1);
     }, [searchTerm]);
 
-    const showNurses = categoryFilter === 'all' || categoryFilter === 'nurse';
-    const showTechs = categoryFilter === 'all' || categoryFilter === 'tech';
+    const today = format(new Date(), 'yyyy-MM-dd');
 
-    const ProfessionalCard = ({ prof }: { prof: ServiceProfessional }) => (
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div>
-                <span className="font-medium">{prof.name}</span>
-                <span className="text-sm text-muted-foreground ml-2">({prof.monthlyHours}h/mês)</span>
-                {!prof.active && (
-                    <span className="ml-2 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Inativo</span>
-                )}
+    const ProfessionalCard = ({ prof }: { prof: ServiceProfessional }) => {
+        const isOnLeave = requests.some(r =>
+            r.professionalId === prof.id &&
+            r.leaveDates.includes(today)
+        );
+
+        const isNurse = prof.category === 'nurse';
+
+        return (
+            <div className={cn(
+                "flex flex-col p-4 border rounded-xl transition-all group",
+                !prof.active
+                    ? "bg-muted/40 border-dashed"
+                    : isOnLeave
+                        ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50"
+                        : isNurse
+                            ? "bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900/30"
+                            : "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30",
+                "hover:shadow-md"
+            )}>
+                <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground truncate" title={prof.name}>{prof.name}</span>
+                            {isOnLeave && (
+                                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" title="De Folga Hoje" />
+                            )}
+                        </div>
+                        <span className={cn(
+                            "text-[10px] uppercase font-bold tracking-wider",
+                            isOnLeave ? "text-amber-600" : isNurse ? "text-blue-600" : "text-emerald-600"
+                        )}>
+                            {prof.monthlyHours}h mensal • {isNurse ? 'Enfermeiro' : 'Técnico'}
+                        </span>
+                    </div>
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(prof)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteProfessional(prof.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {isOnLeave && (
+                        <span className="text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                            De Folga (Hoje)
+                        </span>
+                    )}
+                    {!prof.active && (
+                        <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                            Inativo
+                        </span>
+                    )}
+                </div>
             </div>
-            <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => handleEdit(prof)}>
-                    <Pencil className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => deleteProfessional(prof.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-            </div>
-        </div>
-    );
+        );
+    };
 
     return (
-        <div className="animate-fade-in space-y-6">
-            <PageHeader
-                title="Cadastro de Profissionais"
-                description="Gerencie enfermeiros e técnicos para as escalas de serviço"
-            />
+        <div className="animate-fade-in space-y-6 max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <PageHeader
+                    title="Cadastro de Profissionais"
+                    description="Gerencie enfermeiros e técnicos para as escalas de serviço"
+                />
 
-            {/* Search & Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-                <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                    <div className="relative w-full sm:w-72">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por nome..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9"
-                        />
-                    </div>
-                    <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as 'all' | 'nurse' | 'tech')}>
-                        <SelectTrigger className="w-full sm:w-44">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas categorias</SelectItem>
-                            <SelectItem value="nurse">Enfermeiros</SelectItem>
-                            <SelectItem value="tech">Técnicos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
                 <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button className="shadow-lg shadow-primary/20">
                             <Plus className="w-4 h-4 mr-2" />
                             Novo Profissional
                         </Button>
@@ -140,82 +164,106 @@ export default function ServiceProfessionalsPage() {
                         <DialogHeader>
                             <DialogTitle>{editingId ? 'Editar Profissional' : 'Novo Profissional'}</DialogTitle>
                         </DialogHeader>
-                        <div className="space-y-4">
+                        <div className="space-y-4 pt-4">
                             <div>
-                                <Label>Nome Completo</Label>
+                                <Label className="text-xs font-bold uppercase text-muted-foreground">Nome Completo</Label>
                                 <Input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nome do profissional" />
                             </div>
-                            <div>
-                                <Label>Categoria</Label>
-                                <Select value={form.category} onValueChange={(value: 'nurse' | 'tech') => setForm(prev => ({ ...prev, category: value }))}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="nurse">Enfermeiro</SelectItem>
-                                        <SelectItem value="tech">Técnico</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Categoria</Label>
+                                    <Select value={form.category} onValueChange={(value: 'nurse' | 'tech') => setForm(prev => ({ ...prev, category: value }))}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="nurse">Enfermeiro</SelectItem>
+                                            <SelectItem value="tech">Técnico</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Carga Horária Mensal</Label>
+                                    <Input type="number" value={form.monthlyHours} onChange={(e) => setForm(prev => ({ ...prev, monthlyHours: Number(e.target.value) }))} />
+                                </div>
                             </div>
-                            <div>
-                                <Label>Carga Horária Mensal</Label>
-                                <Input type="number" value={form.monthlyHours} onChange={(e) => setForm(prev => ({ ...prev, monthlyHours: Number(e.target.value) }))} />
-                            </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg">
                                 <Switch checked={form.active} onCheckedChange={(checked) => setForm(prev => ({ ...prev, active: checked }))} />
-                                <Label>Ativo</Label>
+                                <Label className="text-sm font-medium cursor-pointer">Profissional em atividade</Label>
                             </div>
-                            <Button onClick={handleSubmit} className="w-full">{editingId ? 'Salvar' : 'Cadastrar'}</Button>
+                            <Button onClick={handleSubmit} className="w-full h-11">{editingId ? 'Salvar Alterações' : 'Cadastrar Profissional'}</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {/* Nurses Section */}
-            {showNurses && (
-                <div className="bg-card rounded-xl border border-border shadow-sm p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Stethoscope className="w-5 h-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Enfermeiros ({nurses.length})</h3>
-                    </div>
-                    {nurses.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">
-                            {searchTerm ? 'Nenhum enfermeiro encontrado.' : 'Nenhum enfermeiro cadastrado.'}
-                        </p>
-                    ) : (
-                        <div className="space-y-2">
-                            {paginatedNurses.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
-                            {paginatedNurses.length < nurses.length && (
-                                <Button variant="outline" className="w-full" onClick={() => setNursePage(p => p + 1)}>
-                                    Mostrar mais ({nurses.length - paginatedNurses.length} restantes)
-                                </Button>
-                            )}
-                        </div>
-                    )}
+            {/* Search & Tabs Controls */}
+            <div className="flex flex-col gap-6">
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por nome..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 h-11 bg-card shadow-sm"
+                    />
                 </div>
-            )}
 
-            {/* Techs Section */}
-            {showTechs && (
-                <div className="bg-card rounded-xl border border-border shadow-sm p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Syringe className="w-5 h-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Técnicos ({techs.length})</h3>
-                    </div>
-                    {techs.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">
-                            {searchTerm ? 'Nenhum técnico encontrado.' : 'Nenhum técnico cadastrado.'}
-                        </p>
-                    ) : (
-                        <div className="space-y-2">
-                            {paginatedTechs.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
-                            {paginatedTechs.length < techs.length && (
-                                <Button variant="outline" className="w-full" onClick={() => setTechPage(p => p + 1)}>
-                                    Mostrar mais ({techs.length - paginatedTechs.length} restantes)
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nurse' | 'tech')} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted/50 rounded-xl mb-6">
+                        <TabsTrigger value="nurse" className="rounded-lg h-10 data-[state=active]:shadow-md transition-all gap-2">
+                            <Stethoscope className="w-4 h-4" />
+                            <span className="font-bold">Enfermeiros</span>
+                            <span className="hidden sm:inline bg-muted py-0.5 px-2 rounded-full text-[10px]">{nurses.length}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="tech" className="rounded-lg h-10 data-[state=active]:shadow-md transition-all gap-2">
+                            <Syringe className="w-4 h-4" />
+                            <span className="font-bold">Técnicos</span>
+                            <span className="hidden sm:inline bg-muted py-0.5 px-2 rounded-full text-[10px]">{techs.length}</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="nurse" className="focus-visible:outline-none">
+                        {nurses.length === 0 ? (
+                            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+                                <p className="text-muted-foreground text-sm">Nenhum enfermeiro encontrado.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {paginatedNurses.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
+                                </div>
+                                {paginatedNurses.length < nurses.length && (
+                                    <div className="flex justify-center pt-2">
+                                        <Button variant="ghost" className="text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary transition-colors" onClick={() => setNursePage(p => p + 1)}>
+                                            Ver mais {nurses.length - paginatedNurses.length} profissionais
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="tech" className="focus-visible:outline-none">
+                        {techs.length === 0 ? (
+                            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
+                                <p className="text-muted-foreground text-sm">Nenhum técnico encontrado.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {paginatedTechs.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
+                                </div>
+                                {paginatedTechs.length < techs.length && (
+                                    <div className="flex justify-center pt-2">
+                                        <Button variant="ghost" className="text-xs font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary transition-colors" onClick={() => setTechPage(p => p + 1)}>
+                                            Ver mais {techs.length - paginatedTechs.length} profissionais
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     );
 }
