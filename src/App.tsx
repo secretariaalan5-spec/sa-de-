@@ -16,6 +16,7 @@ import Schedule from "./pages/Schedule";
 import Visualization from "./pages/Visualization";
 import Export from "./pages/Export";
 import Settings from "./pages/Settings";
+import ProfilePage from "./pages/Profile";
 import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
@@ -81,6 +82,7 @@ const App = () => (
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/configuracoes" element={<Settings />} />
+                <Route path="/perfil" element={<ProfilePage />} />
               </Route>
 
               <Route path="/portal" element={<Portal />} />

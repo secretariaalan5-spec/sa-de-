@@ -47,11 +47,11 @@ export function usePortalInvites(userId: string | null) {
         if (!userId) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('portal_invites')
+            const { data, error } = await (supabase
+                .from('portal_invites' as any)
                 .select('*')
                 .eq('admin_id', userId)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false }) as any);
 
             if (error) throw error;
             setInvites((data as unknown as PortalInvite[]) || []);
@@ -76,8 +76,8 @@ export function usePortalInvites(userId: string | null) {
         const code = generateInviteCode(opts.access_level);
 
         try {
-            const { data, error } = await supabase
-                .from('portal_invites')
+            const { data, error } = await (supabase
+                .from('portal_invites' as any)
                 .insert({
                     admin_id: userId,
                     code,
@@ -85,9 +85,9 @@ export function usePortalInvites(userId: string | null) {
                     label: opts.label || code,
                     max_uses: opts.max_uses ?? null,
                     expires_at: opts.expires_at ?? null,
-                })
+                } as any)
                 .select()
-                .single();
+                .single() as any);
 
             if (error) throw error;
 
@@ -105,11 +105,11 @@ export function usePortalInvites(userId: string | null) {
     // ── Revogar / reativar ──
     const toggleInvite = async (id: string, is_active: boolean) => {
         try {
-            const { error } = await supabase
-                .from('portal_invites')
-                .update({ is_active })
+            const { error } = await (supabase
+                .from('portal_invites' as any)
+                .update({ is_active } as any)
                 .eq('id', id)
-                .eq('admin_id', userId as string);
+                .eq('admin_id', userId as string) as any);
 
             if (error) throw error;
 
@@ -126,11 +126,11 @@ export function usePortalInvites(userId: string | null) {
     // ── Deletar ──
     const deleteInvite = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('portal_invites')
+            const { error } = await (supabase
+                .from('portal_invites' as any)
                 .delete()
                 .eq('id', id)
-                .eq('admin_id', userId as string);
+                .eq('admin_id', userId as string) as any);
 
             if (error) throw error;
 
@@ -148,13 +148,13 @@ export function usePortalInvites(userId: string | null) {
         code: string
     ): Promise<InviteAccessLevel | null> => {
         try {
-            const { data, error } = await supabase
-                .from('portal_invites')
+            const { data, error } = await (supabase
+                .from('portal_invites' as any)
                 .select('*')
                 .eq('admin_id', adminId)
                 .eq('code', code.trim().toUpperCase())
                 .eq('is_active', true)
-                .maybeSingle();
+                .maybeSingle() as any);
 
             if (error || !data) return null;
 
@@ -167,10 +167,10 @@ export function usePortalInvites(userId: string | null) {
             if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return null;
 
             // Incrementa contador de usos (fire-and-forget)
-            supabase
-                .from('portal_invites')
-                .update({ uses_count: invite.uses_count + 1 })
-                .eq('id', invite.id)
+            (supabase
+                .from('portal_invites' as any)
+                .update({ uses_count: invite.uses_count + 1 } as any)
+                .eq('id', invite.id) as any)
                 .then(() => { });
 
             return invite.access_level;
