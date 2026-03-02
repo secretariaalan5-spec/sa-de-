@@ -23,7 +23,6 @@ import {
   CloudUpload,
   RefreshCw,
   LogOut,
-  UserCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -126,21 +125,6 @@ export function Sidebar() {
     }
   };
 
-  const [adminEmail, setAdminEmail] = useState('');
-
-  useEffect(() => {
-    const getUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) setAdminEmail(user.email);
-    };
-    getUserData();
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success('Você saiu do sistema.');
-    navigate('/login');
-  };
 
   return (
     <>
@@ -174,59 +158,6 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {/* Perfil & Equipe (Botão clicável na superior esquerda) */}
-          <NavLink
-            to="/perfil"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) => cn(
-              "flex flex-col gap-1 p-3 mb-4 rounded-xl border transition-all group",
-              isActive
-                ? "bg-primary/10 border-primary/20"
-                : "bg-muted/30 border-border/50 hover:bg-muted/50 hover:border-border"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-lg transition-colors",
-                "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white"
-              )}>
-                <UserCircle size={20} />
-              </div>
-              <div className="flex flex-col overflow-hidden">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground/60 leading-none mb-1">
-                  Perfil & Equipe
-                </span>
-                <span className="text-xs font-medium truncate text-foreground" title={adminEmail}>
-                  {adminEmail || 'Carregando...'}
-                </span>
-              </div>
-            </div>
-          </NavLink>
-
-          {/* Outras opções rápidas */}
-          <div className="flex items-center gap-2 mb-6 px-1">
-            <NavLink
-              to="/configuracoes"
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => cn(
-                "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all",
-                isActive
-                  ? "bg-primary text-white border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border hover:bg-muted"
-              )}
-            >
-              <Settings size={14} />
-              <span>Configurações</span>
-            </NavLink>
-
-            <button
-              onClick={handleLogout}
-              className="px-3 py-2 rounded-lg border border-border bg-card text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-              title="Sair do Sistema"
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
 
           <div className="h-px bg-border/50 my-4 mx-2" />
 
