@@ -51,7 +51,7 @@ export function HeaderBar() {
         : adminEmail ? adminEmail[0].toUpperCase() : 'A';
 
     return (
-        <header className="sticky top-0 z-30 flex items-center justify-end h-16 px-4 lg:px-8 bg-transparent no-print pointer-events-none">
+        <header className="sticky top-0 z-30 flex items-center justify-end h-16 px-4 lg:px-10 bg-transparent no-print pointer-events-none">
             {/* O cabeçalho é transparente para não interferir visualmente no corpo da página */}
             <div className="flex-1" />
 
