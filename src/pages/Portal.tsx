@@ -198,13 +198,21 @@ function RegistrationScreen({
         setLoadingTeam(false);
         return;
       }
-      const { data } = await (supabase
-        .from('profiles' as any)
-        .select('team_id')
-        .eq('user_id', adminId)
-        .maybeSingle() as any);
-      if (data?.team_id) setTeamId(data.team_id);
-      setLoadingTeam(false);
+      try {
+        const { data } = await (supabase
+          .from('profiles' as any)
+          .select('team_id')
+          .eq('user_id', adminId)
+          .maybeSingle() as any);
+
+        // Se encontrar team_id, usa ele. Caso contrário, o próprio adminId é o ID da equipe.
+        setTeamId(data?.team_id || adminId);
+      } catch (err) {
+        console.error('Erro ao buscar equipe:', err);
+        setTeamId(adminId); // Fallback imediato
+      } finally {
+        setLoadingTeam(false);
+      }
     };
     fetchAdminTeam();
   }, [adminId]);
@@ -217,7 +225,7 @@ function RegistrationScreen({
     );
   }
 
-  if (!adminId || !teamId) {
+  if (!adminId || (!loadingTeam && !teamId)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
         <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
@@ -384,17 +392,28 @@ export default function Portal() {
     observations: '',
   });
 
-  const searchParams = new URLSearchParams(window.location.search);
-  const adminId = searchParams.get('admin') || localStorage.getItem('portal_admin_id');
-  const roleFromUrl = searchParams.get('role') || localStorage.getItem('portal_role_hint');
+  // ── Extração Robusta de Parâmetros ──
+  // Procuramos na URL (search), no fragmento (#) do Supabase ou no histórico (localStorage)
+  const getParam = (key: string, storageKey: string) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1)); // Trata redirects do Supabase
+    return urlParams.get(key) || hashParams.get(key) || localStorage.getItem(storageKey);
+  };
 
-  // Save adminId and role hint
+  const adminId = getParam('admin', 'portal_admin_id');
+  const roleFromUrl = getParam('role', 'portal_role_hint');
+
+  // Salva no localStorage assim que detectado na URL
   useEffect(() => {
-    const urlAdmin = searchParams.get('admin');
-    const urlRole = searchParams.get('role');
-    if (urlAdmin) localStorage.setItem('portal_admin_id', urlAdmin);
-    if (urlRole) localStorage.setItem('portal_role_hint', urlRole);
-  }, []);
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+
+    const currentAdmin = urlParams.get('admin') || hashParams.get('admin');
+    const currentRole = urlParams.get('role') || hashParams.get('role');
+
+    if (currentAdmin) localStorage.setItem('portal_admin_id', currentAdmin);
+    if (currentRole) localStorage.setItem('portal_role_hint', currentRole);
+  }, [window.location.search, window.location.hash]);
 
   // PWA install
   useEffect(() => {
