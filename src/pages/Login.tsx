@@ -80,6 +80,22 @@ export default function Login() {
         }
     };
 
+    const handleGoogleLogin = async () => {
+        setGoogleLoading(true);
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin,
+                },
+            });
+            if (error) throw error;
+        } catch (error: any) {
+            toast.error('Erro ao entrar com Google: ' + (error.message || 'Tente novamente.'));
+            setGoogleLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
             <div className="max-w-md w-full animate-fade-in">
