@@ -82,6 +82,7 @@ const App = () => (
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
+                <Route path="/escalas-servicos/aprovacoes" element={<ProfessionalApprovals />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
               </Route>
