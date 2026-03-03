@@ -189,7 +189,26 @@ export default function Login() {
                             )}
                         </Button>
 
-                        <div className="text-center pt-2">
+                        <div className="flex items-center gap-3">
+                            <Separator className="flex-1" />
+                            <span className="text-xs text-muted-foreground">ou</span>
+                            <Separator className="flex-1" />
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full h-11"
+                            onClick={handleGoogleLogin}
+                            disabled={googleLoading || loading}
+                        >
+                            {googleLoading ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Chrome className="w-4 h-4 mr-2" />
+                            )}
+                            Entrar com Google
+                        </Button>
                             <button
                                 type="button"
                                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
