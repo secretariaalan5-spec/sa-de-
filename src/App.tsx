@@ -23,6 +23,7 @@ import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
 import ServiceReportsPage from "./pages/ServiceReports";
+import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
