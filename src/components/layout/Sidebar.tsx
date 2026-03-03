@@ -36,7 +36,6 @@ import { Button } from '@/components/ui/button';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/unidades', icon: Building2, label: 'Unidades' },
   { to: '/funcoes', icon: Briefcase, label: 'Funções' },
   { to: '/restricoes', icon: AlertTriangle, label: 'Restrições' },
@@ -46,7 +45,7 @@ const navItems = [
 ];
 
 const serviceItems = [
-  { to: '/escalas-servicos/profissionais', icon: UserPlus, label: 'Cadastro' },
+  { to: '/escalas-servicos/cadastro', icon: UserPlus, label: 'Cadastro' },
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },

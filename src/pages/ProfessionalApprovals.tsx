@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle } from 'lucide-react';
+import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
@@ -44,12 +43,11 @@ interface ProfLeaveRequest {
 
 export default function ProfessionalApprovals() {
   const { profile, logActivity } = useProfile();
-  const { professionals } = useServiceProfessionals();
+  const { professionals, addProfessional, deleteProfessional } = useServiceProfessionals();
   const { addRequest } = useLeaveRequests();
   const [pendingUsers, setPendingUsers] = useState<ProfessionalUserRecord[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ProfessionalUserRecord[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<ProfLeaveRequest[]>([]);
-  const [linkMap, setLinkMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -81,16 +79,23 @@ export default function ProfessionalApprovals() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  /**
+   * Ao aprovar, cria automaticamente o ServiceProfessional a partir dos dados do registro do usuário
+   * e vincula o professional_id ao registro do professional_user.
+   */
   const handleApprove = async (user: ProfessionalUserRecord) => {
-    const professionalId = linkMap[user.id];
-    if (!professionalId) {
-      toast.error('Selecione o profissional correspondente antes de aprovar.');
-      return;
-    }
+    // Cria o ServiceProfessional automaticamente
+    const newProf = addProfessional({
+      name: user.full_name,
+      category: user.category as 'nurse' | 'tech',
+      monthlyHours: 200,
+      active: true,
+    });
 
+    // Atualiza o registro do usuário com o ID do novo profissional
     const { error } = await (supabase
       .from('professional_users' as any)
-      .update({ status: 'approved', professional_id: professionalId } as any)
+      .update({ status: 'approved', professional_id: newProf.id } as any)
       .eq('id', user.id) as any);
 
     if (error) {
@@ -98,7 +103,7 @@ export default function ProfessionalApprovals() {
       return;
     }
 
-    toast.success(`${user.full_name} aprovado(a)!`);
+    toast.success(`${user.full_name} aprovado(a) e cadastrado(a) automaticamente!`);
     logActivity('professional_approved', { name: user.full_name, email: user.email });
     fetchData();
   };
@@ -115,6 +120,29 @@ export default function ProfessionalApprovals() {
     }
 
     toast.success(`${user.full_name} rejeitado(a).`);
+    fetchData();
+  };
+
+  const handleRemoveApproved = async (user: ProfessionalUserRecord) => {
+    if (!confirm(`Remover ${user.full_name}? O profissional será desvinculado.`)) return;
+
+    // Remove o ServiceProfessional se existir
+    if (user.professional_id) {
+      deleteProfessional(user.professional_id);
+    }
+
+    // Remove o registro do professional_users
+    const { error } = await (supabase
+      .from('professional_users' as any)
+      .delete()
+      .eq('id', user.id) as any);
+
+    if (error) {
+      toast.error('Erro ao remover');
+      return;
+    }
+
+    toast.success(`${user.full_name} removido(a).`);
     fetchData();
   };
 
@@ -195,8 +223,8 @@ export default function ProfessionalApprovals() {
             Folgas ({pendingLeaves.length})
           </TabsTrigger>
           <TabsTrigger value="approved" className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4" />
-            Aprovados ({approvedUsers.length})
+            <Users className="w-4 h-4" />
+            Equipe ({approvedUsers.length})
           </TabsTrigger>
         </TabsList>
 
@@ -226,34 +254,14 @@ export default function ProfessionalApprovals() {
                       </Badge>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                        Vincular ao profissional cadastrado:
-                      </label>
-                      <Select
-                        value={linkMap[user.id] || ''}
-                        onValueChange={(v) => setLinkMap(prev => ({ ...prev, [user.id]: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o profissional" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {professionals
-                            .filter(p => p.category === user.category && p.active)
-                            .map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
+                      Ao aprovar, o profissional será automaticamente cadastrado como <strong>{categoryLabel(user.category)}</strong> nas escalas de serviço.
                     </div>
 
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleApprove(user)}
-                        disabled={!linkMap[user.id]}
                         className="flex-1"
                       >
                         <Check className="w-4 h-4 mr-1" /> Aprovar
@@ -345,36 +353,64 @@ export default function ProfessionalApprovals() {
           )}
         </TabsContent>
 
-        {/* Approved users */}
-        <TabsContent value="approved" className="space-y-4">
+        {/* Equipe */}
+        <TabsContent value="approved" className="space-y-5">
+          {approvedUsers.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                <Stethoscope className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                  {approvedUsers.filter(u => u.category === 'nurse').length} Enfermeiro(s)
+                </span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <Syringe className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                  {approvedUsers.filter(u => u.category === 'tech').length} Tecnico(s)
+                </span>
+              </div>
+            </div>
+          )}
           {approvedUsers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
               <UserCheck className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              Nenhum profissional aprovado ainda.
+              <p className="font-medium">Nenhum profissional na equipe ainda.</p>
+              <p className="text-xs mt-1">Aprove solicitacoes da aba Pendentes para que eles aparecam aqui.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {approvedUsers.map(user => {
-                const prof = professionals.find(p => p.id === user.professional_id);
-                return (
-                  <Card key={user.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          {categoryIcon(user.category)}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-sm text-foreground truncate">{user.full_name}</h3>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                          {prof && (
-                            <p className="text-xs text-primary font-medium">→ {prof.name}</p>
-                          )}
-                        </div>
+              {approvedUsers.map(user => (
+                <Card key={user.id} className="overflow-hidden">
+                  <div className={`h-1 w-full ${user.category === 'nurse' ? 'bg-emerald-400' : 'bg-blue-400'}`} />
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${user.category === 'nurse'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                        }`}>
+                        {categoryIcon(user.category)}
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-sm text-foreground truncate">{user.full_name}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        <span className={`text-[11px] font-bold ${user.category === 'nurse' ? 'text-emerald-600' : 'text-blue-600'
+                          }`}>
+                          {categoryLabel(user.category)}
+                        </span>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => handleRemoveApproved(user)}
+                        title="Remover profissional"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>

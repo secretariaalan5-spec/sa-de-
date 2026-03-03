@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Professionals from "./pages/Professionals";
 import Units from "./pages/Units";
 import Functions from "./pages/Functions";
 import Restrictions from "./pages/Restrictions";
@@ -19,11 +18,11 @@ import Settings from "./pages/Settings";
 import ProfilePage from "./pages/Profile";
 import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
-import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
 import ServiceReportsPage from "./pages/ServiceReports";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
+import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -69,7 +68,6 @@ const App = () => (
 
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/profissionais" element={<Professionals />} />
                 <Route path="/unidades" element={<Units />} />
                 <Route path="/funcoes" element={<Functions />} />
                 <Route path="/restricoes" element={<Restrictions />} />
@@ -78,11 +76,11 @@ const App = () => (
                 <Route path="/exportar" element={<Export />} />
                 <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
                 <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
-                <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/aprovacoes" element={<ProfessionalApprovals />} />
+                <Route path="/escalas-servicos/cadastro" element={<Registration />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
               </Route>

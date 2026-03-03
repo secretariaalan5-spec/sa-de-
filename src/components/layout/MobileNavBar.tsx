@@ -1,21 +1,21 @@
 import { NavLink } from "@/components/NavLink";
 import {
   LayoutDashboard,
-  Users,
   Calendar,
   Stethoscope,
   Syringe,
   Settings,
+  Users,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const items = [
   { to: "/", label: "Início", icon: LayoutDashboard },
-  { to: "/profissionais", label: "Profissionais", icon: Users },
   { to: "/escala", label: "Escala", icon: Calendar },
   { to: "/escalas-servicos/enfermeiros", label: "Enf.", icon: Stethoscope },
   { to: "/escalas-servicos/tecnicos", label: "Tec.", icon: Syringe },
+  { to: "/escalas-servicos/aprovacoes", label: "Aprovações", icon: Users },
   { to: "/configuracoes", label: "Config.", icon: Settings },
 ] as const;
 

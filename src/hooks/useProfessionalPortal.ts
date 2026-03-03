@@ -83,8 +83,10 @@ export function useProfessionalPortal() {
   }, [fetchProfessionalUser]);
 
   // Register as professional (first time)
-  const registerProfessional = useCallback(async (teamId: string, category: string) => {
+  const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
     if (!session?.user) return false;
+
+    const nameToUse = fullName?.trim() || session.user.user_metadata?.full_name || session.user.email || '';
 
     try {
       const { error } = await (supabase
@@ -92,7 +94,7 @@ export function useProfessionalPortal() {
         .insert({
           user_id: session.user.id,
           email: session.user.email || '',
-          full_name: session.user.user_metadata?.full_name || session.user.email || '',
+          full_name: nameToUse,
           team_id: teamId,
           category,
           status: 'pending',

@@ -178,15 +178,19 @@ function RegistrationScreen({
   adminId,
   userEmail,
   userName,
+  presetRole,
 }: {
-  onRegister: (teamId: string, category: string) => void;
+  onRegister: (teamId: string, category: string, fullName: string) => void;
   adminId: string | null;
   userEmail: string;
   userName: string;
+  presetRole: string | null;
 }) {
-  const [category, setCategory] = useState('');
+  const [fullName, setFullName] = useState(userName || '');
   const [teamId, setTeamId] = useState<string | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(true);
+
+  const roleFromUrl = presetRole && ['nurse', 'tech'].includes(presetRole) ? presetRole : null;
 
   useEffect(() => {
     const fetchAdminTeam = async () => {
@@ -245,30 +249,62 @@ function RegistrationScreen({
 
           <div className="space-y-1 bg-muted/50 rounded-xl p-3">
             <p className="text-xs text-muted-foreground">Logado como</p>
-            <p className="font-medium text-sm">{userName}</p>
             <p className="text-xs text-muted-foreground">{userEmail}</p>
           </div>
 
+          {/* Nome */}
           <div className="space-y-2">
-            <Label>Sua categoria profissional</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-12 rounded-xl">
-                <SelectValue placeholder="Selecione sua categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nurse">
-                  <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
-                </SelectItem>
-                <SelectItem value="tech">
-                  <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="reg-name">Seu nome completo</Label>
+            <input
+              id="reg-name"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Nome Sobrenome"
+              className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
 
+          {/* Categoria (preset ou select) */}
+          {roleFromUrl ? (
+            <div className="space-y-2">
+              <Label>Sua categoria profissional</Label>
+              <div className={`flex items-center gap-3 h-12 px-4 rounded-xl border-2 font-bold ${roleFromUrl === 'nurse'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300'
+                : 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
+                }`}>
+                {roleFromUrl === 'nurse'
+                  ? <Stethoscope className="w-5 h-5" />
+                  : <Syringe className="w-5 h-5" />}
+                {roleFromUrl === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a) de Enfermagem'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Categoria definida pelo link de convite.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Sua categoria profissional</Label>
+              <Select value={fullName.length > 0 ? (fullName.includes('nurse') ? 'nurse' : 'tech') : ''} onValueChange={() => { }}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue placeholder="Selecione sua categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nurse">
+                    <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
+                  </SelectItem>
+                  <SelectItem value="tech">
+                    <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-destructive">Link inválido: categoria não definida. Use o link fornecido pelo administrador.</p>
+            </div>
+          )}
+
           <Button
-            onClick={() => onRegister(teamId!, category)}
-            disabled={!category}
+            onClick={() => onRegister(teamId!, roleFromUrl || '', fullName.trim())}
+            disabled={!roleFromUrl || !fullName.trim()}
             className="w-full h-12 rounded-xl font-bold"
           >
             Enviar Solicitação
@@ -350,11 +386,14 @@ export default function Portal() {
 
   const searchParams = new URLSearchParams(window.location.search);
   const adminId = searchParams.get('admin') || localStorage.getItem('portal_admin_id');
+  const roleFromUrl = searchParams.get('role') || localStorage.getItem('portal_role_hint');
 
-  // Save adminId
+  // Save adminId and role hint
   useEffect(() => {
     const urlAdmin = searchParams.get('admin');
+    const urlRole = searchParams.get('role');
     if (urlAdmin) localStorage.setItem('portal_admin_id', urlAdmin);
+    if (urlRole) localStorage.setItem('portal_role_hint', urlRole);
   }, []);
 
   // PWA install
@@ -525,7 +564,8 @@ export default function Portal() {
         onRegister={registerProfessional}
         adminId={adminId}
         userEmail={session.user.email || ''}
-        userName={session.user.user_metadata?.full_name || session.user.email || ''}
+        userName={session.user.user_metadata?.full_name || ''}
+        presetRole={roleFromUrl}
       />
     );
   }
