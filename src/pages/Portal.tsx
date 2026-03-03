@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   format,
   startOfMonth,
@@ -6,13 +6,18 @@ import {
   eachDayOfInterval,
   getDay,
   parseISO,
+  differenceInCalendarDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,40 +27,26 @@ import {
   Syringe,
   AlertCircle,
   RefreshCw,
-  Lock,
-  Eye,
-  EyeOff,
   LogOut,
   TrendingUp,
   TrendingDown,
   Clock,
   FileText,
   Download,
+  Plus,
+  Chrome,
+  Loader2,
+  User,
+  CheckCircle2,
+  XCircle,
+  HourglassIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
-import { useLeaveRequests } from '@/hooks/useLeaveRequests';
-import { useServiceSchedule } from '@/hooks/useServiceSchedule';
-import { useServiceStats } from '@/hooks/useServiceStats';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LEAVE_TYPE_LABELS, LeaveRequest } from '@/types/serviceSchedule';
-import { type InviteAccessLevel } from '@/hooks/usePortalInvites';
-import { DAYS_OF_WEEK as EMULT_DAYS, PERIODS as EMULT_PERIODS } from '@/types';
-
-type AccessLevel = 'emult' | 'nurse' | 'tech';
-
-interface PortalCodes {
-  emult: string;
-  nurse: string;
-  tech: string;
-}
-
-const DEFAULT_PORTAL_CODES: PortalCodes = {
-  emult: 'EMULT2025',
-  nurse: 'ENFERMEIRO2025',
-  tech: 'TECNICO2025',
-};
+import { LEAVE_TYPE_LABELS, LeaveType, LeaveRequest } from '@/types/serviceSchedule';
+import { useProfessionalPortal } from '@/hooks/useProfessionalPortal';
+import { toast } from 'sonner';
 
 // ─────────────────────────────────────────
 // Tipos portal
@@ -72,145 +63,35 @@ interface ServiceScheduleEntry {
   professionalId: string;
   date: string;
   type: 'nurse' | 'tech';
-  isWeekend: boolean;
-}
-interface Professional {
-  id: string;
-  name: string;
-  functionId: string;
-  weeklyHours: number;
-}
-interface Unit {
-  id: string;
-  name: string;
-  address?: string;
-}
-interface ProfessionalFunction {
-  id: string;
-  name: string;
-  color: string;
-}
-interface ScheduleEntry {
-  id: string;
-  professionalId: string;
-  unitId: string;
-  dayOfWeek: string;
-  period: string;
+  isWeekend?: boolean;
 }
 interface PortalData {
   publishedAt: string;
   adminName?: string;
-  emult: {
-    professionals: Professional[];
-    units: Unit[];
-    functions: ProfessionalFunction[];
-    schedule: ScheduleEntry[];
-  };
   service: {
     professionals: ServiceProfessionalPortal[];
     nurseEntries: ServiceScheduleEntry[];
     techEntries: ServiceScheduleEntry[];
+    leaveRequests?: LeaveRequest[];
   };
 }
 
-const DAYS_OF_WEEK_LABELS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-
 // ─────────────────────────────────────────
-// helper: valida código de convite no banco
+// Google Login Screen
 // ─────────────────────────────────────────
-async function validateInviteInDB(
-  adminId: string,
-  code: string
-): Promise<InviteAccessLevel | null> {
-  try {
-    const { data, error } = await (supabase
-      .from('portal_invites' as any)
-      .select('*')
-      .eq('admin_id', adminId)
-      .eq('code', code.trim().toUpperCase())
-      .eq('is_active', true)
-      .maybeSingle() as any);
-
-    if (error || !data) return null;
-
-    const invite = data as any;
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) return null;
-    if (invite.max_uses !== null && invite.uses_count >= invite.max_uses) return null;
-
-    // Incrementa usos (fire-and-forget)
-    (supabase
-      .from('portal_invites' as any)
-      .update({ uses_count: (invite.uses_count || 0) + 1 } as any)
-      .eq('id', invite.id) as any)
-      .then(() => { });
-
-    return invite.access_level as InviteAccessLevel;
-  } catch {
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────
-// Tela de Login
-// ─────────────────────────────────────────
-function LoginScreen({
-  onAccess,
-  portalCodes,
-  adminId,
+function GoogleLoginScreen({
+  onLogin,
+  loading,
   onInstall,
   showInstall,
-  loading,
 }: {
-  onAccess: (level: AccessLevel) => void,
-  portalCodes: PortalCodes | null,
-  adminId: string | null,
-  onInstall: () => void,
-  showInstall: boolean,
-  loading: boolean,
+  onLogin: () => void;
+  loading: boolean;
+  onInstall: () => void;
+  showInstall: boolean;
 }) {
-  const [code, setCode] = useState('');
-  const [showCode, setShowCode] = useState(false);
-  const [error, setError] = useState('');
-  const [shaking, setShaking] = useState(false);
-  const [checking, setChecking] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = code.trim().toUpperCase();
-    setChecking(true);
-    setError('');
-
-    // 1. Verifica códigos fixos (emult/nurse/tech)
-    const effectiveCodes = portalCodes || DEFAULT_PORTAL_CODES;
-    if (trimmed === (effectiveCodes.emult || DEFAULT_PORTAL_CODES.emult)) {
-      localStorage.setItem('portal_last_code', trimmed);
-      setChecking(false); return onAccess('emult');
-    } else if (trimmed === (effectiveCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) {
-      localStorage.setItem('portal_last_code', trimmed);
-      setChecking(false); return onAccess('nurse');
-    } else if (trimmed === (effectiveCodes.tech || DEFAULT_PORTAL_CODES.tech)) {
-      localStorage.setItem('portal_last_code', trimmed);
-      setChecking(false); return onAccess('tech');
-    }
-
-    // 2. Verifica na tabela de convites (portal_invites)
-    if (adminId) {
-      const inviteLevel = await validateInviteInDB(adminId, trimmed);
-      if (inviteLevel) {
-        localStorage.setItem('portal_last_code', trimmed);
-        setChecking(false); return onAccess(inviteLevel);
-      }
-    }
-
-    setChecking(false);
-    setError('Código inválido ou ainda não publicado.');
-    setShaking(true);
-    setTimeout(() => setShaking(false), 600);
-  };
-
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Dynamic Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full animate-pulse" />
 
@@ -227,100 +108,54 @@ function LoginScreen({
               <Stethoscope className="h-12 w-12 text-white absolute inset-0 m-auto opacity-20" />
             </div>
             <div className="absolute -bottom-2 -right-2 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-              <Lock className="h-4 w-4 text-primary" />
+              <User className="h-4 w-4 text-primary" />
             </div>
           </div>
           <div>
             <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
-              Secretaria <span className="text-primary italic">Ativa</span>
+              Meu <span className="text-primary italic">Portal</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-tight">Portal de Transparência de Escalas</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-tight">Portal do Profissional de Saúde</p>
           </div>
         </div>
 
-        <Card
-          className={cn(
-            "border-0 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-[2.5rem]",
-            shaking && "animate-shake"
-          )}
-        >
+        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-[2.5rem]">
           <CardContent className="pt-10 pb-10 px-8">
             <div className="space-y-6">
               <div className="space-y-2 text-center">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Bem-vindo(a)</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Insira seu código de acesso para visualizar as escalas</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Entre com sua conta Google para acessar suas escalas, créditos e solicitar folgas.
+                </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="access-code" className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-1">Código de Acesso</Label>
-                  <div className="relative group">
-                    <Input
-                      id="access-code"
-                      type={showCode ? 'text' : 'password'}
-                      value={code}
-                      onChange={(e) => { setCode(e.target.value); setError(''); }}
-                      placeholder="DIRECAO2025"
-                      className={cn(
-                        'pr-12 text-center text-xl tracking-[0.3em] font-bold h-16 bg-slate-50/50 dark:bg-slate-800/50 border-2 transition-all duration-300 rounded-2xl',
-                        error ? 'border-destructive ring-destructive/20' : 'border-transparent focus:border-primary ring-offset-0 focus:ring-4 focus:ring-primary/10'
-                      )}
-                      autoFocus
-                      autoComplete="off"
-                      disabled={checking || loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCode(!showCode)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors p-2"
-                    >
-                      {showCode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  {error && (
-                    <div className="flex items-center gap-2 text-destructive text-xs font-semibold bg-destructive/10 p-3 rounded-xl animate-in fade-in slide-in-from-top-2">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={checking || loading}
-                  className="w-full h-16 text-lg font-bold rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-primary/25 gap-3"
-                >
-                  {checking || loading ? (
-                    <>
-                      <RefreshCw className="h-5 w-5 animate-spin" />
-                      <span>{loading ? 'Carregando portal...' : 'Acessando...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Entrar no Portal</span>
-                      <ChevronRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </form>
+              <Button
+                onClick={onLogin}
+                disabled={loading}
+                className="w-full h-16 text-lg font-bold rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-primary/25 gap-3"
+              >
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Chrome className="h-5 w-5" />
+                )}
+                Entrar com Google
+              </Button>
 
               {showInstall && (
-                <div className="pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={onInstall}
-                    className="w-full h-14 rounded-2xl border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold gap-2 transition-all"
-                  >
-                    <Download className="h-5 w-5" />
-                    Instalar Aplicativo (PWA)
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={onInstall}
+                  className="w-full h-14 rounded-2xl border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold gap-2 transition-all"
+                >
+                  <Download className="h-5 w-5" />
+                  Instalar Aplicativo (PWA)
+                </Button>
               )}
 
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
                 <p className="text-xs font-medium text-slate-400">
-                  Dúvidas sobre seu acesso?<br />
-                  <span className="text-primary hover:underline cursor-pointer">Contate a Secretaria de Saúde</span>
+                  Acesso exclusivo para profissionais da Secretaria de Saúde.
                 </p>
               </div>
             </div>
@@ -331,42 +166,200 @@ function LoginScreen({
           &copy; 2025 Secretaria Municipal de Saúde
         </p>
       </div>
-
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-8px); }
-          40% { transform: translateX(8px); }
-          60% { transform: translateX(-8px); }
-          80% { transform: translateX(8px); }
-        }
-        .animate-shake {
-          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-      `}</style>
     </div>
   );
 }
 
+// ─────────────────────────────────────────
+// Registration Screen
+// ─────────────────────────────────────────
+function RegistrationScreen({
+  onRegister,
+  adminId,
+  userEmail,
+  userName,
+}: {
+  onRegister: (teamId: string, category: string) => void;
+  adminId: string | null;
+  userEmail: string;
+  userName: string;
+}) {
+  const [category, setCategory] = useState('');
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminTeam = async () => {
+      if (!adminId) {
+        setLoadingTeam(false);
+        return;
+      }
+      const { data } = await (supabase
+        .from('profiles' as any)
+        .select('team_id')
+        .eq('user_id', adminId)
+        .maybeSingle() as any);
+      if (data?.team_id) setTeamId(data.team_id);
+      setLoadingTeam(false);
+    };
+    fetchAdminTeam();
+  }, [adminId]);
+
+  if (loadingTeam) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!adminId || !teamId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
+        <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
+          <CardContent className="p-8 text-center space-y-4">
+            <AlertCircle className="h-12 w-12 mx-auto text-amber-500" />
+            <h2 className="text-xl font-bold">Link inválido</h2>
+            <p className="text-sm text-muted-foreground">
+              Para acessar o portal, use o link fornecido pelo seu administrador (com o parâmetro <code>?admin=ID</code> na URL).
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
+      <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
+        <CardContent className="p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <User className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-bold">Solicitar Acesso</h2>
+            <p className="text-sm text-muted-foreground">
+              Complete seu cadastro para acessar o portal.
+            </p>
+          </div>
+
+          <div className="space-y-1 bg-muted/50 rounded-xl p-3">
+            <p className="text-xs text-muted-foreground">Logado como</p>
+            <p className="font-medium text-sm">{userName}</p>
+            <p className="text-xs text-muted-foreground">{userEmail}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Sua categoria profissional</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="h-12 rounded-xl">
+                <SelectValue placeholder="Selecione sua categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nurse">
+                  <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
+                </SelectItem>
+                <SelectItem value="tech">
+                  <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            onClick={() => onRegister(teamId!, category)}
+            disabled={!category}
+            className="w-full h-12 rounded-xl font-bold"
+          >
+            Enviar Solicitação
+          </Button>
+
+          <p className="text-[11px] text-center text-muted-foreground">
+            Após enviar, o administrador precisará aprovar seu acesso.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────
-// Componente principal
+// Pending Approval Screen
+// ─────────────────────────────────────────
+function PendingScreen({ onLogout, status }: { onLogout: () => void; status: string }) {
+  const isPending = status === 'pending';
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
+      <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
+        <CardContent className="p-8 text-center space-y-6">
+          {isPending ? (
+            <>
+              <HourglassIcon className="h-16 w-16 mx-auto text-amber-500 animate-pulse" />
+              <h2 className="text-xl font-bold">Aguardando Aprovação</h2>
+              <p className="text-sm text-muted-foreground">
+                Sua solicitação foi enviada ao administrador. Você receberá acesso assim que for aprovado(a).
+              </p>
+            </>
+          ) : (
+            <>
+              <XCircle className="h-16 w-16 mx-auto text-destructive" />
+              <h2 className="text-xl font-bold">Acesso Negado</h2>
+              <p className="text-sm text-muted-foreground">
+                Sua solicitação foi rejeitada pelo administrador. Entre em contato com a Secretaria de Saúde.
+              </p>
+            </>
+          )}
+          <Button variant="outline" onClick={onLogout} className="gap-2">
+            <LogOut className="h-4 w-4" /> Sair
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// Main Portal Component
 // ─────────────────────────────────────────
 export default function Portal() {
-  const [accessLevel, setAccessLevel] = useState<AccessLevel | null>(null);
+  const {
+    session,
+    professionalUser,
+    leaveRequests,
+    loading,
+    loginWithGoogle,
+    logout,
+    registerProfessional,
+    submitLeaveRequest,
+    refreshLeaveRequests,
+    refreshProfile,
+  } = useProfessionalPortal();
+
   const [portalData, setPortalData] = useState<PortalData | null>(null);
-  const [portalCodes, setPortalCodes] = useState<PortalCodes | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [emultSearch, setEmultSearch] = useState('');
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: '' as LeaveType | '',
+    startDate: '',
+    endDate: '',
+    observations: '',
+  });
 
-  // ── Listener para PWA Install ──
+  const searchParams = new URLSearchParams(window.location.search);
+  const adminId = searchParams.get('admin') || localStorage.getItem('portal_admin_id');
+
+  // Save adminId
   useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
+    const urlAdmin = searchParams.get('admin');
+    if (urlAdmin) localStorage.setItem('portal_admin_id', urlAdmin);
+  }, []);
+
+  // PWA install
+  useEffect(() => {
+    const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
@@ -375,782 +368,197 @@ export default function Portal() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // ── Pegar adminId e code da URL ou localStorage ──
-  const searchParams = new URLSearchParams(window.location.search);
-  const urlAdminId = searchParams.get('admin');
-  const urlCode = searchParams.get('code');
-
-  // Se não houver adminId na URL, tenta pegar do localStorage (para PWA instalado)
-  const [adminId, setAdminId] = useState<string | null>(urlAdminId || localStorage.getItem('portal_admin_id'));
-
-  // Atualiza adminId se vier na URL
-  useEffect(() => {
-    if (urlAdminId && urlAdminId !== adminId) {
-      setAdminId(urlAdminId);
-      localStorage.setItem('portal_admin_id', urlAdminId);
-    }
-  }, [urlAdminId, adminId]);
-
-  // ── Tentar acesso automático se houver código na URL ou salvo ──
-  useEffect(() => {
-    const savedCode = localStorage.getItem('portal_last_code');
-    const codeToTry = urlCode || savedCode;
-
-    if (!codeToTry || accessLevel) return;
-
-    const tryAutoAccess = async () => {
-      const trimmed = codeToTry.trim().toUpperCase();
-      if (!trimmed || trimmed === '...') return;
-
-      // 1. Verifica códigos fixos
-      const effectiveCodes = portalCodes || DEFAULT_PORTAL_CODES;
-      let level: AccessLevel | null = null;
-      if (trimmed === (effectiveCodes.emult || DEFAULT_PORTAL_CODES.emult)) level = 'emult';
-      else if (trimmed === (effectiveCodes.nurse || DEFAULT_PORTAL_CODES.nurse)) level = 'nurse';
-      else if (trimmed === (effectiveCodes.tech || DEFAULT_PORTAL_CODES.tech)) level = 'tech';
-
-      if (level) {
-        setAccessLevel(level);
-        localStorage.setItem('portal_last_code', trimmed);
-        return;
-      }
-
-      // 2. Verifica convites na tabela portal_invites
-      if (adminId) {
-        const inviteLevel = await validateInviteInDB(adminId, trimmed);
-        if (inviteLevel) {
-          setAccessLevel(inviteLevel);
-          localStorage.setItem('portal_last_code', trimmed);
-          return;
-        }
-      }
-
-      // Se o código salvo não for mais válido, limpa
-      if (!urlCode && savedCode) {
-        localStorage.removeItem('portal_last_code');
-      }
-    };
-
-    tryAutoAccess();
-  }, [urlCode, portalCodes, accessLevel, adminId]);
-
-  // ── Buscar códigos e dados ──
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      if (!adminId) return;
-      setLoadingPortal(true);
-      try {
-        const { data, error } = await supabase
-          .from('portal_schedules')
-          .select('*')
-          .eq('user_id', adminId)
-          .order('published_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        if (data) {
-          // Carrega os códigos da publicação (ou usa os padrões se for uma publicação antiga)
-          const codes = data.portal_codes as unknown as PortalCodes;
-          setPortalCodes(codes || DEFAULT_PORTAL_CODES);
-
-          // Armazena os dados da publicação
-          setPortalData({
-            publishedAt: data.published_at,
-            adminName: data.admin_name || undefined,
-            emult: data.emult_data as unknown as PortalData['emult'],
-            service: data.service_data as unknown as PortalData['service'],
-          });
-        }
-      } catch (err) {
-        console.error('Erro ao carregar dados iniciais do portal:', err);
-      } finally {
-        setLoadingPortal(false);
-      }
-    };
-
-    fetchInitialData();
-  }, [adminId]);
-
-  // ── Hooks de dados locais (usados apenas como fallback ou interface) ──
-  const { professionals: localProfessionals } = useServiceProfessionals();
-  const { requests: localRequests, getTotalCreditsUsedByProfessional } = useLeaveRequests();
-  const { allEntries: localNurseEntries } = useServiceSchedule('nurse');
-  const { allEntries: localTechEntries } = useServiceSchedule('tech');
-
-  // ── Dados efetivos (Supabase ou Local) ──
-  const professionals = portalData?.service?.professionals || localProfessionals;
-  const nurseEntries = portalData?.service?.nurseEntries || localNurseEntries;
-  const techEntries = portalData?.service?.techEntries || localTechEntries;
-  const requests = (portalData?.service as unknown as { leaveRequests: LeaveRequest[] })?.leaveRequests || localRequests;
-
-  const { getStatsForProfessional } = useServiceStats({
-    allEntries: [...nurseEntries, ...techEntries],
-    getTotalCreditsUsedByProfessional: (id: string) => {
-      return (requests as LeaveRequest[])
-        .filter((r) => r.professionalId === id && r.status === 'approved' && r.leaveType === 'folga_credito')
-        .reduce((acc: number, r) => acc + (r.daysRequested || 0), 0);
-    },
-  });
-
+  // Fetch portal data
   const fetchPortalData = useCallback(async () => {
-    // Agora os dados já são carregados no efeito inicial, mas mantemos para compatibilidade
-    if (!adminId) return;
+    const effectiveAdminId = adminId || professionalUser?.team_id;
+    if (!effectiveAdminId) return;
+
     setLoadingPortal(true);
     try {
-      const { data, error } = await supabase
+      // Try fetching by admin user_id first, then by team relationship
+      let query = supabase
         .from('portal_schedules')
         .select('*')
-        .eq('user_id', adminId)
         .order('published_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
+      if (adminId) {
+        query = query.eq('user_id', adminId);
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
 
       if (data) {
-        if (data.portal_codes) setPortalCodes(data.portal_codes as unknown as PortalCodes);
         setPortalData({
           publishedAt: data.published_at,
           adminName: data.admin_name || undefined,
-          emult: data.emult_data as unknown as PortalData['emult'],
           service: data.service_data as unknown as PortalData['service'],
         });
       }
     } catch (err) {
-      console.error('Erro ao atualizar dados do portal:', err);
+      console.error('Erro ao carregar dados do portal:', err);
     } finally {
       setLoadingPortal(false);
     }
-  }, [adminId]);
+  }, [adminId, professionalUser]);
 
   useEffect(() => {
-    if (accessLevel) fetchPortalData();
-  }, [accessLevel, fetchPortalData]);
+    if (professionalUser?.status === 'approved') fetchPortalData();
+  }, [professionalUser, fetchPortalData]);
 
-  const goToPreviousMonth = () =>
-    setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
-  const goToNextMonth = () =>
-    setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
+  // Computed data for the professional
+  const myProfessional = useMemo(() => {
+    if (!portalData || !professionalUser?.professional_id) return null;
+    return portalData.service.professionals.find(p => p.id === professionalUser.professional_id) || null;
+  }, [portalData, professionalUser]);
 
-  const handleLogout = () => {
-    setAccessLevel(null);
-    setPortalData(null);
-    localStorage.removeItem('portal_last_code');
-    localStorage.removeItem('portal_admin_id');
-  };
+  const myEntries = useMemo(() => {
+    if (!professionalUser?.professional_id || !portalData) return [];
+    const allEntries = [
+      ...(portalData.service.nurseEntries || []),
+      ...(portalData.service.techEntries || []),
+    ];
+    return allEntries.filter(e => e.professionalId === professionalUser.professional_id);
+  }, [portalData, professionalUser]);
 
-  // ── Dados filtrados por categoria ──
-  const categoryFilter = accessLevel === 'nurse' ? 'nurse' : accessLevel === 'tech' ? 'tech' : null;
-  const filteredProfessionals = categoryFilter
-    ? professionals.filter(p => p.category === categoryFilter && p.active)
-    : professionals.filter(p => p.active);
+  const myLeaveRequestsFromAdmin = useMemo(() => {
+    if (!professionalUser?.professional_id || !portalData?.service?.leaveRequests) return [];
+    return (portalData.service.leaveRequests as LeaveRequest[])
+      .filter(r => r.professionalId === professionalUser.professional_id);
+  }, [portalData, professionalUser]);
 
-  const filteredRequests = categoryFilter
-    ? requests.filter(r => r.category === categoryFilter)
-    : requests;
+  // Stats
+  const myStats = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
 
-  // ── Labels ──
-  const groupLabel: Record<AccessLevel, string> = {
-    emult: 'eMult',
-    nurse: 'Enfermeiros',
-    tech: 'Técnicos',
-  };
+    const workedDays = myEntries.filter(e => {
+      const d = new Date(e.date);
+      return d >= monthStart && d <= monthEnd;
+    }).length;
 
-  // ── Tela de Login (Garante que carregou os códigos antes se houver adminId) ──
-  if (!accessLevel) {
-    if (loadingPortal && !portalCodes) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
-          <div className="space-y-4 w-full max-w-md px-4 text-center">
-            <RefreshCw className="h-10 w-10 animate-spin mx-auto text-primary" />
-            <p className="text-slate-500 font-medium">Carregando portal...</p>
-          </div>
-        </div>
-      );
+    const weekendDays = myEntries.filter(e => {
+      const d = new Date(e.date);
+      if (d < monthStart || d > monthEnd) return false;
+      const day = getDay(d);
+      return day === 0 || day === 6;
+    }).length;
+
+    const creditsGenerated = weekendDays * 2;
+
+    const creditsUsedAdmin = myLeaveRequestsFromAdmin
+      .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
+      .reduce((sum, r) => sum + r.daysRequested, 0);
+
+    const creditsUsedPortal = leaveRequests
+      .filter(r => r.leave_type === 'folga_credito' && r.status === 'approved')
+      .reduce((sum, r) => sum + r.days_requested, 0);
+
+    const creditsUsed = creditsUsedAdmin + creditsUsedPortal;
+
+    return { workedDays, weekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
+  }, [myEntries, myLeaveRequestsFromAdmin, leaveRequests, currentMonth]);
+
+  // Leave form
+  const daysRequested = useMemo(() => {
+    if (!leaveForm.startDate || !leaveForm.endDate) return 0;
+    const start = new Date(leaveForm.startDate + 'T00:00:00');
+    const end = new Date(leaveForm.endDate + 'T00:00:00');
+    if (end < start) return 0;
+    return differenceInCalendarDays(end, start) + 1;
+  }, [leaveForm.startDate, leaveForm.endDate]);
+
+  const handleSubmitLeave = async () => {
+    if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) {
+      toast.error('Preencha todos os campos.');
+      return;
+    }
+    if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance) {
+      toast.error(`Saldo insuficiente. Disponível: ${myStats.creditsBalance} dias`);
+      return;
     }
 
+    const success = await submitLeaveRequest({
+      leave_type: leaveForm.leaveType,
+      start_date: leaveForm.startDate,
+      end_date: leaveForm.endDate,
+      days_requested: daysRequested,
+      observations: leaveForm.observations || undefined,
+    });
+
+    if (success) {
+      setLeaveForm({ leaveType: '', startDate: '', endDate: '', observations: '' });
+      setLeaveDialogOpen(false);
+    }
+  };
+
+  // ─── Render States ───
+
+  if (loading) {
     return (
-      <LoginScreen
-        onAccess={setAccessLevel}
-        portalCodes={portalCodes}
-        adminId={adminId}
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!session) {
+    return (
+      <GoogleLoginScreen
+        onLogin={loginWithGoogle}
+        loading={false}
         onInstall={handleInstall}
         showInstall={!!deferredPrompt}
-        loading={loadingPortal}
       />
     );
   }
 
-  // ── Carregando dados após login ──
-  if (loadingPortal && (accessLevel === 'emult' || !portalData)) {
+  // No professional record → registration
+  if (!professionalUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-2xl px-4">
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      </div>
+      <RegistrationScreen
+        onRegister={registerProfessional}
+        adminId={adminId}
+        userEmail={session.user.email || ''}
+        userName={session.user.user_metadata?.full_name || session.user.email || ''}
+      />
     );
   }
 
-  // ─────────────────────────
-  // Renderizadores de seção
-  // ─────────────────────────
+  // Not approved
+  if (professionalUser.status !== 'approved') {
+    return <PendingScreen onLogout={logout} status={professionalUser.status} />;
+  }
 
-  /** Calendário de serviço (enfermeiros ou técnicos) */
-  const renderServiceCalendar = (type: 'nurse' | 'tech') => {
-    const entries = type === 'nurse' ? nurseEntries : techEntries;
-    const profs = professionals.filter(p => p.category === type && p.active);
+  // ─── Approved: Main Portal ───
 
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const goToPreviousMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
+  const goToNextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
 
-    const getEntriesForDate = (dateStr: string) =>
-      entries.filter(e => e.date === dateStr);
-
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-4 border border-slate-100 dark:border-slate-800/80 shadow-inner">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToPreviousMonth}
-              className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <h3 className="text-lg font-black capitalize min-w-[140px] text-center text-slate-700 dark:text-slate-200">
-              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-            </h3>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToNextMonth}
-              className="h-10 w-10 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentMonth(new Date())}
-            className="rounded-xl border-slate-200 dark:border-slate-700 font-bold text-[10px] uppercase tracking-widest h-9 px-4"
-          >
-            Hoje
-          </Button>
-        </div>
-
-        <div className="relative group">
-          <div className="overflow-x-auto rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl transition-all duration-500">
-            <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[800px]">
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                <div key={day} className="text-center text-[10px] font-black p-4 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-[0.2em]">{day}</div>
-              ))}
-              {Array.from({ length: getDay(monthStart) }).map((_, i) => (
-                <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[120px]" />
-              ))}
-              {daysInMonth.map(day => {
-                const dateStr = format(day, 'yyyy-MM-dd');
-                const dayEntries = getEntriesForDate(dateStr);
-                const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
-
-                return (
-                  <div key={dateStr} className={cn(
-                    'min-h-[120px] p-3 transition-colors relative group/day',
-                    isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
-                  )}>
-                    <div className={cn(
-                      'text-sm font-black mb-3 w-8 h-8 flex items-center justify-center rounded-xl transition-transform group-hover/day:scale-110',
-                      isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' :
-                        isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
-                    )}>
-                      {format(day, 'd')}
-                    </div>
-                    <div className="space-y-1.5">
-                      {dayEntries.map(entry => {
-                        const prof = profs.find(p => p.id === entry.professionalId);
-                        return (
-                          <div
-                            key={entry.id}
-                            className={cn(
-                              'text-[10px] px-2.5 py-1.5 rounded-lg truncate font-bold uppercase tracking-tighter border shadow-sm transition-all hover:scale-105 active:scale-95 cursor-default',
-                              type === 'nurse'
-                                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
-                                : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800'
-                            )}
-                            title={prof?.name}
-                          >
-                            {prof?.name?.split(' ')[0] || '?'}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          {/* Scroll Indicator for Mobile */}
-          <div className="md:hidden absolute -right-2 top-1/2 -translate-y-1/2 bg-primary/90 p-1.5 rounded-l-xl text-white shadow-lg animate-bounce pointer-events-none">
-            <ChevronRight className="h-4 w-4" />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  /** Escala eMult semanal por profissional */
-  const renderEmultSchedule = () => {
-    if (!portalData) return (
-      <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-        <p className="text-slate-500 font-medium italic">Nenhuma escala publicada ainda.</p>
-        <Button variant="outline" size="sm" onClick={fetchPortalData} className="mt-6 gap-2 rounded-xl">
-          <RefreshCw className="h-4 w-4" />Atualizar
-        </Button>
-      </div>
-    );
-
-    const { professionals: emultProfs, units, functions, schedule } = portalData.emult;
-
-    if (emultProfs.length === 0) return (
-      <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-        <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-        <p className="text-slate-500 font-medium">Nenhum profissional cadastrado.</p>
-      </div>
-    );
-
-    const filteredEmultProfs = emultSearch.trim()
-      ? emultProfs.filter(p => p.name.toLowerCase().includes(emultSearch.toLowerCase()))
-      : emultProfs;
-
-    // Agrupar profissionais filtrados por função
-    const profsByFunction = functions.map(func => ({
-      ...func,
-      profs: filteredEmultProfs.filter(p => p.functionId === func.id)
-    })).filter(f => f.profs.length > 0);
-
-    return (
-      <div className="space-y-8">
-        {/* Search Bar */}
-        <div className="relative max-w-md mx-auto mb-10 no-print">
-          <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-          <Input
-            placeholder="Buscar profissional na eMult..."
-            value={emultSearch}
-            onChange={(e) => setEmultSearch(e.target.value)}
-            className="pl-12 h-14 rounded-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-lg shadow-primary/5 text-lg font-medium transition-all"
-          />
-        </div>
-
-        {profsByFunction.length === 0 ? (
-          <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-            <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-            <p className="text-slate-500 font-medium whitespace-nowrap">Nenhum profissional encontrado com esse nome.</p>
-          </div>
-        ) : (
-          <div className="space-y-12">
-            {profsByFunction.map(funcGroup => (
-              <div key={funcGroup.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-md overflow-hidden transition-all duration-500 hover:shadow-xl">
-                <div className="p-6 md:p-8 bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transform rotate-3"
-                      style={{ backgroundColor: funcGroup.color }}
-                    >
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Grupo de Atuação</span>
-                      {funcGroup.name.toUpperCase()}
-                    </div>
-                  </h3>
-                  <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-0.5">Escala Semanal</span>
-                  </div>
-                </div>
-
-                {/* Mobile: View por Card (Profissional) */}
-                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-                  {funcGroup.profs.map(prof => (
-                    <div key={prof.id} className="p-5 space-y-4">
-                      <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-tight">{prof.name}</h4>
-                      <div className="grid grid-cols-1 gap-2">
-                        {EMULT_DAYS.map(day => {
-                          const dayEntries = schedule
-                            .filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key)
-                            .sort((a, b) => {
-                              const order = { manha: 0, tarde: 1, integral: 2 };
-                              return (order[a.period as keyof typeof order] ?? 99) - (order[b.period as keyof typeof order] ?? 99);
-                            });
-                          if (dayEntries.length === 0) return null;
-
-                          return (
-                            <div key={day.key} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                              <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day.label}</span>
-                              <div className="flex-1 space-y-1">
-                                {dayEntries.map(entry => {
-                                  const unit = units.find(u => u.id === entry.unitId);
-                                  const periodLabel = EMULT_PERIODS.find(p => p.key === entry.period)?.label;
-                                  return (
-                                    <div key={entry.id} className="flex items-center justify-between gap-2">
-                                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{unit?.name}</span>
-                                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-400 uppercase">{periodLabel}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {EMULT_DAYS.every(day => schedule.filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key).length === 0) && (
-                          <p className="text-xs italic text-slate-400 text-center py-2">Sem atividades programadas nesta semana.</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Desktop: Tradicional Table Layout */}
-                <div className="hidden md:block overflow-x-auto selection:bg-primary/10">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                        <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-slate-50/95 dark:bg-slate-800/95 z-20 min-w-[200px] shadow-[2px_0_10px_rgba(0,0,0,0.02)]">Profissional</th>
-                        {EMULT_DAYS.map(day => (
-                          <th key={day.key} className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px] min-w-[160px] border-r border-slate-100 dark:border-slate-800 last:border-r-0">{day.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {funcGroup.profs.map(prof => (
-                        <tr key={prof.id} className="hover:bg-primary/[0.02] transition-colors group">
-                          <td className="p-6 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-100 dark:border-slate-800 sticky left-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 group-hover:text-primary transition-colors shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
-                            {prof.name.toUpperCase()}
-                          </td>
-                          {EMULT_DAYS.map(day => {
-                            const dayEntries = schedule
-                              .filter(s => s.professionalId === prof.id && s.dayOfWeek === day.key)
-                              .sort((a, b) => {
-                                const order = { manha: 0, tarde: 1, integral: 2 };
-                                return (order[a.period as keyof typeof order] ?? 99) - (order[b.period as keyof typeof order] ?? 99);
-                              });
-
-                            return (
-                              <td key={day.key} className="p-4 text-center border-r border-slate-100 dark:border-slate-800 last:border-r-0">
-                                {dayEntries.length > 0 ? (
-                                  <div className="space-y-4">
-                                    {dayEntries.map(entry => {
-                                      const unit = units.find(u => u.id === entry.unitId);
-                                      const periodLabel = EMULT_PERIODS.find(p => p.key === entry.period)?.label;
-                                      return (
-                                        <div key={entry.id} className="group/unit transform transition-all hover:scale-105">
-                                          <span className="block font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight leading-tight">
-                                            {unit?.name || '?'}
-                                          </span>
-                                          <span className={cn(
-                                            "inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter mt-1",
-                                            entry.period === 'integral'
-                                              ? "bg-primary/10 text-primary border border-primary/20"
-                                              : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-                                          )}>
-                                            {periodLabel}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <span className="text-slate-300 dark:text-slate-700 font-bold opacity-50">—</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-
-  /** Horas no banco / créditos */
-  const renderCredits = () => {
-    if (filteredProfessionals.length === 0) return (
-      <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-        <Clock className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-        <p className="text-slate-500 font-medium">Nenhum profissional encontrado.</p>
-      </div>
-    );
-
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProfessionals.map(prof => {
-          const stats = getStatsForProfessional(prof.id, prof.name, prof.category);
-          const balanceColor = stats.creditsBalance > 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20'
-            : stats.creditsBalance < 0 ? 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20'
-              : 'text-slate-400 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800';
-
-          return (
-            <div key={prof.id} className="group bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden flex flex-col">
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner",
-                      prof.category === 'nurse' ? "bg-emerald-100/50 text-emerald-600" : "bg-blue-100/50 text-blue-600"
-                    )}>
-                      {prof.category === 'nurse' ? <Stethoscope className="w-6 h-6" /> : <Syringe className="w-6 h-6" />}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">{prof.name}</h3>
-                      <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
-                        {prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800/50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">Dias Trab.</p>
-                    <p className="text-xl font-black text-slate-700 dark:text-slate-200">{stats.workedDays}</p>
-                  </div>
-                  <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-4 border border-amber-100 dark:border-amber-900/20">
-                    <p className="text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-tight mb-1">Fins de Sem.</p>
-                    <p className="text-xl font-black text-amber-600 dark:text-amber-400">{stats.weekendDays}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight mb-1">
-                    <TrendingUp className="w-3 h-3" /> Gerados
-                  </div>
-                  <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{stats.creditsGenerated}</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 uppercase tracking-tight mb-1">
-                    <TrendingDown className="w-3 h-3" /> Usados
-                  </div>
-                  <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{stats.creditsUsed}</p>
-                </div>
-              </div>
-
-              <div className="mt-auto p-6 pt-2">
-                <div className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all duration-300", balanceColor)}>
-                  <span className="text-xs font-bold uppercase tracking-widest opacity-80">Saldo Livre</span>
-                  <span className="text-2xl font-black tracking-tighter">
-                    {stats.creditsBalance} <span className="text-[10px] font-bold ml-1">DIAS</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  /** Pedidos de folga */
-  const renderLeaveRequests = () => {
-    if (filteredRequests.length === 0) return (
-      <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-        <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-        <p className="text-slate-500 font-medium">Nenhum pedido de folga registrado.</p>
-      </div>
-    );
-
-    const absenceLabel = (type?: string) => {
-      switch (type) {
-        case 'ferias': return { label: 'Férias', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200 dark:border-blue-500/20' };
-        case 'licenca':
-        case 'licenca_medica': return { label: 'Licença', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200 dark:border-purple-500/20' };
-        case 'atestado': return { label: 'Atestado', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200 dark:border-rose-500/20' };
-        case 'folga_feriado': return { label: 'Feriado', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' };
-        case 'capacitacao': return { label: 'Capacitação', cls: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 border-cyan-200 dark:border-cyan-500/20' };
-        case 'folga_credito': return { label: 'Folga (Crédito)', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' };
-        default: return { label: 'Afastamento', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border-slate-200 dark:border-slate-500/20' };
-      }
-    };
-
-    return (
-      <div className="space-y-4">
-        {/* Mobile: Card Layout */}
-        <div className="grid grid-cols-1 md:hidden gap-4">
-          {filteredRequests
-            .sort((a, b) => b.requestDate.localeCompare(a.requestDate))
-            .map(req => {
-              const prof = professionals.find(p => p.id === req.professionalId);
-              const abs = absenceLabel(req.leaveType);
-              return (
-                <div key={req.id} className="bg-white dark:bg-slate-900 p-5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                  <div className={cn("absolute top-0 right-0 w-16 h-16 opacity-5 -mr-4 -mt-4 transform rotate-12 transition-transform group-hover:scale-110", abs.cls.split(' ')[0])}>
-                    <FileText className="w-full h-full" />
-                  </div>
-
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 dark:text-white truncate">{prof?.name || 'Desconhecido'}</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Solicitado em {format(new Date(req.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}</p>
-                    </div>
-                    <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border', abs.cls)}>
-                      {abs.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                        {req.leaveDates.length > 0 && (
-                          <>
-                            {format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
-                            {req.leaveDates.length > 1 && (
-                              <> a {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
-                            )}
-                          </>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 shadow-sm">
-                      <span className="text-sm font-black text-primary">{req.daysRequested}</span>
-                      <span className="text-[10px] font-bold text-slate-400">DIAS</span>
-                    </div>
-                  </div>
-
-                  {req.observations && (
-                    <p className="mt-3 text-xs italic text-slate-400 line-clamp-2">
-                      &ldquo;{req.observations}&rdquo;
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-        </div>
-
-        {/* Desktop: Table Layout */}
-        <div className="hidden md:block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-500">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 transition-colors">
-                  <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Profissional</th>
-                  <th className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Ausência</th>
-                  <th className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Data Pedido</th>
-                  <th className="text-center p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Dias</th>
-                  <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Período</th>
-                  <th className="text-left p-6 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Anotações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredRequests
-                  .sort((a, b) => b.requestDate.localeCompare(a.requestDate))
-                  .map(req => {
-                    const prof = professionals.find(p => p.id === req.professionalId);
-                    const abs = absenceLabel(req.leaveType);
-                    return (
-                      <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
-                        <td className="p-6 font-bold text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{prof?.name || 'Desconhecido'}</td>
-                        <td className="p-6 text-center">
-                          <span className={cn('px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border', abs.cls)}>{abs.label}</span>
-                        </td>
-                        <td className="p-6 text-center text-slate-500 font-medium whitespace-nowrap">
-                          {format(new Date(req.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
-                        </td>
-                        <td className="p-6 text-center">
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/5 text-primary">
-                            <span className="font-black text-base">{req.daysRequested}</span>
-                            <span className="text-[10px] font-bold uppercase tracking-tighter">dias</span>
-                          </div>
-                        </td>
-                        <td className="p-6 text-slate-600 dark:text-slate-300 font-bold whitespace-nowrap">
-                          {req.leaveDates.length > 0 && (
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-slate-300" />
-                              <span>
-                                {format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
-                                {req.leaveDates.length > 1 && (
-                                  <> a {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
-                                )}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-6 text-slate-400 italic text-xs max-w-xs truncate">{req.observations || '—'}</td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─────────────────────────
-  // Abas disponíveis por grupo
-  // ─────────────────────────
-  const tabs = {
-    emult: [
-      { key: 'escala', label: 'Escala eMult', icon: <Calendar className="h-4 w-4" /> },
-    ],
-    nurse: [
-      { key: 'escala', label: 'Escala', icon: <Calendar className="h-4 w-4" /> },
-      { key: 'horas', label: 'Horas no Banco', icon: <Clock className="h-4 w-4" /> },
-      { key: 'folgas', label: 'Folgas', icon: <FileText className="h-4 w-4" /> },
-    ],
-    tech: [
-      { key: 'escala', label: 'Escala', icon: <Calendar className="h-4 w-4" /> },
-      { key: 'horas', label: 'Horas no Banco', icon: <Clock className="h-4 w-4" /> },
-      { key: 'folgas', label: 'Folgas', icon: <FileText className="h-4 w-4" /> },
-    ],
-  };
-
-  const currentTabs = tabs[accessLevel];
   const updatedLabel = portalData
     ? `Atualizado em ${format(parseISO(portalData.publishedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-    : 'Dados locais';
+    : 'Sem dados publicados';
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'approved': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />Aprovado</Badge>;
+      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
+      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200"><HourglassIcon className="w-3 h-3 mr-1" />Pendente</Badge>;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] pb-24 md:pb-12 transition-colors duration-500">
-      {/* PWA Floating Install Button (Main View) */}
-      {deferredPrompt && (
-        <Button
-          onClick={handleInstall}
-          className="fixed bottom-6 right-6 z-[100] h-14 px-6 rounded-2xl shadow-2xl bg-primary hover:bg-primary/90 text-white font-bold gap-2 animate-bounce hover:animate-none transition-all no-print"
-        >
-          <Download className="h-5 w-5" />
-          <span className="hidden sm:inline">Instalar App</span>
-        </Button>
-      )}
-      {/* Header Premium */}
+      {/* Header */}
       <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="container mx-auto px-4 h-20 md:h-24 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 md:gap-5">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 shrink-0 transform hover:rotate-3 transition-transform overflow-hidden border border-slate-100 dark:border-slate-700">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 shrink-0 overflow-hidden border border-slate-100 dark:border-slate-700">
               <img
                 src="/logo-saude-plus.png"
                 alt="Saúde+"
@@ -1160,18 +568,13 @@ export default function Portal() {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                Portal <span className="text-primary italic">Ativa</span>
+                Olá, <span className="text-primary">{myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0]}</span>
               </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-wider">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  {groupLabel[accessLevel]}
+                  {professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
                 </div>
-                {portalData?.adminName && (
-                  <span className="text-[10px] md:text-[11px] text-slate-400 font-medium truncate hidden sm:inline">
-                    por {portalData.adminName}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -1181,11 +584,10 @@ export default function Portal() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Última Atualização</p>
               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{updatedLabel}</p>
             </div>
-
             <Button
               variant="outline"
               size="icon"
-              onClick={handleLogout}
+              onClick={logout}
               className="rounded-xl md:rounded-2xl border-slate-200 dark:border-slate-700 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-all h-10 w-10 md:h-12 md:w-12 shadow-sm"
               title="Sair"
             >
@@ -1196,144 +598,358 @@ export default function Portal() {
       </header>
 
       <main className="container mx-auto px-4 py-6 md:py-10">
-        <Tabs defaultValue="escala" className="space-y-6 md:space-y-10">
-
-          {/* Desktop Tabs / Mobile Hidden (Using Bottom Nav instead) */}
-          <div className="hidden md:block">
-            <TabsList className={cn(
-              'grid h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 backdrop-blur-sm max-w-2xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner',
-              currentTabs.length === 1 ? 'grid-cols-1' :
-                currentTabs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
-            )}>
-              {currentTabs.map(tab => (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  className="flex items-center justify-center gap-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl transition-all duration-300 font-bold text-slate-500 data-[state=active]:text-primary h-full"
-                >
-                  <div className="flex items-center gap-2">
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </div>
+        {loadingPortal ? (
+          <div className="space-y-4 w-full max-w-2xl mx-auto">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+        ) : (
+          <Tabs defaultValue="escala" className="space-y-6 md:space-y-10">
+            {/* Desktop Tabs */}
+            <div className="hidden md:block">
+              <TabsList className="grid grid-cols-3 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-2xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+                <TabsTrigger value="escala" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
+                  <Calendar className="h-4 w-4" /> Minha Escala
                 </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-
-          {/* Mobile Info & Update */}
-          <div className="md:hidden flex items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
-                <Clock className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Atualizado em</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{updatedLabel}</span>
-              </div>
+                <TabsTrigger value="creditos" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
+                  <Clock className="h-4 w-4" /> Meus Créditos
+                </TabsTrigger>
+                <TabsTrigger value="folgas" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
+                  <FileText className="h-4 w-4" /> Minhas Folgas
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-10 w-10 rounded-xl text-primary bg-primary/10 hover:bg-primary/20"
-              onClick={fetchPortalData}
-              disabled={loadingPortal}
-            >
-              <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
-            </Button>
-          </div>
 
-          {/* ── Aba: Escala ── */}
-          <TabsContent value="escala" className="mt-0 focus-visible:outline-none">
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
-                <div className="space-y-1">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {accessLevel === 'nurse' ? 'Escala de Enfermeiros' :
-                      accessLevel === 'tech' ? 'Escala de Técnicos' :
-                        'Escala eMult'}
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Visualização oficial das atividades programadas</p>
+            {/* Mobile info bar */}
+            <div className="md:hidden flex items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
+                  <Clock className="h-4 w-4" />
                 </div>
-                {accessLevel !== 'emult' && (
-                  <div className="flex items-center gap-2 self-end md:self-auto">
-                    <div className="px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 shadow-sm">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Dados em Tempo Real
-                    </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Atualizado em</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{updatedLabel}</span>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-xl text-primary bg-primary/10 hover:bg-primary/20"
+                onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+                disabled={loadingPortal}
+              >
+                <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
+              </Button>
+            </div>
+
+            {/* Tab: Minha Escala */}
+            <TabsContent value="escala" className="mt-0 focus-visible:outline-none">
+              <div className="space-y-6">
+                <div className="px-2">
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minha Escala</h2>
+                  <p className="text-sm text-slate-500 font-medium">Seus dias de trabalho programados</p>
+                </div>
+
+                {/* Month navigation */}
+                <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-4 border border-slate-100 dark:border-slate-800/80 shadow-inner">
+                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-10 w-10 rounded-xl">
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <h3 className="text-lg font-black capitalize text-slate-700 dark:text-slate-200">
+                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                  </h3>
+                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-10 w-10 rounded-xl">
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Calendar */}
+                <div className="overflow-x-auto rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
+                  <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[700px]">
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                      <div key={day} className="text-center text-[10px] font-black p-3 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-[0.2em]">{day}</div>
+                    ))}
+                    {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
+                      <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[80px]" />
+                    ))}
+                    {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const hasEntry = myEntries.some(e => e.date === dateStr);
+                      const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                      const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+
+                      return (
+                        <div key={dateStr} className={cn(
+                          'min-h-[80px] p-3 transition-colors relative',
+                          isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
+                        )}>
+                          <div className={cn(
+                            'text-sm font-black mb-2 w-8 h-8 flex items-center justify-center rounded-xl',
+                            isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' :
+                              isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
+                          )}>
+                            {format(day, 'd')}
+                          </div>
+                          {hasEntry && (
+                            <div className={cn(
+                              'text-[9px] px-2 py-1 rounded-lg font-bold uppercase text-center border',
+                              professionalUser.category === 'nurse'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                                : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+                            )}>
+                              {isWeekend ? '⭐ FDS' : 'Escalado'}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab: Créditos */}
+            <TabsContent value="creditos" className="mt-0 focus-visible:outline-none">
+              <div className="space-y-6">
+                <div className="px-2">
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Meus Créditos</h2>
+                  <p className="text-sm text-slate-500 font-medium">Saldo de banco de horas e créditos de folga</p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="rounded-[1.5rem] border-0 shadow-md">
+                    <CardContent className="p-5 text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Dias Trabalhados</p>
+                      <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{myStats.workedDays}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="rounded-[1.5rem] border-0 shadow-md bg-amber-50 dark:bg-amber-900/10">
+                    <CardContent className="p-5 text-center">
+                      <p className="text-[10px] font-bold text-amber-500 uppercase tracking-tight mb-2">Fins de Semana</p>
+                      <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{myStats.weekendDays}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="rounded-[1.5rem] border-0 shadow-md">
+                    <CardContent className="p-5 text-center">
+                      <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight mb-2">
+                        <TrendingUp className="w-3 h-3" /> Gerados
+                      </div>
+                      <p className="text-3xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={cn(
+                    "rounded-[1.5rem] border-0 shadow-md",
+                    myStats.creditsBalance > 0 ? 'bg-emerald-50 dark:bg-emerald-900/10' :
+                      myStats.creditsBalance < 0 ? 'bg-rose-50 dark:bg-rose-900/10' : ''
+                  )}>
+                    <CardContent className="p-5 text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Saldo Livre</p>
+                      <p className={cn(
+                        "text-3xl font-black",
+                        myStats.creditsBalance > 0 ? 'text-emerald-600' :
+                          myStats.creditsBalance < 0 ? 'text-rose-600' : 'text-slate-500'
+                      )}>
+                        {myStats.creditsBalance}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">(Usado: {myStats.creditsUsed})</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab: Folgas */}
+            <TabsContent value="folgas" className="mt-0 focus-visible:outline-none">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minhas Folgas</h2>
+                    <p className="text-sm text-slate-500 font-medium">Solicite e acompanhe seus pedidos de afastamento</p>
+                  </div>
+                  <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="rounded-xl font-bold gap-2">
+                        <Plus className="w-4 h-4" /> Solicitar Folga
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Solicitar Folga</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Tipo de Afastamento</Label>
+                          <Select
+                            value={leaveForm.leaveType}
+                            onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                            <SelectContent>
+                              {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {leaveForm.leaveType === 'folga_credito' && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-primary" />
+                              <span className="text-sm">
+                                Saldo disponível: <strong className="text-primary">{myStats.creditsBalance} dias</strong>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label>Data Inicial</Label>
+                          <Input
+                            type="date"
+                            value={leaveForm.startDate}
+                            onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label>Data Final</Label>
+                          <Input
+                            type="date"
+                            value={leaveForm.endDate}
+                            min={leaveForm.startDate || undefined}
+                            onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                          />
+                        </div>
+
+                        {daysRequested > 0 && (
+                          <div className="p-3 bg-muted rounded-lg text-sm">
+                            Quantidade: <strong>{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
+                          </div>
+                        )}
+
+                        <div>
+                          <Label>Observações</Label>
+                          <Textarea
+                            value={leaveForm.observations}
+                            onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
+                            placeholder="Motivo, justificativa..."
+                          />
+                        </div>
+
+                        <Button
+                          onClick={handleSubmitLeave}
+                          className="w-full"
+                          disabled={daysRequested < 1 || (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance)}
+                        >
+                          Enviar Pedido
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* Leave requests list */}
+                {leaveRequests.length === 0 && myLeaveRequestsFromAdmin.length === 0 ? (
+                  <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                    <p className="text-slate-500 font-medium">Nenhum pedido de folga registrado.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Portal leave requests */}
+                    {leaveRequests.map(req => (
+                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md">
+                        <CardContent className="p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="secondary" className="text-xs">
+                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+                            </Badge>
+                            {statusBadge(req.status)}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-xs text-muted-foreground">Período</div>
+                              <div className="font-medium">
+                                {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM')}
+                                {req.end_date !== req.start_date && (
+                                  <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                )}
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-xs text-muted-foreground">Duração</div>
+                              <div className="font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</div>
+                            </div>
+                          </div>
+                          {req.observations && (
+                            <p className="text-xs text-muted-foreground italic">"{req.observations}"</p>
+                          )}
+                          <div className="text-[11px] text-muted-foreground">
+                            Enviado em {format(new Date(req.created_at), 'dd/MM/yyyy HH:mm')}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* Admin-registered leave requests */}
+                    {myLeaveRequestsFromAdmin.map(req => (
+                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md bg-muted/30">
+                        <CardContent className="p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="secondary" className="text-xs">
+                              {LEAVE_TYPE_LABELS[req.leaveType] || req.leaveType}
+                            </Badge>
+                            <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px]">
+                              Registrado pelo Admin
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-xs text-muted-foreground">Período</div>
+                              <div className="font-medium">
+                                {req.leaveDates[0] && format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
+                                {req.leaveDates.length > 1 && (
+                                  <> a {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
+                                )}
+                              </div>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-2">
+                              <div className="text-xs text-muted-foreground">Duração</div>
+                              <div className="font-bold text-primary">{req.daysRequested} {req.daysRequested === 1 ? 'dia' : 'dias'}</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
               </div>
-
-              <div className="bg-white/50 dark:bg-slate-900/50 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-2 md:p-6 shadow-sm overflow-hidden min-h-[400px]">
-                {accessLevel === 'emult' && renderEmultSchedule()}
-                {accessLevel === 'nurse' && renderServiceCalendar('nurse')}
-                {accessLevel === 'tech' && renderServiceCalendar('tech')}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ── Aba: Horas no Banco ── */}
-          {(accessLevel === 'nurse' || accessLevel === 'tech') && (
-            <TabsContent value="horas" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-4 md:space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Banco de Horas</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Controle de créditos e saldos dos profissionais</p>
-                </div>
-                <div className="pt-2">
-                  {renderCredits()}
-                </div>
-              </div>
             </TabsContent>
-          )}
 
-          {/* ── Aba: Pedidos de Folga ── */}
-          {(accessLevel === 'nurse' || accessLevel === 'tech') && (
-            <TabsContent value="folgas" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-4 md:space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Histórico de Ausências</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Registro de folgas, férias e licenças</p>
-                </div>
-                {renderLeaveRequests()}
-              </div>
-            </TabsContent>
-          )}
-
-          {/* Mobile Bottom Navigation Bar */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 no-print">
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-2">
-              <TabsList className="bg-transparent h-16 w-full grid grid-cols-3 gap-1">
-                {currentTabs.map(tab => (
-                  <TabsTrigger
-                    key={tab.key}
-                    value={tab.key}
-                    className="flex flex-col items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-white rounded-[1.5rem] transition-all duration-300 py-2 border-0"
-                  >
-                    <div className="p-0">
+            {/* Mobile Bottom Nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 no-print">
+              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-2">
+                <TabsList className="bg-transparent h-16 w-full grid grid-cols-3 gap-1">
+                  {[
+                    { key: 'escala', label: 'Escala', icon: <Calendar className="h-4 w-4" /> },
+                    { key: 'creditos', label: 'Créditos', icon: <Clock className="h-4 w-4" /> },
+                    { key: 'folgas', label: 'Folgas', icon: <FileText className="h-4 w-4" /> },
+                  ].map(tab => (
+                    <TabsTrigger
+                      key={tab.key}
+                      value={tab.key}
+                      className="flex flex-col items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-white rounded-[1.5rem] transition-all duration-300 py-2 border-0"
+                    >
                       {tab.icon}
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-tight">{tab.label.split(' ')[0]}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+                      <span className="text-[10px] font-bold uppercase tracking-tight">{tab.label}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
             </div>
-          </div>
-        </Tabs>
+          </Tabs>
+        )}
       </main>
-
-      {/* Footer minimalista no desktop */}
-      <footer className="hidden md:block border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 mt-12 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">
-            Secretaria Municipal de Saúde
-          </p>
-          <p className="text-[10px] text-slate-400">
-            Este portal é uma ferramenta de transparência pública para visualização de escalas de trabalho.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
-
