@@ -400,7 +400,7 @@ export default function Portal() {
     return urlParams.get(key) || hashParams.get(key) || localStorage.getItem(storageKey);
   };
 
-  const adminId = getParam('admin', 'portal_admin_id');
+  const adminId = getParam('adminId', 'portal_admin_id') || getParam('admin', 'portal_admin_id');
   const roleFromUrl = getParam('role', 'portal_role_hint');
 
   // Salva no localStorage assim que detectado na URL
@@ -408,7 +408,7 @@ export default function Portal() {
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
 
-    const currentAdmin = urlParams.get('admin') || hashParams.get('admin');
+    const currentAdmin = urlParams.get('adminId') || hashParams.get('adminId') || urlParams.get('admin') || hashParams.get('admin');
     const currentRole = urlParams.get('role') || hashParams.get('role');
 
     if (currentAdmin) localStorage.setItem('portal_admin_id', currentAdmin);

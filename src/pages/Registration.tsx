@@ -40,7 +40,7 @@ export default function Registration() {
         // Garantimos que o ID do admin esteja presente. 
         // Se userId do context sumir por um segundo, tentamos o admin_id do próprio convite.
         const id = userId || invite.admin_id;
-        return `${window.location.origin}/portal?admin=${id}&role=${invite.access_level}`;
+        return `${window.location.origin}/portal?adminId=${id}&role=${invite.access_level}`;
     };
 
     // ── Clipboard helper ──
@@ -112,11 +112,11 @@ export default function Registration() {
         return 'bg-primary/10 text-primary';
     };
 
-    if (!userId && loading) {
+    if (!userId) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground animate-pulse">
                 <RefreshCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
-                <p className="text-sm font-medium">Carregando perfil administrativo...</p>
+                <p className="text-sm font-medium">Sincronizando perfil administrativo...</p>
             </div>
         );
     }
