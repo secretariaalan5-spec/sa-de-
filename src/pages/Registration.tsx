@@ -36,8 +36,12 @@ export default function Registration() {
     });
 
     // ── URL base do portal ──
-    const getInviteUrl = (invite: PortalInvite) =>
-        `${window.location.origin}/portal?admin=${userId || ''}&role=${invite.access_level}`;
+    const getInviteUrl = (invite: PortalInvite) => {
+        // Garantimos que o ID do admin esteja presente. 
+        // Se userId do context sumir por um segundo, tentamos o admin_id do próprio convite.
+        const id = userId || invite.admin_id;
+        return `${window.location.origin}/portal?admin=${id}&role=${invite.access_level}`;
+    };
 
     // ── Clipboard helper ──
     const copyToClipboard = (text: string, key: string) => {
@@ -108,8 +112,17 @@ export default function Registration() {
         return 'bg-primary/10 text-primary';
     };
 
+    if (!userId && loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground animate-pulse">
+                <RefreshCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
+                <p className="text-sm font-medium">Carregando perfil administrativo...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in group-admin-links">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
                 <PageHeader
                     title="Cadastro de Profissionais"
