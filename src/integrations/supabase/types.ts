@@ -106,6 +106,112 @@ export type Database = {
         }
         Relationships: []
       }
+      professional_leave_requests: {
+        Row: {
+          admin_notes: string | null
+          category: string
+          created_at: string
+          days_requested: number
+          end_date: string
+          id: string
+          leave_type: string
+          observations: string | null
+          professional_id: string
+          start_date: string
+          status: string
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          category?: string
+          created_at?: string
+          days_requested?: number
+          end_date: string
+          id?: string
+          leave_type: string
+          observations?: string | null
+          professional_id: string
+          start_date: string
+          status?: string
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          category?: string
+          created_at?: string
+          days_requested?: number
+          end_date?: string
+          id?: string
+          leave_type?: string
+          observations?: string | null
+          professional_id?: string
+          start_date?: string
+          status?: string
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_leave_requests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professional_users: {
+        Row: {
+          category: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          professional_id: string | null
+          status: string
+          team_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          email: string
+          full_name?: string
+          id?: string
+          professional_id?: string | null
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          professional_id?: string | null
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
