@@ -10,6 +10,7 @@ interface AppDataContextType {
     data: AppData;
     loading: boolean;
     userId: string | null;
+    teamId: string | null;
     updateData: (updater: AppData | ((prev: AppData) => AppData)) => void;
     addProfessional: (professional: Omit<Professional, 'id'>) => Professional;
     updateProfessional: (id: string, updates: Partial<Professional>) => void;
@@ -95,6 +96,7 @@ const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null);
+    const [teamId, setTeamId] = useState<string | null>(null);
     const [data, setData] = useState<AppData>(INITIAL_DATA);
     const [portalCodes, setPortalCodes] = useState<PortalCodes>(PLACEHOLDER_CODES);
     const [loading, setLoading] = useState(true);
@@ -130,6 +132,44 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                     .maybeSingle() as any);
 
                 if (error) throw error;
+
+                // 2. Busca perfil e equipe
+                let currentTeamId = null;
+                const { data: profileRecord } = await (supabase
+                    .from('profiles' as any)
+                    .select('team_id')
+                    .eq('user_id', userId)
+                    .maybeSingle() as any);
+
+                if (profileRecord?.team_id) {
+                    currentTeamId = profileRecord.team_id;
+                } else {
+                    // Se não tiver perfil com equipe, tenta ver se já existe uma equipe criada por ele
+                    const { data: teamRecord } = await (supabase
+                        .from('teams' as any)
+                        .select('id')
+                        .eq('created_by', userId)
+                        .maybeSingle() as any);
+
+                    if (teamRecord?.id) {
+                        currentTeamId = teamRecord.id;
+                    } else {
+                        // Se não tem equipe nenhuma, cria uma
+                        const { data: newTeam } = await (supabase
+                            .from('teams' as any)
+                            .insert({ name: 'Minha Equipe', created_by: userId } as any)
+                            .select()
+                            .single() as any);
+                        currentTeamId = newTeam.id;
+                    }
+
+                    // Agora garante que o perfil existe e aponta para esta equipe
+                    await (supabase
+                        .from('profiles' as any)
+                        .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
+                }
+
+                setTeamId(currentTeamId);
 
                 if (stateData) {
                     // Restaura dados eMult com fallback para arrays vazios se campos estiverem faltando
@@ -391,7 +431,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AppDataContext.Provider value={{
-            data, loading, userId, updateData,
+            data, loading, userId, teamId, updateData,
             addProfessional, updateProfessional, deleteProfessional,
             addUnit, updateUnit, deleteUnit,
             addFunction, updateFunction, deleteFunction,

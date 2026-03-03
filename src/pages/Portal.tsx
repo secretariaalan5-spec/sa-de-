@@ -205,11 +205,11 @@ function RegistrationScreen({
           .eq('user_id', adminId)
           .maybeSingle() as any);
 
-        // Se encontrar team_id, usa ele. Caso contrário, o próprio adminId é o ID da equipe.
-        setTeamId(data?.team_id || adminId);
+        // Se encontrar team_id, usa ele.
+        setTeamId(data?.team_id || null);
       } catch (err) {
         console.error('Erro ao buscar equipe:', err);
-        setTeamId(adminId); // Fallback imediato
+        setTeamId(null);
       } finally {
         setLoadingTeam(false);
       }
