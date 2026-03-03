@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Chrome } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function Login() {
     const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -14,6 +15,7 @@ export default function Login() {
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const navigate = useNavigate();
 
     /** Trata login e cadastro dependendo do modo ativo. */
@@ -75,6 +77,22 @@ export default function Login() {
             toast.error(errorMessage);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        setGoogleLoading(true);
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin,
+                },
+            });
+            if (error) throw error;
+        } catch (error: any) {
+            toast.error('Erro ao entrar com Google: ' + (error.message || 'Tente novamente.'));
+            setGoogleLoading(false);
         }
     };
 
@@ -169,6 +187,27 @@ export default function Login() {
                             ) : (
                                 mode === 'login' ? 'Entrar no Sistema' : 'Cadastrar Administrador'
                             )}
+                        </Button>
+
+                        <div className="flex items-center gap-3">
+                            <Separator className="flex-1" />
+                            <span className="text-xs text-muted-foreground">ou</span>
+                            <Separator className="flex-1" />
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full h-11"
+                            onClick={handleGoogleLogin}
+                            disabled={googleLoading || loading}
+                        >
+                            {googleLoading ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Chrome className="w-4 h-4 mr-2" />
+                            )}
+                            Entrar com Google
                         </Button>
 
                         <div className="text-center pt-2">
