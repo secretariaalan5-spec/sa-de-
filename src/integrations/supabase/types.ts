@@ -185,6 +185,39 @@ export type Database = {
           },
         ]
       }
+      team_members: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          invited_at: string | null
+          member_email: string
+          member_id: string | null
+          owner_id: string
+          role: string | null
+          status: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string | null
+          member_email: string
+          member_id?: string | null
+          owner_id: string
+          role?: string | null
+          status?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string | null
+          member_email?: string
+          member_id?: string | null
+          owner_id?: string
+          role?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       teams: {
         Row: {
           created_at: string

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Chrome } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function Login() {
     const [mode, setMode] = useState<'login' | 'signup'>('login');
