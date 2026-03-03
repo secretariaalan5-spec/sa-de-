@@ -15,6 +15,7 @@ export default function Login() {
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const navigate = useNavigate();
 
     /** Trata login e cadastro dependendo do modo ativo. */
