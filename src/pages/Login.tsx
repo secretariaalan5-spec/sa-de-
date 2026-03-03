@@ -209,6 +209,8 @@ export default function Login() {
                             )}
                             Entrar com Google
                         </Button>
+
+                        <div className="text-center pt-2">
                             <button
                                 type="button"
                                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
