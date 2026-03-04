@@ -73,6 +73,45 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_invites: {
+        Row: {
+          access_level: string
+          admin_id: string
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          max_uses: number | null
+          uses_count: number
+        }
+        Insert: {
+          access_level?: string
+          admin_id: string
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          uses_count?: number
+        }
+        Update: {
+          access_level?: string
+          admin_id?: string
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          uses_count?: number
+        }
+        Relationships: []
+      }
       portal_schedules: {
         Row: {
           admin_name: string | null
