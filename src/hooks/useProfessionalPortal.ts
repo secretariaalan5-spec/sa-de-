@@ -82,7 +82,7 @@ export function useProfessionalPortal() {
     fetchProfessionalUser();
   }, [fetchProfessionalUser]);
 
-  // Register as professional (first time)
+  // Register as professional
   const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
     if (!session?.user) return false;
 

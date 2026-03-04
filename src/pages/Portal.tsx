@@ -12,7 +12,6 @@ import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -171,61 +170,23 @@ function GoogleLoginScreen({
 }
 
 // ─────────────────────────────────────────
-// Registration Screen
+// Registration Screen - choose category
 // ─────────────────────────────────────────
 function RegistrationScreen({
   onRegister,
-  adminId,
+  teamId,
   userEmail,
   userName,
-  presetRole,
 }: {
   onRegister: (teamId: string, category: string, fullName: string) => void;
-  adminId: string | null;
+  teamId: string | null;
   userEmail: string;
   userName: string;
-  presetRole: string | null;
 }) {
   const [fullName, setFullName] = useState(userName || '');
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [category, setCategory] = useState('');
 
-  const roleFromUrl = presetRole && ['nurse', 'tech'].includes(presetRole) ? presetRole : null;
-
-  useEffect(() => {
-    const fetchAdminTeam = async () => {
-      if (!adminId) {
-        setLoadingTeam(false);
-        return;
-      }
-      try {
-        const { data } = await (supabase
-          .from('profiles' as any)
-          .select('team_id')
-          .eq('user_id', adminId)
-          .maybeSingle() as any);
-
-        // Se encontrar team_id, usa ele.
-        setTeamId(data?.team_id || null);
-      } catch (err) {
-        console.error('Erro ao buscar equipe:', err);
-        setTeamId(null);
-      } finally {
-        setLoadingTeam(false);
-      }
-    };
-    fetchAdminTeam();
-  }, [adminId]);
-
-  if (loadingTeam) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!adminId || (!loadingTeam && !teamId)) {
+  if (!teamId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
         <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
@@ -233,7 +194,7 @@ function RegistrationScreen({
             <AlertCircle className="h-12 w-12 mx-auto text-amber-500" />
             <h2 className="text-xl font-bold">Link inválido</h2>
             <p className="text-sm text-muted-foreground">
-              Para acessar o portal, use o link fornecido pelo seu administrador (com o parâmetro <code>?admin=ID</code> na URL).
+              Para acessar o portal, use o link fornecido pelo seu administrador.
             </p>
           </CardContent>
         </Card>
@@ -273,46 +234,30 @@ function RegistrationScreen({
             />
           </div>
 
-          {/* Categoria (preset ou select) */}
-          {roleFromUrl ? (
-            <div className="space-y-2">
-              <Label>Sua categoria profissional</Label>
-              <div className={`flex items-center gap-3 h-12 px-4 rounded-xl border-2 font-bold ${roleFromUrl === 'nurse'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-300'
-                : 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
-                }`}>
-                {roleFromUrl === 'nurse'
-                  ? <Stethoscope className="w-5 h-5" />
-                  : <Syringe className="w-5 h-5" />}
-                {roleFromUrl === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a) de Enfermagem'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Categoria definida pelo link de convite.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Sua categoria profissional</Label>
-              <Select value={fullName.length > 0 ? (fullName.includes('nurse') ? 'nurse' : 'tech') : ''} onValueChange={() => { }}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue placeholder="Selecione sua categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nurse">
-                    <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
-                  </SelectItem>
-                  <SelectItem value="tech">
-                    <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-destructive">Link inválido: categoria não definida. Use o link fornecido pelo administrador.</p>
-            </div>
-          )}
+          {/* Categoria */}
+          <div className="space-y-2">
+            <Label>Sua categoria profissional</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="h-12 rounded-xl">
+                <SelectValue placeholder="Selecione sua categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nurse">
+                  <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
+                </SelectItem>
+                <SelectItem value="tech">
+                  <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
+                </SelectItem>
+                <SelectItem value="emult">
+                  <span className="flex items-center gap-2"><Users className="w-4 h-4" /> eMult</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button
-            onClick={() => onRegister(teamId!, roleFromUrl || '', fullName.trim())}
-            disabled={!roleFromUrl || !fullName.trim()}
+            onClick={() => onRegister(teamId, category, fullName.trim())}
+            disabled={!category || !fullName.trim()}
             className="w-full h-12 rounded-xl font-bold"
           >
             Enviar Solicitação
@@ -392,28 +337,22 @@ export default function Portal() {
     observations: '',
   });
 
-  // ── Extração Robusta de Parâmetros ──
-  // Procuramos na URL (search), no fragmento (#) do Supabase ou no histórico (localStorage)
-  const getParam = (key: string, storageKey: string) => {
+  // ── Get team ID from URL or localStorage ──
+  const getTeamId = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.slice(1)); // Trata redirects do Supabase
-    return urlParams.get(key) || hashParams.get(key) || localStorage.getItem(storageKey);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    return urlParams.get('team') || hashParams.get('team') || localStorage.getItem('portal_team_id');
   };
 
-  const adminId = getParam('adminId', 'portal_admin_id') || getParam('admin', 'portal_admin_id');
-  const roleFromUrl = getParam('role', 'portal_role_hint');
+  const teamIdFromUrl = getTeamId();
 
-  // Salva no localStorage assim que detectado na URL
+  // Save team to localStorage when detected
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
-
-    const currentAdmin = urlParams.get('adminId') || hashParams.get('adminId') || urlParams.get('admin') || hashParams.get('admin');
-    const currentRole = urlParams.get('role') || hashParams.get('role');
-
-    if (currentAdmin) localStorage.setItem('portal_admin_id', currentAdmin);
-    if (currentRole) localStorage.setItem('portal_role_hint', currentRole);
-  }, [window.location.search, window.location.hash]);
+    const t = urlParams.get('team') || hashParams.get('team');
+    if (t) localStorage.setItem('portal_team_id', t);
+  }, []);
 
   // PWA install
   useEffect(() => {
@@ -429,25 +368,33 @@ export default function Portal() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // Fetch portal data
+  // Fetch portal data using team_id from professional_user
   const fetchPortalData = useCallback(async () => {
-    const effectiveAdminId = adminId || professionalUser?.team_id;
-    if (!effectiveAdminId) return;
+    if (!professionalUser?.team_id) return;
 
     setLoadingPortal(true);
     try {
-      // Try fetching by admin user_id first, then by team relationship
-      let query = supabase
-        .from('portal_schedules')
-        .select('*')
-        .order('published_at', { ascending: false })
-        .limit(1);
+      // Find the admin who owns this team
+      const { data: teamData } = await (supabase
+        .from('teams' as any)
+        .select('created_by')
+        .eq('id', professionalUser.team_id)
+        .maybeSingle() as any);
 
-      if (adminId) {
-        query = query.eq('user_id', adminId);
+      const adminUserId = teamData?.created_by;
+      if (!adminUserId) {
+        setLoadingPortal(false);
+        return;
       }
 
-      const { data, error } = await query.maybeSingle();
+      const { data, error } = await supabase
+        .from('portal_schedules')
+        .select('*')
+        .eq('user_id', adminUserId)
+        .order('published_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (error) throw error;
 
       if (data) {
@@ -462,7 +409,7 @@ export default function Portal() {
     } finally {
       setLoadingPortal(false);
     }
-  }, [adminId, professionalUser]);
+  }, [professionalUser]);
 
   useEffect(() => {
     if (professionalUser?.status === 'approved') fetchPortalData();
@@ -581,10 +528,9 @@ export default function Portal() {
     return (
       <RegistrationScreen
         onRegister={registerProfessional}
-        adminId={adminId}
+        teamId={teamIdFromUrl}
         userEmail={session.user.email || ''}
         userName={session.user.user_metadata?.full_name || ''}
-        presetRole={roleFromUrl}
       />
     );
   }
@@ -611,6 +557,8 @@ export default function Portal() {
     }
   };
 
+  const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
+
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] pb-24 md:pb-12 transition-colors duration-500">
       {/* Header */}
@@ -632,7 +580,7 @@ export default function Portal() {
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-wider">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  {professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                  {categoryLabel}
                 </div>
               </div>
             </div>
@@ -701,314 +649,301 @@ export default function Portal() {
               </Button>
             </div>
 
-            {/* Tab: Minha Escala */}
-            <TabsContent value="escala" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minha Escala</h2>
-                  <p className="text-sm text-slate-500 font-medium">Seus dias de trabalho programados</p>
-                </div>
-
-                {/* Month navigation */}
-                <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-4 border border-slate-100 dark:border-slate-800/80 shadow-inner">
-                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-10 w-10 rounded-xl">
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  <h3 className="text-lg font-black capitalize text-slate-700 dark:text-slate-200">
-                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                  </h3>
-                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-10 w-10 rounded-xl">
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                {/* Calendar */}
-                <div className="overflow-x-auto rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
-                  <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[700px]">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                      <div key={day} className="text-center text-[10px] font-black p-3 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-[0.2em]">{day}</div>
-                    ))}
-                    {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[80px]" />
-                    ))}
-                    {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const hasEntry = myEntries.some(e => e.date === dateStr);
-                      const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                      const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
-
-                      return (
-                        <div key={dateStr} className={cn(
-                          'min-h-[80px] p-3 transition-colors relative',
-                          isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
-                        )}>
-                          <div className={cn(
-                            'text-sm font-black mb-2 w-8 h-8 flex items-center justify-center rounded-xl',
-                            isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' :
-                              isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
-                          )}>
-                            {format(day, 'd')}
-                          </div>
-                          {hasEntry && (
-                            <div className={cn(
-                              'text-[9px] px-2 py-1 rounded-lg font-bold uppercase text-center border',
-                              professionalUser.category === 'nurse'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
-                                : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
-                            )}>
-                              {isWeekend ? '⭐ FDS' : 'Escalado'}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            {/* ── Escala Tab ── */}
+            <TabsContent value="escala" className="max-w-4xl mx-auto space-y-6">
+              {/* Month Navigator */}
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
+                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                </h2>
+                <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
               </div>
-            </TabsContent>
 
-            {/* Tab: Créditos */}
-            <TabsContent value="creditos" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Meus Créditos</h2>
-                  <p className="text-sm text-slate-500 font-medium">Saldo de banco de horas e créditos de folga</p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card className="rounded-[1.5rem] border-0 shadow-md">
-                    <CardContent className="p-5 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Dias Trabalhados</p>
-                      <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{myStats.workedDays}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="rounded-[1.5rem] border-0 shadow-md bg-amber-50 dark:bg-amber-900/10">
-                    <CardContent className="p-5 text-center">
-                      <p className="text-[10px] font-bold text-amber-500 uppercase tracking-tight mb-2">Fins de Semana</p>
-                      <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{myStats.weekendDays}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="rounded-[1.5rem] border-0 shadow-md">
-                    <CardContent className="p-5 text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight mb-2">
-                        <TrendingUp className="w-3 h-3" /> Gerados
-                      </div>
-                      <p className="text-3xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className={cn(
-                    "rounded-[1.5rem] border-0 shadow-md",
-                    myStats.creditsBalance > 0 ? 'bg-emerald-50 dark:bg-emerald-900/10' :
-                      myStats.creditsBalance < 0 ? 'bg-rose-50 dark:bg-rose-900/10' : ''
-                  )}>
-                    <CardContent className="p-5 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Saldo Livre</p>
-                      <p className={cn(
-                        "text-3xl font-black",
-                        myStats.creditsBalance > 0 ? 'text-emerald-600' :
-                          myStats.creditsBalance < 0 ? 'text-rose-600' : 'text-slate-500'
-                      )}>
-                        {myStats.creditsBalance}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1">(Usado: {myStats.creditsUsed})</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Tab: Folgas */}
-            <TabsContent value="folgas" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between px-2">
-                  <div>
-                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minhas Folgas</h2>
-                    <p className="text-sm text-slate-500 font-medium">Solicite e acompanhe seus pedidos de afastamento</p>
+              {/* Calendar */}
+              <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="grid grid-cols-7 text-center bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                      <div key={d} className="py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{d}</div>
+                    ))}
                   </div>
-                  <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="rounded-xl font-bold gap-2">
-                        <Plus className="w-4 h-4" /> Solicitar Folga
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Solicitar Folga</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Tipo de Afastamento</Label>
-                          <Select
-                            value={leaveForm.leaveType}
-                            onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+                  <div className="grid grid-cols-7">
+                    {(() => {
+                      const monthStart = startOfMonth(currentMonth);
+                      const monthEnd = endOfMonth(currentMonth);
+                      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                      const startDayOfWeek = getDay(monthStart);
+                      const blanks = Array.from({ length: startDayOfWeek }, (_, i) => (
+                        <div key={`blank-${i}`} className="aspect-square" />
+                      ));
+
+                      const dayCells = days.map(day => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const hasWork = myEntries.some(e => e.date === dateStr);
+                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+
+                        return (
+                          <div
+                            key={dateStr}
+                            className={cn(
+                              "aspect-square flex flex-col items-center justify-center border-b border-r border-slate-100 dark:border-slate-800 transition-colors relative",
+                              isToday && "bg-primary/5",
+                              hasWork && !isWeekend && "bg-emerald-50 dark:bg-emerald-900/20",
+                              hasWork && isWeekend && "bg-amber-50 dark:bg-amber-900/20",
+                            )}
                           >
-                            <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-                            <SelectContent>
-                              {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>{label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {leaveForm.leaveType === 'folga_credito' && (
-                          <div className="p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="w-4 h-4 text-primary" />
-                              <span className="text-sm">
-                                Saldo disponível: <strong className="text-primary">{myStats.creditsBalance} dias</strong>
-                              </span>
-                            </div>
+                            <span className={cn(
+                              "text-sm md:text-base font-bold",
+                              isToday && "text-primary",
+                              isWeekend && "text-slate-400",
+                              !isToday && !isWeekend && "text-slate-700 dark:text-slate-200"
+                            )}>
+                              {format(day, 'd')}
+                            </span>
+                            {hasWork && (
+                              <div className={cn(
+                                "w-2 h-2 rounded-full mt-0.5",
+                                isWeekend ? "bg-amber-400" : "bg-emerald-400"
+                              )} />
+                            )}
                           </div>
-                        )}
+                        );
+                      });
 
-                        <div>
-                          <Label>Data Inicial</Label>
-                          <Input
-                            type="date"
-                            value={leaveForm.startDate}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <Label>Data Final</Label>
-                          <Input
-                            type="date"
-                            value={leaveForm.endDate}
-                            min={leaveForm.startDate || undefined}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                          />
-                        </div>
+                      return [...blanks, ...dayCells];
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
 
-                        {daysRequested > 0 && (
-                          <div className="p-3 bg-muted rounded-lg text-sm">
-                            Quantidade: <strong>{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label>Observações</Label>
-                          <Textarea
-                            value={leaveForm.observations}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
-                            placeholder="Motivo, justificativa..."
-                          />
-                        </div>
-
-                        <Button
-                          onClick={handleSubmitLeave}
-                          className="w-full"
-                          disabled={daysRequested < 1 || (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance)}
-                        >
-                          Enviar Pedido
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                  <span>Dia útil</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-amber-400" />
+                  <span>Final de semana</span>
+                </div>
+              </div>
 
-                {/* Leave requests list */}
-                {leaveRequests.length === 0 && myLeaveRequestsFromAdmin.length === 0 ? (
-                  <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                    <p className="text-slate-500 font-medium">Nenhum pedido de folga registrado.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Portal leave requests */}
-                    {leaveRequests.map(req => (
-                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md">
-                        <CardContent className="p-5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="secondary" className="text-xs">
-                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
-                            </Badge>
-                            {statusBadge(req.status)}
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Período</div>
-                              <div className="font-medium">
-                                {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM')}
-                                {req.end_date !== req.start_date && (
-                                  <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM')}</>
-                                )}
-                              </div>
-                            </div>
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Duração</div>
-                              <div className="font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</div>
-                            </div>
-                          </div>
-                          {req.observations && (
-                            <p className="text-xs text-muted-foreground italic">"{req.observations}"</p>
-                          )}
-                          <div className="text-[11px] text-muted-foreground">
-                            Enviado em {format(new Date(req.created_at), 'dd/MM/yyyy HH:mm')}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {/* Admin-registered leave requests */}
-                    {myLeaveRequestsFromAdmin.map(req => (
-                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md bg-muted/30">
-                        <CardContent className="p-5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="secondary" className="text-xs">
-                              {LEAVE_TYPE_LABELS[req.leaveType] || req.leaveType}
-                            </Badge>
-                            <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px]">
-                              Registrado pelo Admin
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Período</div>
-                              <div className="font-medium">
-                                {req.leaveDates[0] && format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
-                                {req.leaveDates.length > 1 && (
-                                  <> a {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
-                                )}
-                              </div>
-                            </div>
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Duração</div>
-                              <div className="font-bold text-primary">{req.daysRequested} {req.daysRequested === 1 ? 'dia' : 'dias'}</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+              {/* Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-black text-primary">{myStats.workedDays}</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-black text-amber-500">{myStats.weekendDays}</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                      <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <TrendingDown className="w-4 h-4 text-red-500" />
+                      <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados</p>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
-            {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 no-print">
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-2">
-                <TabsList className="bg-transparent h-16 w-full grid grid-cols-3 gap-1">
-                  {[
-                    { key: 'escala', label: 'Escala', icon: <Calendar className="h-4 w-4" /> },
-                    { key: 'creditos', label: 'Créditos', icon: <Clock className="h-4 w-4" /> },
-                    { key: 'folgas', label: 'Folgas', icon: <FileText className="h-4 w-4" /> },
-                  ].map(tab => (
-                    <TabsTrigger
-                      key={tab.key}
-                      value={tab.key}
-                      className="flex flex-col items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-white rounded-[1.5rem] transition-all duration-300 py-2 border-0"
+            {/* ── Créditos Tab ── */}
+            <TabsContent value="creditos" className="max-w-2xl mx-auto space-y-6">
+              <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
+                <CardContent className="p-8 text-center space-y-6">
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos</p>
+                    <p className={cn(
+                      "text-6xl font-black",
+                      myStats.creditsBalance > 0 ? "text-emerald-600" : myStats.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
+                    )}>
+                      {myStats.creditsBalance}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-2">dias disponíveis para folga</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
+                      <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+                      <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                      <p className="text-[10px] font-bold text-emerald-500 uppercase">Gerados</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20">
+                      <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-1" />
+                      <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                      <p className="text-[10px] font-bold text-red-500 uppercase">Utilizados</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-400">
+                    Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── Folgas Tab ── */}
+            <TabsContent value="folgas" className="max-w-2xl mx-auto space-y-6">
+              {/* New Request Button */}
+              <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20 gap-2 text-base">
+                    <Plus className="h-5 w-5" /> Solicitar Folga
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="rounded-[2rem]">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-black">Nova Solicitação de Folga</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-slate-400">Tipo de Afastamento</Label>
+                      <Select
+                        value={leaveForm.leaveType}
+                        onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(LEAVE_TYPE_LABELS).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {leaveForm.leaveType === 'folga_credito' && (
+                        <p className="text-xs text-emerald-600 mt-1 font-medium">
+                          Saldo disponível: {myStats.creditsBalance} dias
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs font-bold uppercase text-slate-400">Data Início</Label>
+                        <input
+                          type="date"
+                          value={leaveForm.startDate}
+                          onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+                          className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-bold uppercase text-slate-400">Data Fim</Label>
+                        <input
+                          type="date"
+                          value={leaveForm.endDate}
+                          onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                          className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                        />
+                      </div>
+                    </div>
+                    {daysRequested > 0 && (
+                      <p className="text-center text-sm font-bold text-primary">
+                        {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'} solicitado(s)
+                      </p>
+                    )}
+                    <div>
+                      <Label className="text-xs font-bold uppercase text-slate-400">Observações (opcional)</Label>
+                      <Textarea
+                        value={leaveForm.observations}
+                        onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
+                        placeholder="Motivo ou detalhes..."
+                        className="rounded-xl resize-none"
+                        rows={3}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSubmitLeave}
+                      className="w-full h-12 rounded-xl font-bold"
+                      disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
                     >
-                      {tab.icon}
-                      <span className="text-[10px] font-bold uppercase tracking-tight">{tab.label}</span>
-                    </TabsTrigger>
+                      Enviar Solicitação
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* Leave Requests List */}
+              {leaveRequests.length === 0 ? (
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-8 text-center text-slate-400">
+                    <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Nenhuma solicitação enviada</p>
+                    <p className="text-xs mt-1">Use o botão acima para solicitar folgas.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {leaveRequests.map(req => (
+                    <Card key={req.id} className="border-0 shadow-md rounded-2xl overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-bold text-sm text-slate-800 dark:text-white">
+                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
+                              {req.end_date !== req.start_date && (
+                                <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
+                              )}
+                              <span className="ml-2 font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</span>
+                            </p>
+                          </div>
+                          {statusBadge(req.status)}
+                        </div>
+                        {req.observations && (
+                          <p className="text-xs text-slate-400 italic">"{req.observations}"</p>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
-                </TabsList>
-              </div>
-            </div>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         )}
       </main>
+
+      {/* Mobile Bottom Tabs */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50">
+        <Tabs defaultValue="escala">
+          <TabsList className="grid grid-cols-3 h-16 p-0 bg-transparent rounded-none">
+            <TabsTrigger value="escala" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
+              <Calendar className="h-5 w-5" />
+              <span className="text-[10px] font-bold">Escala</span>
+            </TabsTrigger>
+            <TabsTrigger value="creditos" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
+              <Clock className="h-5 w-5" />
+              <span className="text-[10px] font-bold">Créditos</span>
+            </TabsTrigger>
+            <TabsTrigger value="folgas" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
+              <FileText className="h-5 w-5" />
+              <span className="text-[10px] font-bold">Folgas</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
     </div>
   );
 }
