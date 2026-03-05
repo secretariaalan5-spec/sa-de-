@@ -1031,22 +1031,26 @@ export default function Portal() {
 
       {/* Mobile Bottom Tabs */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50">
-        <Tabs defaultValue="escala">
-          <TabsList className="grid grid-cols-3 h-16 p-0 bg-transparent rounded-none">
-            <TabsTrigger value="escala" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <Calendar className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Escala</span>
-            </TabsTrigger>
-            <TabsTrigger value="creditos" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <Clock className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Créditos</span>
-            </TabsTrigger>
-            <TabsTrigger value="folgas" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <FileText className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Folgas</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="grid grid-cols-4 h-16">
+          {[
+            { value: 'escala', icon: Calendar, label: 'Escala' },
+            { value: 'equipe', icon: Users, label: 'Equipe' },
+            { value: 'creditos', icon: Clock, label: 'Créditos' },
+            { value: 'folgas', icon: FileText, label: 'Folgas' },
+          ].map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 transition-colors",
+                activeTab === tab.value ? "text-primary bg-primary/5" : "text-slate-400"
+              )}
+            >
+              <tab.icon className="h-5 w-5" />
+              <span className="text-[10px] font-bold">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
