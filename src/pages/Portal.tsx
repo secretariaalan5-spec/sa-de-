@@ -362,6 +362,24 @@ export default function Portal() {
     if (t) localStorage.setItem('portal_team_id', t);
   }, []);
 
+  // Garantir que usuários antigos sem team_id sejam vinculados ao time do link atual
+  useEffect(() => {
+    const ensureTeamForProfessional = async () => {
+      if (!professionalUser || professionalUser.team_id || !teamIdFromUrl) return;
+      try {
+        await supabase
+          .from('professional_users' as any)
+          .update({ team_id: teamIdFromUrl } as any)
+          .eq('id', professionalUser.id as any);
+        await refreshProfile();
+      } catch (err) {
+        console.error('Erro ao atualizar equipe do profissional:', err);
+      }
+    };
+
+    ensureTeamForProfessional();
+  }, [professionalUser, teamIdFromUrl, refreshProfile]);
+
   // PWA install
   useEffect(() => {
     const handler = (e: Event) => {
