@@ -793,6 +793,86 @@ export default function Portal() {
               </div>
             </TabsContent>
 
+            {/* ── Equipe Tab ── */}
+            <TabsContent value="equipe" className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
+                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                </h2>
+                <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {allProfessionals.filter(p => p.active).length === 0 ? (
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-8 text-center text-slate-400">
+                    <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Nenhuma escala publicada</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {allProfessionals.filter(p => p.active).map(prof => {
+                    const monthStart = startOfMonth(currentMonth);
+                    const monthEnd = endOfMonth(currentMonth);
+                    const profEntries = allTeamEntries.filter(e => {
+                      const d = new Date(e.date);
+                      return e.professionalId === prof.id && d >= monthStart && d <= monthEnd;
+                    });
+                    const isMe = prof.id === professionalUser?.professional_id;
+
+                    return (
+                      <Card key={prof.id} className={cn("border-0 shadow-md rounded-2xl overflow-hidden", isMe && "ring-2 ring-primary")}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                              prof.category === 'nurse' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                            )}>
+                              {prof.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : <Syringe className="w-4 h-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-sm text-foreground truncate">
+                                {prof.name} {isMe && <span className="text-primary text-xs">(Você)</span>}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {profEntries.length} dias escalados este mês
+                              </p>
+                            </div>
+                          </div>
+                          {profEntries.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {profEntries
+                                .sort((a, b) => a.date.localeCompare(b.date))
+                                .map(e => {
+                                  const day = getDay(new Date(e.date));
+                                  const isWk = day === 0 || day === 6;
+                                  return (
+                                    <span
+                                      key={e.id}
+                                      className={cn(
+                                        "inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold",
+                                        isWk ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                      )}
+                                    >
+                                      {format(new Date(e.date), 'd')}
+                                    </span>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
             {/* ── Créditos Tab ── */}
             <TabsContent value="creditos" className="max-w-2xl mx-auto space-y-6">
               <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
