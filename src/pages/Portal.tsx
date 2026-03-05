@@ -330,6 +330,7 @@ export default function Portal() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('escala');
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
@@ -436,24 +437,44 @@ export default function Portal() {
       .filter(r => r.professionalId === professionalUser.professional_id);
   }, [portalData, professionalUser]);
 
-  // Stats
+  // All team entries for team view
+  const allTeamEntries = useMemo(() => {
+    if (!portalData) return [];
+    return [
+      ...(portalData.service.nurseEntries || []),
+      ...(portalData.service.techEntries || []),
+    ];
+  }, [portalData]);
+
+  const allProfessionals = useMemo(() => portalData?.service?.professionals || [], [portalData]);
+
+  // Stats - CUMULATIVE across all months (not just current month)
   const myStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Monthly view stats (for calendar display)
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-
-    const workedDays = myEntries.filter(e => {
+    const monthEntries = myEntries.filter(e => {
       const d = new Date(e.date);
       return d >= monthStart && d <= monthEnd;
-    }).length;
+    });
+    const workedDays = monthEntries.length;
 
-    const weekendDays = myEntries.filter(e => {
-      const d = new Date(e.date);
-      if (d < monthStart || d > monthEnd) return false;
-      const day = getDay(d);
+    const monthWeekendDays = monthEntries.filter(e => {
+      const day = getDay(new Date(e.date));
       return day === 0 || day === 6;
     }).length;
 
-    const creditsGenerated = weekendDays * 2;
+    // CUMULATIVE credits: count ALL past weekend days worked (not just current month)
+    const allPastEntries = myEntries.filter(e => new Date(e.date) <= today);
+    const allWeekendEntries = allPastEntries.filter(e => {
+      const day = getDay(new Date(e.date));
+      return day === 0 || day === 6;
+    });
+    const uniqueWeekendDates = new Set(allWeekendEntries.map(e => e.date));
+    const creditsGenerated = uniqueWeekendDates.size * 2;
 
     const creditsUsedAdmin = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
@@ -465,7 +486,7 @@ export default function Portal() {
 
     const creditsUsed = creditsUsedAdmin + creditsUsedPortal;
 
-    return { workedDays, weekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
+    return { workedDays, weekendDays: monthWeekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
   }, [myEntries, myLeaveRequestsFromAdmin, leaveRequests, currentMonth]);
 
   // Leave form
@@ -611,18 +632,21 @@ export default function Portal() {
             <Skeleton className="h-64 w-full rounded-xl" />
           </div>
         ) : (
-          <Tabs defaultValue="escala" className="space-y-6 md:space-y-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-10">
             {/* Desktop Tabs */}
             <div className="hidden md:block">
-              <TabsList className="grid grid-cols-3 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-2xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+              <TabsList className="grid grid-cols-4 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-3xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
                 <TabsTrigger value="escala" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
                   <Calendar className="h-4 w-4" /> Minha Escala
                 </TabsTrigger>
+                <TabsTrigger value="equipe" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
+                  <Users className="h-4 w-4" /> Escala Equipe
+                </TabsTrigger>
                 <TabsTrigger value="creditos" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Clock className="h-4 w-4" /> Meus Créditos
+                  <Clock className="h-4 w-4" /> Créditos
                 </TabsTrigger>
                 <TabsTrigger value="folgas" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <FileText className="h-4 w-4" /> Minhas Folgas
+                  <FileText className="h-4 w-4" /> Folgas
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -767,6 +791,86 @@ export default function Portal() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* ── Equipe Tab ── */}
+            <TabsContent value="equipe" className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
+                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                </h2>
+                <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {allProfessionals.filter(p => p.active).length === 0 ? (
+                <Card className="border-0 shadow-md rounded-2xl">
+                  <CardContent className="p-8 text-center text-slate-400">
+                    <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Nenhuma escala publicada</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {allProfessionals.filter(p => p.active).map(prof => {
+                    const monthStart = startOfMonth(currentMonth);
+                    const monthEnd = endOfMonth(currentMonth);
+                    const profEntries = allTeamEntries.filter(e => {
+                      const d = new Date(e.date);
+                      return e.professionalId === prof.id && d >= monthStart && d <= monthEnd;
+                    });
+                    const isMe = prof.id === professionalUser?.professional_id;
+
+                    return (
+                      <Card key={prof.id} className={cn("border-0 shadow-md rounded-2xl overflow-hidden", isMe && "ring-2 ring-primary")}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                              prof.category === 'nurse' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                            )}>
+                              {prof.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : <Syringe className="w-4 h-4" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-sm text-foreground truncate">
+                                {prof.name} {isMe && <span className="text-primary text-xs">(Você)</span>}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {profEntries.length} dias escalados este mês
+                              </p>
+                            </div>
+                          </div>
+                          {profEntries.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {profEntries
+                                .sort((a, b) => a.date.localeCompare(b.date))
+                                .map(e => {
+                                  const day = getDay(new Date(e.date));
+                                  const isWk = day === 0 || day === 6;
+                                  return (
+                                    <span
+                                      key={e.id}
+                                      className={cn(
+                                        "inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold",
+                                        isWk ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                      )}
+                                    >
+                                      {format(new Date(e.date), 'd')}
+                                    </span>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
 
             {/* ── Créditos Tab ── */}
@@ -927,22 +1031,26 @@ export default function Portal() {
 
       {/* Mobile Bottom Tabs */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50">
-        <Tabs defaultValue="escala">
-          <TabsList className="grid grid-cols-3 h-16 p-0 bg-transparent rounded-none">
-            <TabsTrigger value="escala" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <Calendar className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Escala</span>
-            </TabsTrigger>
-            <TabsTrigger value="creditos" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <Clock className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Créditos</span>
-            </TabsTrigger>
-            <TabsTrigger value="folgas" className="flex flex-col items-center gap-0.5 data-[state=active]:text-primary rounded-none h-full data-[state=active]:bg-primary/5">
-              <FileText className="h-5 w-5" />
-              <span className="text-[10px] font-bold">Folgas</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="grid grid-cols-4 h-16">
+          {[
+            { value: 'escala', icon: Calendar, label: 'Escala' },
+            { value: 'equipe', icon: Users, label: 'Equipe' },
+            { value: 'creditos', icon: Clock, label: 'Créditos' },
+            { value: 'folgas', icon: FileText, label: 'Folgas' },
+          ].map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 transition-colors",
+                activeTab === tab.value ? "text-primary bg-primary/5" : "text-slate-400"
+              )}
+            >
+              <tab.icon className="h-5 w-5" />
+              <span className="text-[10px] font-bold">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
