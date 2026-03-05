@@ -436,24 +436,44 @@ export default function Portal() {
       .filter(r => r.professionalId === professionalUser.professional_id);
   }, [portalData, professionalUser]);
 
-  // Stats
+  // All team entries for team view
+  const allTeamEntries = useMemo(() => {
+    if (!portalData) return [];
+    return [
+      ...(portalData.service.nurseEntries || []),
+      ...(portalData.service.techEntries || []),
+    ];
+  }, [portalData]);
+
+  const allProfessionals = useMemo(() => portalData?.service?.professionals || [], [portalData]);
+
+  // Stats - CUMULATIVE across all months (not just current month)
   const myStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Monthly view stats (for calendar display)
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-
-    const workedDays = myEntries.filter(e => {
+    const monthEntries = myEntries.filter(e => {
       const d = new Date(e.date);
       return d >= monthStart && d <= monthEnd;
-    }).length;
+    });
+    const workedDays = monthEntries.length;
 
-    const weekendDays = myEntries.filter(e => {
-      const d = new Date(e.date);
-      if (d < monthStart || d > monthEnd) return false;
-      const day = getDay(d);
+    const monthWeekendDays = monthEntries.filter(e => {
+      const day = getDay(new Date(e.date));
       return day === 0 || day === 6;
     }).length;
 
-    const creditsGenerated = weekendDays * 2;
+    // CUMULATIVE credits: count ALL past weekend days worked (not just current month)
+    const allPastEntries = myEntries.filter(e => new Date(e.date) <= today);
+    const allWeekendEntries = allPastEntries.filter(e => {
+      const day = getDay(new Date(e.date));
+      return day === 0 || day === 6;
+    });
+    const uniqueWeekendDates = new Set(allWeekendEntries.map(e => e.date));
+    const creditsGenerated = uniqueWeekendDates.size * 2;
 
     const creditsUsedAdmin = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
@@ -465,7 +485,7 @@ export default function Portal() {
 
     const creditsUsed = creditsUsedAdmin + creditsUsedPortal;
 
-    return { workedDays, weekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
+    return { workedDays, weekendDays: monthWeekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
   }, [myEntries, myLeaveRequestsFromAdmin, leaveRequests, currentMonth]);
 
   // Leave form
