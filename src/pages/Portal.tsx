@@ -632,18 +632,21 @@ export default function Portal() {
             <Skeleton className="h-64 w-full rounded-xl" />
           </div>
         ) : (
-          <Tabs defaultValue="escala" className="space-y-6 md:space-y-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-10">
             {/* Desktop Tabs */}
             <div className="hidden md:block">
-              <TabsList className="grid grid-cols-3 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-2xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
+              <TabsList className="grid grid-cols-4 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-3xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
                 <TabsTrigger value="escala" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
                   <Calendar className="h-4 w-4" /> Minha Escala
                 </TabsTrigger>
+                <TabsTrigger value="equipe" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
+                  <Users className="h-4 w-4" /> Escala Equipe
+                </TabsTrigger>
                 <TabsTrigger value="creditos" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Clock className="h-4 w-4" /> Meus Créditos
+                  <Clock className="h-4 w-4" /> Créditos
                 </TabsTrigger>
                 <TabsTrigger value="folgas" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <FileText className="h-4 w-4" /> Minhas Folgas
+                  <FileText className="h-4 w-4" /> Folgas
                 </TabsTrigger>
               </TabsList>
             </div>
