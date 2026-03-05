@@ -330,6 +330,7 @@ export default function Portal() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('escala');
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
