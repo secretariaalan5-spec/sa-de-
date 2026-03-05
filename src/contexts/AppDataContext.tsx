@@ -169,9 +169,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                         if (retryProfile?.team_id) {
                             currentTeamId = retryProfile.team_id;
                         } else {
-                            console.warn('Não foi possível encontrar equipe para o usuário.');
-                            setLoading(false);
-                            return;
+                            // Como fallback final, cria automaticamente uma equipe padrão
+                            const { data: newTeam, error: teamError } = await (supabase
+                                .from('teams' as any)
+                                .insert({
+                                    created_by: userId,
+                                    name: 'Equipe Principal',
+                                } as any)
+                                .select('id')
+                                .maybeSingle() as any);
+
+                            if (teamError || !newTeam?.id) {
+                                console.error('Não foi possível criar equipe padrão para o usuário.', teamError);
+                                setLoading(false);
+                                return;
+                            }
+
+                            currentTeamId = newTeam.id;
+
+                            await (supabase
+                                .from('profiles' as any)
+                                .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
                         }
                     }
                 }
