@@ -10,7 +10,6 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -325,12 +324,20 @@ export default function Portal() {
     refreshProfile,
   } = useProfessionalPortal();
 
+  interface BeforeInstallPromptEvent extends Event {
+    readonly platforms?: string[];
+    prompt: () => Promise<void>;
+    userChoice: Promise<{
+      outcome: "accepted" | "dismissed";
+      platform: string;
+    }>;
+  }
+
   const [portalData, setPortalData] = useState<PortalData | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loadingPortal, setLoadingPortal] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('escala');
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
@@ -357,7 +364,10 @@ export default function Portal() {
 
   // PWA install
   useEffect(() => {
-    const handler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); };
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
@@ -632,25 +642,7 @@ export default function Portal() {
             <Skeleton className="h-64 w-full rounded-xl" />
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 md:space-y-10">
-            {/* Desktop Tabs */}
-            <div className="hidden md:block">
-              <TabsList className="grid grid-cols-4 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-3xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
-                <TabsTrigger value="escala" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Calendar className="h-4 w-4" /> Minha Escala
-                </TabsTrigger>
-                <TabsTrigger value="equipe" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Users className="h-4 w-4" /> Escala Equipe
-                </TabsTrigger>
-                <TabsTrigger value="creditos" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Clock className="h-4 w-4" /> Créditos
-                </TabsTrigger>
-                <TabsTrigger value="folgas" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <FileText className="h-4 w-4" /> Folgas
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
+          <>
             {/* Mobile info bar */}
             <div className="md:hidden flex items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
               <div className="flex items-center gap-3">
@@ -673,385 +665,281 @@ export default function Portal() {
               </Button>
             </div>
 
-            {/* ── Escala Tab ── */}
-            <TabsContent value="escala" className="max-w-4xl mx-auto space-y-6">
-              {/* Month Navigator */}
-              <div className="flex items-center justify-between">
-                <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
-                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                </h2>
-                <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Calendar */}
-              <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="grid grid-cols-7 text-center bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                      <div key={d} className="py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{d}</div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7">
-                    {(() => {
-                      const monthStart = startOfMonth(currentMonth);
-                      const monthEnd = endOfMonth(currentMonth);
-                      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-                      const startDayOfWeek = getDay(monthStart);
-                      const blanks = Array.from({ length: startDayOfWeek }, (_, i) => (
-                        <div key={`blank-${i}`} className="aspect-square" />
-                      ));
-
-                      const dayCells = days.map(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const hasWork = myEntries.some(e => e.date === dateStr);
-                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
-
-                        return (
-                          <div
-                            key={dateStr}
-                            className={cn(
-                              "aspect-square flex flex-col items-center justify-center border-b border-r border-slate-100 dark:border-slate-800 transition-colors relative",
-                              isToday && "bg-primary/5",
-                              hasWork && !isWeekend && "bg-emerald-50 dark:bg-emerald-900/20",
-                              hasWork && isWeekend && "bg-amber-50 dark:bg-amber-900/20",
-                            )}
-                          >
-                            <span className={cn(
-                              "text-sm md:text-base font-bold",
-                              isToday && "text-primary",
-                              isWeekend && "text-slate-400",
-                              !isToday && !isWeekend && "text-slate-700 dark:text-slate-200"
-                            )}>
-                              {format(day, 'd')}
-                            </span>
-                            {hasWork && (
-                              <div className={cn(
-                                "w-2 h-2 rounded-full mt-0.5",
-                                isWeekend ? "bg-amber-400" : "bg-emerald-400"
-                              )} />
-                            )}
-                          </div>
-                        );
-                      });
-
-                      return [...blanks, ...dayCells];
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Legend */}
-              <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                  <span>Dia útil</span>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.1fr)] md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
+              {/* Calendário + estatísticas */}
+              <div className="space-y-6 max-w-4xl mx-auto w-full">
+                {/* Month Navigator */}
+                <div className="flex items-center justify-between">
+                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
+                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-400" />
-                  <span>Final de semana</span>
-                </div>
-              </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-black text-primary">{myStats.workedDays}</p>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-black text-amber-500">{myStats.weekendDays}</p>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
-                      <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                {/* Calendar */}
+                <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-7 text-center bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                        <div key={d} className="py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{d}</div>
+                      ))}
                     </div>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <TrendingDown className="w-4 h-4 text-red-500" />
-                      <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
-                    </div>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                    <div className="grid grid-cols-7">
+                      {(() => {
+                        const monthStart = startOfMonth(currentMonth);
+                        const monthEnd = endOfMonth(currentMonth);
+                        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                        const startDayOfWeek = getDay(monthStart);
+                        const blanks = Array.from({ length: startDayOfWeek }, (_, i) => (
+                          <div key={`blank-${i}`} className="aspect-square" />
+                        ));
 
-            {/* ── Equipe Tab ── */}
-            <TabsContent value="equipe" className="max-w-4xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
-                  {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                </h2>
-                <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
+                        const dayCells = days.map(day => {
+                          const dateStr = format(day, 'yyyy-MM-dd');
+                          const hasWork = myEntries.some(e => e.date === dateStr);
+                          const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                          const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
-              {allProfessionals.filter(p => p.active).length === 0 ? (
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-8 text-center text-slate-400">
-                    <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhuma escala publicada</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {allProfessionals.filter(p => p.active).map(prof => {
-                    const monthStart = startOfMonth(currentMonth);
-                    const monthEnd = endOfMonth(currentMonth);
-                    const profEntries = allTeamEntries.filter(e => {
-                      const d = new Date(e.date);
-                      return e.professionalId === prof.id && d >= monthStart && d <= monthEnd;
-                    });
-                    const isMe = prof.id === professionalUser?.professional_id;
-
-                    return (
-                      <Card key={prof.id} className={cn("border-0 shadow-md rounded-2xl overflow-hidden", isMe && "ring-2 ring-primary")}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                              prof.category === 'nurse' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
-                            )}>
-                              {prof.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : <Syringe className="w-4 h-4" />}
+                          return (
+                            <div
+                              key={dateStr}
+                              className={cn(
+                                "aspect-square flex flex-col items-center justify-center border-b border-r border-slate-100 dark:border-slate-800 transition-colors relative",
+                                isToday && "bg-primary/5",
+                                hasWork && !isWeekend && "bg-emerald-50 dark:bg-emerald-900/20",
+                                hasWork && isWeekend && "bg-amber-50 dark:bg-amber-900/20",
+                              )}
+                            >
+                              <span className={cn(
+                                "text-sm md:text-base font-bold",
+                                isToday && "text-primary",
+                                isWeekend && "text-slate-400",
+                                !isToday && !isWeekend && "text-slate-700 dark:text-slate-200"
+                              )}>
+                                {format(day, 'd')}
+                              </span>
+                              {hasWork && (
+                                <div className={cn(
+                                  "w-2 h-2 rounded-full mt-0.5",
+                                  isWeekend ? "bg-amber-400" : "bg-emerald-400"
+                                )} />
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-sm text-foreground truncate">
-                                {prof.name} {isMe && <span className="text-primary text-xs">(Você)</span>}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                {profEntries.length} dias escalados este mês
+                          );
+                        });
+
+                        return [...blanks, ...dayCells];
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Legend */}
+                <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                    <span>Dia útil</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-amber-400" />
+                    <span>Final de semana</span>
+                  </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card className="border-0 shadow-md rounded-2xl">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-black text-primary">{myStats.workedDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-0 shadow-md rounded-2xl">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-black text-amber-500">{myStats.weekendDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-0 shadow-md rounded-2xl">
+                    <CardContent className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                        <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-0 shadow-md rounded-2xl">
+                    <CardContent className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <TrendingDown className="w-4 h-4 text-red-500" />
+                        <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Créditos */}
+              <div className="space-y-6 max-w-2xl mx-auto w-full">
+                <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
+                  <CardContent className="p-8 text-center space-y-6">
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos</p>
+                      <p className={cn(
+                        "text-6xl font-black",
+                        myStats.creditsBalance > 0 ? "text-emerald-600" : myStats.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
+                      )}>
+                        {myStats.creditsBalance}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-2">dias disponíveis para folga</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
+                        <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+                        <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase">Gerados</p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20">
+                        <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-1" />
+                        <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                        <p className="text-[10px] font-bold text-red-500 uppercase">Utilizados</p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-400">
+                      Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Folgas */}
+              <div className="space-y-6 max-w-2xl mx-auto w-full">
+                <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20 gap-2 text-base">
+                      <Plus className="h-5 w-5" /> Solicitar Folga
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-[2rem]">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-black">Nova Solicitação de Folga</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <div>
+                        <Label className="text-xs font-bold uppercase text-slate-400">Tipo de Afastamento</Label>
+                        <Select
+                          value={leaveForm.leaveType}
+                          onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+                        >
+                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(LEAVE_TYPE_LABELS).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {leaveForm.leaveType === 'folga_credito' && (
+                          <p className="text-xs text-emerald-600 mt-1 font-medium">
+                            Saldo disponível: {myStats.creditsBalance} dias
+                          </p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs font-bold uppercase text-slate-400">Data Início</Label>
+                          <input
+                            type="date"
+                            value={leaveForm.startDate}
+                            onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+                            className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-bold uppercase text-slate-400">Data Fim</Label>
+                          <input
+                            type="date"
+                            value={leaveForm.endDate}
+                            onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                            className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                          />
+                        </div>
+                      </div>
+                      {daysRequested > 0 && (
+                        <p className="text-center text-sm font-bold text-primary">
+                          {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'} solicitado(s)
+                        </p>
+                      )}
+                      <div>
+                        <Label className="text-xs font-bold uppercase text-slate-400">Observações (opcional)</Label>
+                        <Textarea
+                          value={leaveForm.observations}
+                          onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
+                          placeholder="Motivo ou detalhes..."
+                          className="rounded-xl resize-none"
+                          rows={3}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleSubmitLeave}
+                        className="w-full h-12 rounded-xl font-bold"
+                        disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
+                      >
+                        Enviar Solicitação
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {leaveRequests.length === 0 ? (
+                  <Card className="border-0 shadow-md rounded-2xl">
+                    <CardContent className="p-8 text-center text-slate-400">
+                      <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">Nenhuma solicitação enviada</p>
+                      <p className="text-xs mt-1">Use o botão acima para solicitar folgas.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {leaveRequests.map(req => (
+                      <Card key={req.id} className="border-0 shadow-md rounded-2xl overflow-hidden">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="font-bold text-sm text-slate-800 dark:text-white">
+                                {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
+                                {req.end_date !== req.start_date && (
+                                  <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
+                                )}
+                                <span className="ml-2 font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</span>
                               </p>
                             </div>
+                            {statusBadge(req.status)}
                           </div>
-                          {profEntries.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {profEntries
-                                .sort((a, b) => a.date.localeCompare(b.date))
-                                .map(e => {
-                                  const day = getDay(new Date(e.date));
-                                  const isWk = day === 0 || day === 6;
-                                  return (
-                                    <span
-                                      key={e.id}
-                                      className={cn(
-                                        "inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-bold",
-                                        isWk ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                      )}
-                                    >
-                                      {format(new Date(e.date), 'd')}
-                                    </span>
-                                  );
-                                })}
-                            </div>
+                          {req.observations && (
+                            <p className="text-xs text-slate-400 italic">"{req.observations}"</p>
                           )}
                         </CardContent>
                       </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* ── Créditos Tab ── */}
-            <TabsContent value="creditos" className="max-w-2xl mx-auto space-y-6">
-              <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
-                <CardContent className="p-8 text-center space-y-6">
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos</p>
-                    <p className={cn(
-                      "text-6xl font-black",
-                      myStats.creditsBalance > 0 ? "text-emerald-600" : myStats.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
-                    )}>
-                      {myStats.creditsBalance}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-2">dias disponíveis para folga</p>
+                    ))}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
-                      <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-                      <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
-                      <p className="text-[10px] font-bold text-emerald-500 uppercase">Gerados</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20">
-                      <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-1" />
-                      <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
-                      <p className="text-[10px] font-bold text-red-500 uppercase">Utilizados</p>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-400">
-                    Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* ── Folgas Tab ── */}
-            <TabsContent value="folgas" className="max-w-2xl mx-auto space-y-6">
-              {/* New Request Button */}
-              <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20 gap-2 text-base">
-                    <Plus className="h-5 w-5" /> Solicitar Folga
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="rounded-[2rem]">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-black">Nova Solicitação de Folga</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div>
-                      <Label className="text-xs font-bold uppercase text-slate-400">Tipo de Afastamento</Label>
-                      <Select
-                        value={leaveForm.leaveType}
-                        onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
-                      >
-                        <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(LEAVE_TYPE_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {leaveForm.leaveType === 'folga_credito' && (
-                        <p className="text-xs text-emerald-600 mt-1 font-medium">
-                          Saldo disponível: {myStats.creditsBalance} dias
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs font-bold uppercase text-slate-400">Data Início</Label>
-                        <input
-                          type="date"
-                          value={leaveForm.startDate}
-                          onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                          className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-bold uppercase text-slate-400">Data Fim</Label>
-                        <input
-                          type="date"
-                          value={leaveForm.endDate}
-                          onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                          className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                        />
-                      </div>
-                    </div>
-                    {daysRequested > 0 && (
-                      <p className="text-center text-sm font-bold text-primary">
-                        {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'} solicitado(s)
-                      </p>
-                    )}
-                    <div>
-                      <Label className="text-xs font-bold uppercase text-slate-400">Observações (opcional)</Label>
-                      <Textarea
-                        value={leaveForm.observations}
-                        onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
-                        placeholder="Motivo ou detalhes..."
-                        className="rounded-xl resize-none"
-                        rows={3}
-                      />
-                    </div>
-                    <Button
-                      onClick={handleSubmitLeave}
-                      className="w-full h-12 rounded-xl font-bold"
-                      disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
-                    >
-                      Enviar Solicitação
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              {/* Leave Requests List */}
-              {leaveRequests.length === 0 ? (
-                <Card className="border-0 shadow-md rounded-2xl">
-                  <CardContent className="p-8 text-center text-slate-400">
-                    <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhuma solicitação enviada</p>
-                    <p className="text-xs mt-1">Use o botão acima para solicitar folgas.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {leaveRequests.map(req => (
-                    <Card key={req.id} className="border-0 shadow-md rounded-2xl overflow-hidden">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="font-bold text-sm text-slate-800 dark:text-white">
-                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
-                              {req.end_date !== req.start_date && (
-                                <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
-                              )}
-                              <span className="ml-2 font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</span>
-                            </p>
-                          </div>
-                          {statusBadge(req.status)}
-                        </div>
-                        {req.observations && (
-                          <p className="text-xs text-slate-400 italic">"{req.observations}"</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </main>
-
-      {/* Mobile Bottom Tabs */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50">
-        <div className="grid grid-cols-4 h-16">
-          {[
-            { value: 'escala', icon: Calendar, label: 'Escala' },
-            { value: 'equipe', icon: Users, label: 'Equipe' },
-            { value: 'creditos', icon: Clock, label: 'Créditos' },
-            { value: 'folgas', icon: FileText, label: 'Folgas' },
-          ].map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 transition-colors",
-                activeTab === tab.value ? "text-primary bg-primary/5" : "text-slate-400"
-              )}
-            >
-              <tab.icon className="h-5 w-5" />
-              <span className="text-[10px] font-bold">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
