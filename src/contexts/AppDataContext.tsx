@@ -153,20 +153,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                     if (teamRecord?.id) {
                         currentTeamId = teamRecord.id;
+                        // Garante que o perfil existe e aponta para esta equipe
+                        await (supabase
+                            .from('profiles' as any)
+                            .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
                     } else {
-                        // Se não tem equipe nenhuma, cria uma
-                        const { data: newTeam } = await (supabase
-                            .from('teams' as any)
-                            .insert({ name: 'Minha Equipe', created_by: userId } as any)
-                            .select()
-                            .single() as any);
-                        currentTeamId = newTeam.id;
+                        // Trigger handle_new_user deveria ter criado, mas pode não ter rodado.
+                        // Aguarda um pouco e tenta novamente
+                        await new Promise(r => setTimeout(r, 1000));
+                        const { data: retryProfile } = await (supabase
+                            .from('profiles' as any)
+                            .select('team_id')
+                            .eq('user_id', userId)
+                            .maybeSingle() as any);
+                        if (retryProfile?.team_id) {
+                            currentTeamId = retryProfile.team_id;
+                        } else {
+                            console.warn('Não foi possível encontrar equipe para o usuário.');
+                            setLoading(false);
+                            return;
+                        }
                     }
-
-                    // Agora garante que o perfil existe e aponta para esta equipe
-                    await (supabase
-                        .from('profiles' as any)
-                        .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
                 }
 
                 setTeamId(currentTeamId);
