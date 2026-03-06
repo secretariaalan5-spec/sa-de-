@@ -167,12 +167,18 @@ export function useProfessionalPortal() {
     }
   }, [session, professionalUser, fetchLeaveRequests]);
 
-  // Google login
+  // Google login - preserve team param in redirect
   const loginWithGoogle = useCallback(async () => {
+    // Ensure team param is preserved after OAuth redirect
+    const teamId = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('portal_team_id');
+    const redirectUrl = teamId
+      ? `${window.location.origin}/portal?team=${teamId}`
+      : window.location.href;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href,
+        redirectTo: redirectUrl,
       },
     });
     if (error) toast.error('Erro ao entrar com Google: ' + error.message);
