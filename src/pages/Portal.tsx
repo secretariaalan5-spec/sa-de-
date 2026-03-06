@@ -483,10 +483,9 @@ export default function Portal() {
     const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
     const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
 
-    const overallWeekendEntries = pastEntries.filter(e => {
-      const day = getDay(new Date(e.date));
-      return day === 0 || day === 6;
-    });
+    // Usa o mesmo marcador de final de semana que o admin (campo isWeekend),
+    // para não ter divergência de contagem (evita considerar segunda como FDS, etc.).
+    const overallWeekendEntries = pastEntries.filter(e => e.isWeekend);
     const overallWeekendDates = new Set(overallWeekendEntries.map(e => e.date));
     const overallWeekendDays = overallWeekendDates.size;
     const overallCreditsGenerated = overallWeekendDays * 2;
@@ -506,11 +505,7 @@ export default function Portal() {
     });
     const monthWorkedDays = new Set(monthEntries.map(e => e.date)).size;
 
-    const monthWeekendEntries = monthEntries.filter(e => {
-      const d = new Date(e.date);
-      const day = getDay(d);
-      return day === 0 || day === 6;
-    });
+    const monthWeekendEntries = monthEntries.filter(e => e.isWeekend);
     const monthWeekendDates = new Set(monthWeekendEntries.map(e => e.date));
     const monthWeekendDays = monthWeekendDates.size;
     const monthCreditsGenerated = monthWeekendDays * 2;
@@ -796,38 +791,48 @@ export default function Portal() {
                   </div>
                 </div>
 
-                {/* Stats Cards */}
+                {/* Stats Cards - dados gerais do sistema */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-primary">{myStats.month.workedDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados (mês)</p>
+                      <p className="text-2xl font-black text-primary">{myStats.overall.workedDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados (geral)</p>
                     </CardContent>
                   </Card>
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-amber-500">{myStats.month.weekendDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana (mês)</p>
+                      <p className="text-2xl font-black text-amber-500">{myStats.overall.weekendDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana (geral)</p>
                     </CardContent>
                   </Card>
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <TrendingUp className="w-4 h-4 text-emerald-500" />
-                        <p className="text-2xl font-black text-emerald-600">{myStats.month.creditsGenerated}</p>
+                        <p className="text-2xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados (geral)</p>
                     </CardContent>
                   </Card>
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <TrendingDown className="w-4 h-4 text-red-500" />
-                        <p className="text-2xl font-black text-red-600">{myStats.month.creditsUsed}</p>
+                        <p className="text-2xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados (geral)</p>
                     </CardContent>
                   </Card>
+                </div>
+
+                {/* Resumo do mês (compacto) */}
+                <div className="mt-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-3 justify-between">
+                  <span className="font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Resumo do mês
+                  </span>
+                  <span>Dias: <strong>{myStats.month.workedDays}</strong></span>
+                  <span>Fins de semana: <strong>{myStats.month.weekendDays}</strong></span>
+                  <span>Créditos: <strong>{myStats.month.creditsGenerated - myStats.month.creditsUsed}</strong> saldo</span>
                 </div>
               </div>
 
@@ -839,7 +844,7 @@ export default function Portal() {
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos (Geral)</p>
                       <p className={cn(
                         "text-6xl font-black",
-                        myStats.creditsBalance > 0 ? "text-emerald-600" : myStats.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
+                        myStats.overall.creditsBalance > 0 ? "text-emerald-600" : myStats.overall.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
                       )}>
                         {myStats.overall.creditsBalance}
                       </p>
@@ -894,7 +899,7 @@ export default function Portal() {
                         </Select>
                         {leaveForm.leaveType === 'folga_credito' && (
                           <p className="text-xs text-emerald-600 mt-1 font-medium">
-                            Saldo disponível: {myStats.creditsBalance} dias
+                            Saldo disponível: {myStats.overall.creditsBalance} dias
                           </p>
                         )}
                       </div>
