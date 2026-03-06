@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAppData } from '@/hooks/useAppData';
+import { generatePortalCodes } from '@/contexts/AppDataContext';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
@@ -63,7 +64,7 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   // ── Dados necessários para montar o payload de publicação ──
-  const { data: emultData, portalCodes } = useAppData();
+  const { data: emultData, portalCodes, updatePortalCodes } = useAppData();
   const { professionals: serviceProfs } = useServiceProfessionals();
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
@@ -81,10 +82,14 @@ export function Sidebar() {
         return;
       }
 
-      // Evita publicar códigos em branco se ainda estiverem carregando
+      // Garante que sempre existam códigos de acesso válidos antes de publicar.
+      let effectivePortalCodes = portalCodes;
+
       if (!portalCodes.emult || !portalCodes.nurse || !portalCodes.tech) {
-        toast.error('Aguarde o carregamento dos códigos de acesso antes de publicar.');
-        return;
+        // Gera novos códigos automaticamente caso ainda não tenham sido carregados do Supabase
+        effectivePortalCodes = generatePortalCodes();
+        updatePortalCodes(effectivePortalCodes);
+        toast.info('Novos códigos de acesso gerados automaticamente.');
       }
 
       // Payload higienizado para garantir serialização correta
@@ -103,7 +108,7 @@ export function Sidebar() {
           techEntries: techEntries,
           leaveRequests: leaveRequests,
         },
-        portal_codes: portalCodes,
+        portal_codes: effectivePortalCodes,
         published_at: new Date().toISOString()
       };
 
