@@ -64,7 +64,7 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   // ── Dados necessários para montar o payload de publicação ──
-  const { data: emultData, portalCodes, updatePortalCodes } = useAppData();
+  const { data: emultData, portalCodes, updatePortalCodes, teamId } = useAppData();
   const { professionals: serviceProfs } = useServiceProfessionals();
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
@@ -82,6 +82,21 @@ export function Sidebar() {
         return;
       }
 
+      // Descobre o "dono" oficial do time (created_by na tabela teams) para
+      // que o portal consiga localizar sempre a última publicação correta.
+      let ownerUserId = userId;
+      if (teamId) {
+        const { data: teamData } = await supabase
+          .from('teams' as any)
+          .select('created_by')
+          .eq('id', teamId)
+          .maybeSingle() as any;
+
+        if (teamData?.created_by) {
+          ownerUserId = teamData.created_by;
+        }
+      }
+
       // Garante que sempre existam códigos de acesso válidos antes de publicar.
       let effectivePortalCodes = portalCodes;
 
@@ -94,7 +109,7 @@ export function Sidebar() {
 
       // Payload higienizado para garantir serialização correta
       const payload = {
-        user_id: userId,
+        user_id: ownerUserId,
         emult_data: {
           professionals: emultData.professionals,
           units: emultData.units,
