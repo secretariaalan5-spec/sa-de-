@@ -473,46 +473,33 @@ export default function Portal() {
 
   const allProfessionals = useMemo(() => portalData?.service?.professionals || [], [portalData]);
 
-  // Stats - CUMULATIVE across all months (not just current month)
+  // Stats - mesma regra do Controle Individual (base admin)
   const myStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Monthly view stats (for calendar display)
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const monthEntries = myEntries.filter(e => {
-      const d = new Date(e.date);
-      return d >= monthStart && d <= monthEnd;
-    });
-    const workedDays = monthEntries.length;
+    // Dias efetivamente trabalhados (passado + hoje), sem limitar por mês
+    const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
+    const workedDays = new Set(pastEntries.map(e => e.date)).size;
 
-    const monthWeekendDays = monthEntries.filter(e => {
-      const day = getDay(new Date(e.date));
-      return day === 0 || day === 6;
-    }).length;
-
-    // CUMULATIVE credits: count ALL past weekend days worked (not just current month)
-    const allPastEntries = myEntries.filter(e => new Date(e.date) <= today);
-    const allWeekendEntries = allPastEntries.filter(e => {
+    // Finais de semana trabalhados (baseado no dia da semana)
+    const allWeekendEntries = pastEntries.filter(e => {
       const day = getDay(new Date(e.date));
       return day === 0 || day === 6;
     });
     const uniqueWeekendDates = new Set(allWeekendEntries.map(e => e.date));
-    const creditsGenerated = uniqueWeekendDates.size * 2;
+    const weekendDays = uniqueWeekendDates.size;
+    const creditsGenerated = weekendDays * 2;
 
-    const creditsUsedAdmin = myLeaveRequestsFromAdmin
+    // Créditos usados: mesma base do admin → apenas folgas aprovadas que já
+    // estão refletidas nas escalas (snapshot em service_data.leaveRequests).
+    const creditsUsed = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
       .reduce((sum, r) => sum + r.daysRequested, 0);
+    const creditsBalance = creditsGenerated - creditsUsed;
 
-    const creditsUsedPortal = leaveRequests
-      .filter(r => r.leave_type === 'folga_credito' && r.status === 'approved')
-      .reduce((sum, r) => sum + r.days_requested, 0);
-
-    const creditsUsed = creditsUsedAdmin + creditsUsedPortal;
-
-    return { workedDays, weekendDays: monthWeekendDays, creditsGenerated, creditsUsed, creditsBalance: creditsGenerated - creditsUsed };
-  }, [myEntries, myLeaveRequestsFromAdmin, leaveRequests, currentMonth]);
+    return { workedDays, weekendDays, creditsGenerated, creditsUsed, creditsBalance };
+  }, [myEntries, myLeaveRequestsFromAdmin]);
 
   // Leave form
   const daysRequested = useMemo(() => {
