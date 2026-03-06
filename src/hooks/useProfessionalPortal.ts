@@ -82,23 +82,19 @@ export function useProfessionalPortal() {
     fetchProfessionalUser();
   }, [fetchProfessionalUser]);
 
-  // Register as professional
+  // Register as professional using server-side RPC
   const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
     if (!session?.user) return false;
 
     const nameToUse = fullName?.trim() || session.user.user_metadata?.full_name || session.user.email || '';
 
     try {
-      const { error } = await (supabase
-        .from('professional_users' as any)
-        .insert({
-          user_id: session.user.id,
-          email: session.user.email || '',
-          full_name: nameToUse,
-          team_id: teamId,
-          category,
-          status: 'pending',
-        } as any) as any);
+      const { error } = await supabase.rpc('register_professional_via_portal' as any, {
+        _team_id: teamId,
+        _category: category,
+        _full_name: nameToUse,
+        _email: session.user.email || '',
+      } as any);
 
       if (error) throw error;
 
@@ -171,12 +167,18 @@ export function useProfessionalPortal() {
     }
   }, [session, professionalUser, fetchLeaveRequests]);
 
-  // Google login
+  // Google login - preserve team param in redirect
   const loginWithGoogle = useCallback(async () => {
+    // Ensure team param is preserved after OAuth redirect
+    const teamId = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('portal_team_id');
+    const redirectUrl = teamId
+      ? `${window.location.origin}/portal?team=${teamId}`
+      : window.location.href;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href,
+        redirectTo: redirectUrl,
       },
     });
     if (error) toast.error('Erro ao entrar com Google: ' + error.message);

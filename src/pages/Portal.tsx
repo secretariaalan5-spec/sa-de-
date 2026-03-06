@@ -363,17 +363,23 @@ export default function Portal() {
   }, []);
 
   // Garantir que usuários antigos sem team_id sejam vinculados ao time do link atual
+  // Also re-link if professional is on wrong team
   useEffect(() => {
     const ensureTeamForProfessional = async () => {
-      if (!professionalUser || professionalUser.team_id || !teamIdFromUrl) return;
-      try {
-        await supabase
-          .from('professional_users' as any)
-          .update({ team_id: teamIdFromUrl } as any)
-          .eq('id', professionalUser.id as any);
-        await refreshProfile();
-      } catch (err) {
-        console.error('Erro ao atualizar equipe do profissional:', err);
+      if (!professionalUser || !teamIdFromUrl) return;
+      // If no team or team differs from URL, re-link via RPC
+      if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
+        try {
+          await supabase.rpc('register_professional_via_portal' as any, {
+            _team_id: teamIdFromUrl,
+            _category: professionalUser.category,
+            _full_name: professionalUser.full_name,
+            _email: professionalUser.email,
+          } as any);
+          await refreshProfile();
+        } catch (err) {
+          console.error('Erro ao atualizar equipe do profissional:', err);
+        }
       }
     };
 
@@ -397,18 +403,20 @@ export default function Portal() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // Fetch portal data using team_id from professional_user
+  // Fetch portal data using team_id from professional_user or URL
+  const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;
+
   const fetchPortalData = useCallback(async () => {
-    if (!professionalUser?.team_id) return;
+    if (!effectiveTeamId) return;
 
     setLoadingPortal(true);
     try {
       // Find the admin who owns this team
-      const { data: teamData } = await (supabase
-        .from('teams' as any)
+      const { data: teamData } = await supabase
+        .from('teams')
         .select('created_by')
-        .eq('id', professionalUser.team_id)
-        .maybeSingle() as any);
+        .eq('id', effectiveTeamId)
+        .maybeSingle();
 
       const adminUserId = teamData?.created_by;
       if (!adminUserId) {
@@ -438,7 +446,7 @@ export default function Portal() {
     } finally {
       setLoadingPortal(false);
     }
-  }, [professionalUser]);
+  }, [effectiveTeamId]);
 
   useEffect(() => {
     if (professionalUser?.status === 'approved') fetchPortalData();
@@ -626,6 +634,7 @@ export default function Portal() {
               <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                 Olá, <span className="text-primary">{myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0]}</span>
               </h1>
+              <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate">{professionalUser.email}</p>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-wider">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
