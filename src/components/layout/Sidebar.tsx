@@ -82,21 +82,6 @@ export function Sidebar() {
         return;
       }
 
-      // Descobre o "dono" oficial do time (created_by na tabela teams) para
-      // que o portal consiga localizar sempre a última publicação correta.
-      let ownerUserId = userId;
-      if (teamId) {
-        const { data: teamData } = await supabase
-          .from('teams' as any)
-          .select('created_by')
-          .eq('id', teamId)
-          .maybeSingle() as any;
-
-        if (teamData?.created_by) {
-          ownerUserId = teamData.created_by;
-        }
-      }
-
       // Garante que sempre existam códigos de acesso válidos antes de publicar.
       let effectivePortalCodes = portalCodes;
 
@@ -109,13 +94,14 @@ export function Sidebar() {
 
       // Payload higienizado para garantir serialização correta
       const payload = {
-        user_id: ownerUserId,
+        user_id: userId,
         emult_data: {
           professionals: emultData.professionals,
           units: emultData.units,
           functions: emultData.functions,
           schedule: emultData.schedule,
           restrictions: emultData.restrictions, // Adicionado para persistência completa
+          teamId: teamId || null,
         },
         service_data: {
           professionals: serviceProfs,

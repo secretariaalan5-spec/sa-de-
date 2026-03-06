@@ -411,26 +411,15 @@ export default function Portal() {
 
     setLoadingPortal(true);
     try {
-      // Find the admin who owns this team
-      const { data: teamData } = await supabase
-        .from('teams')
-        .select('created_by')
-        .eq('id', effectiveTeamId)
-        .maybeSingle();
-
-      const adminUserId = teamData?.created_by;
-      if (!adminUserId) {
-        setLoadingPortal(false);
-        return;
-      }
-
+      // Busca sempre a última publicação vinculada ao time atual,
+      // usando o teamId salvo dentro de emult_data.
       const { data, error } = await supabase
-        .from('portal_schedules')
+        .from('portal_schedules' as any)
         .select('*')
-        .eq('user_id', adminUserId)
+        .eq('emult_data->>teamId', effectiveTeamId)
         .order('published_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as any;
 
       if (error) throw error;
 
