@@ -21,7 +21,6 @@ import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
 import ServiceReportsPage from "./pages/ServiceReports";
-import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
@@ -79,7 +78,6 @@ const App = () => (
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
-                <Route path="/escalas-servicos/aprovacoes" element={<ProfessionalApprovals />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />

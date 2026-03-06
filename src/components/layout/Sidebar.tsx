@@ -52,7 +52,6 @@ const serviceItems = [
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
   { to: '/escalas-servicos/controle', icon: BarChart3, label: 'Controle Individual' },
   { to: '/escalas-servicos/relatorios', icon: FileText, label: 'Relatórios' },
-  { to: '/escalas-servicos/aprovacoes', icon: Users, label: 'Aprovações Portal' },
 ];
 
 export function Sidebar() {

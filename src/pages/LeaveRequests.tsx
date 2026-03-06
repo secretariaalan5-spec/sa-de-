@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { differenceInCalendarDays } from 'date-fns';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
@@ -12,15 +12,34 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, AlertCircle, Stethoscope, Syringe } from 'lucide-react';
+import { Plus, Trash2, AlertCircle, Stethoscope, Syringe, Users, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
+interface ProfLeaveRequest {
+    id: string;
+    user_id: string;
+    professional_id: string;
+    team_id: string;
+    category: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days_requested: number;
+    observations: string | null;
+    status: string;
+    admin_notes: string | null;
+    created_at: string;
+}
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
     const { requests, addRequest, deleteRequest, getTotalCreditsUsedByProfessional } = useLeaveRequests();
-    const { logActivity } = useProfile();
+    const { profile, logActivity } = useProfile();
     const { allEntries } = useServiceSchedule('nurse');
 
     const { getAvailableCredits } = useServiceStats({
@@ -40,6 +59,22 @@ export default function LeaveRequestsPage() {
 
     const selectedProfessional = professionals.find(p => p.id === form.professionalId);
     const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
+
+    // Pedidos de folga vindos do portal
+    const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
+
+    const fetchPortalLeaves = useCallback(async () => {
+        if (!profile?.team_id) return;
+        const { data: leaves } = await (supabase
+            .from('professional_leave_requests' as any)
+            .select('*')
+            .eq('team_id', profile.team_id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false }) as any);
+        setPendingPortalLeaves((leaves || []) as ProfLeaveRequest[]);
+    }, [profile?.team_id]);
+
+    useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
     const daysRequested = useMemo(() => {
         if (!form.leaveStartDate || !form.leaveEndDate) return 0;
@@ -115,11 +150,65 @@ export default function LeaveRequestsPage() {
         setDialogOpen(false);
     };
 
+    const handleApprovePortalLeave = async (leave: ProfLeaveRequest) => {
+        const { error } = await (supabase
+            .from('professional_leave_requests' as any)
+            .update({ status: 'approved' } as any)
+            .eq('id', leave.id) as any);
+
+        if (error) {
+            toast.error('Erro ao aprovar folga');
+            return;
+        }
+
+        const startDate = new Date(leave.start_date + 'T00:00:00');
+        const leaveDates: string[] = [];
+        for (let i = 0; i < leave.days_requested; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            leaveDates.push(format(d, 'yyyy-MM-dd'));
+        }
+
+        addRequest({
+            professionalId: leave.professional_id,
+            category: leave.category as 'nurse' | 'tech',
+            leaveType: leave.leave_type as LeaveType,
+            requestDate: format(new Date(), 'yyyy-MM-dd'),
+            leaveDates,
+            daysRequested: leave.days_requested,
+            observations: `[Portal] ${leave.observations || ''}`.trim(),
+        });
+
+        const prof = professionals.find(p => p.id === leave.professional_id);
+        toast.success(`Folga aprovada para ${prof?.name || 'profissional'}!`);
+        logActivity('portal_leave_approved', {
+            professionalName: prof?.name,
+            leaveType: leave.leave_type,
+            days: leave.days_requested,
+        });
+        fetchPortalLeaves();
+    };
+
+    const handleRejectPortalLeave = async (leave: ProfLeaveRequest) => {
+        const { error } = await (supabase
+            .from('professional_leave_requests' as any)
+            .update({ status: 'rejected' } as any)
+            .eq('id', leave.id) as any);
+
+        if (error) {
+            toast.error('Erro ao rejeitar folga');
+            return;
+        }
+
+        toast.success('Pedido de folga rejeitado.');
+        fetchPortalLeaves();
+    };
+
     return (
         <div className="animate-fade-in space-y-6">
             <PageHeader
                 title="Pedidos de Folga"
-                description="Registre pedidos de folga recebidos em papel e controle o saldo de créditos"
+                description="Registre e aprove pedidos de folga e controle o saldo de créditos"
             />
 
             <div className="flex justify-end">
@@ -239,6 +328,86 @@ export default function LeaveRequestsPage() {
                 </Dialog>
             </div>
 
+            {/* Pedidos de folga vindos do portal */}
+            <div className="space-y-3">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Pedidos enviados pelo Portal
+                </h2>
+                {pendingPortalLeaves.length === 0 ? (
+                    <div className="text-sm text-muted-foreground bg-card rounded-xl border border-border p-4 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Nenhum pedido de folga pendente vindo do portal.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {pendingPortalLeaves.map(leave => {
+                            const prof = professionals.find(p => p.id === leave.professional_id);
+                            return (
+                                <Card key={leave.id}>
+                                    <CardContent className="p-5 space-y-3">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <h3 className="font-bold text-foreground">{prof?.name || 'Profissional'}</h3>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {leave.category === 'nurse'
+                                                        ? <Stethoscope className="w-4 h-4" />
+                                                        : <Syringe className="w-4 h-4" />}
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                                                Pendente
+                                            </Badge>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="bg-muted/50 rounded-lg p-2">
+                                                <div className="text-xs text-muted-foreground">Período</div>
+                                                <div className="font-medium">
+                                                    {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
+                                                    {leave.end_date !== leave.start_date && (
+                                                        <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="bg-muted/50 rounded-lg p-2">
+                                                <div className="text-xs text-muted-foreground">Duração</div>
+                                                <div className="font-bold text-primary">
+                                                    {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {leave.observations && (
+                                            <p className="text-xs text-muted-foreground italic">
+                                                "{leave.observations}"
+                                            </p>
+                                        )}
+
+                                        <div className="flex gap-2">
+                                            <Button size="sm" onClick={() => handleApprovePortalLeave(leave)} className="flex-1">
+                                                <Check className="w-4 h-4 mr-1" /> Aprovar
+                                            </Button>
+                                            <Button size="sm" variant="destructive" onClick={() => handleRejectPortalLeave(leave)} className="flex-1">
+                                                <X className="w-4 h-4 mr-1" /> Rejeitar
+                                            </Button>
+                                        </div>
+
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Enviado em {format(new Date(leave.created_at), 'dd/MM/yyyy HH:mm')}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Pedidos internos registrados pelo admin */}
             {requests.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
                     Nenhum pedido de folga registrado.
