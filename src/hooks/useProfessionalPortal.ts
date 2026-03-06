@@ -82,23 +82,19 @@ export function useProfessionalPortal() {
     fetchProfessionalUser();
   }, [fetchProfessionalUser]);
 
-  // Register as professional
+  // Register as professional using server-side RPC
   const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
     if (!session?.user) return false;
 
     const nameToUse = fullName?.trim() || session.user.user_metadata?.full_name || session.user.email || '';
 
     try {
-      const { error } = await (supabase
-        .from('professional_users' as any)
-        .insert({
-          user_id: session.user.id,
-          email: session.user.email || '',
-          full_name: nameToUse,
-          team_id: teamId,
-          category,
-          status: 'pending',
-        } as any) as any);
+      const { error } = await supabase.rpc('register_professional_via_portal' as any, {
+        _team_id: teamId,
+        _category: category,
+        _full_name: nameToUse,
+        _email: session.user.email || '',
+      } as any);
 
       if (error) throw error;
 

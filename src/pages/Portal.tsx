@@ -363,17 +363,23 @@ export default function Portal() {
   }, []);
 
   // Garantir que usuários antigos sem team_id sejam vinculados ao time do link atual
+  // Also re-link if professional is on wrong team
   useEffect(() => {
     const ensureTeamForProfessional = async () => {
-      if (!professionalUser || professionalUser.team_id || !teamIdFromUrl) return;
-      try {
-        await supabase
-          .from('professional_users' as any)
-          .update({ team_id: teamIdFromUrl } as any)
-          .eq('id', professionalUser.id as any);
-        await refreshProfile();
-      } catch (err) {
-        console.error('Erro ao atualizar equipe do profissional:', err);
+      if (!professionalUser || !teamIdFromUrl) return;
+      // If no team or team differs from URL, re-link via RPC
+      if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
+        try {
+          await supabase.rpc('register_professional_via_portal' as any, {
+            _team_id: teamIdFromUrl,
+            _category: professionalUser.category,
+            _full_name: professionalUser.full_name,
+            _email: professionalUser.email,
+          } as any);
+          await refreshProfile();
+        } catch (err) {
+          console.error('Erro ao atualizar equipe do profissional:', err);
+        }
       }
     };
 
