@@ -403,18 +403,20 @@ export default function Portal() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // Fetch portal data using team_id from professional_user
+  // Fetch portal data using team_id from professional_user or URL
+  const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;
+
   const fetchPortalData = useCallback(async () => {
-    if (!professionalUser?.team_id) return;
+    if (!effectiveTeamId) return;
 
     setLoadingPortal(true);
     try {
       // Find the admin who owns this team
-      const { data: teamData } = await (supabase
-        .from('teams' as any)
+      const { data: teamData } = await supabase
+        .from('teams')
         .select('created_by')
-        .eq('id', professionalUser.team_id)
-        .maybeSingle() as any);
+        .eq('id', effectiveTeamId)
+        .maybeSingle();
 
       const adminUserId = teamData?.created_by;
       if (!adminUserId) {
@@ -444,7 +446,7 @@ export default function Portal() {
     } finally {
       setLoadingPortal(false);
     }
-  }, [professionalUser]);
+  }, [effectiveTeamId]);
 
   useEffect(() => {
     if (professionalUser?.status === 'approved') fetchPortalData();
