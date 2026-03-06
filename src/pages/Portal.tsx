@@ -634,6 +634,7 @@ export default function Portal() {
               <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                 Olá, <span className="text-primary">{myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0]}</span>
               </h1>
+              <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate">{professionalUser.email}</p>
               <div className="flex items-center gap-2 mt-0.5">
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-wider">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
