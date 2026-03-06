@@ -473,33 +473,75 @@ export default function Portal() {
 
   const allProfessionals = useMemo(() => portalData?.service?.professionals || [], [portalData]);
 
-  // Stats - mesma regra do Controle Individual (base admin)
+  // Stats - mesma regra do Controle Individual (base admin),
+  // mas separando resumo do mês e geral (histórico).
   const myStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Dias efetivamente trabalhados (passado + hoje), sem limitar por mês
+    // ── Geral (histórico até hoje) ──
     const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
-    const workedDays = new Set(pastEntries.map(e => e.date)).size;
+    const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
 
-    // Finais de semana trabalhados (baseado no dia da semana)
-    const allWeekendEntries = pastEntries.filter(e => {
+    const overallWeekendEntries = pastEntries.filter(e => {
       const day = getDay(new Date(e.date));
       return day === 0 || day === 6;
     });
-    const uniqueWeekendDates = new Set(allWeekendEntries.map(e => e.date));
-    const weekendDays = uniqueWeekendDates.size;
-    const creditsGenerated = weekendDays * 2;
+    const overallWeekendDates = new Set(overallWeekendEntries.map(e => e.date));
+    const overallWeekendDays = overallWeekendDates.size;
+    const overallCreditsGenerated = overallWeekendDays * 2;
 
-    // Créditos usados: mesma base do admin → apenas folgas aprovadas que já
-    // estão refletidas nas escalas (snapshot em service_data.leaveRequests).
-    const creditsUsed = myLeaveRequestsFromAdmin
+    const overallCreditsUsed = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
       .reduce((sum, r) => sum + r.daysRequested, 0);
-    const creditsBalance = creditsGenerated - creditsUsed;
+    const overallCreditsBalance = overallCreditsGenerated - overallCreditsUsed;
 
-    return { workedDays, weekendDays, creditsGenerated, creditsUsed, creditsBalance };
-  }, [myEntries, myLeaveRequestsFromAdmin]);
+    // ── Resumo do mês atual ──
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+
+    const monthEntries = myEntries.filter(e => {
+      const d = new Date(e.date);
+      return d >= monthStart && d <= monthEnd && d <= today;
+    });
+    const monthWorkedDays = new Set(monthEntries.map(e => e.date)).size;
+
+    const monthWeekendEntries = monthEntries.filter(e => {
+      const d = new Date(e.date);
+      const day = getDay(d);
+      return day === 0 || day === 6;
+    });
+    const monthWeekendDates = new Set(monthWeekendEntries.map(e => e.date));
+    const monthWeekendDays = monthWeekendDates.size;
+    const monthCreditsGenerated = monthWeekendDays * 2;
+
+    const monthCreditsUsed = myLeaveRequestsFromAdmin
+      .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
+      .reduce((sum, r) => {
+        if (!r.leaveDates?.length) return sum;
+        const first = new Date(r.leaveDates[0] + 'T00:00:00');
+        const last = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00');
+        if (last < monthStart || first > monthEnd) return sum;
+        return sum + r.daysRequested;
+      }, 0);
+
+    return {
+      overall: {
+        workedDays: overallWorkedDays,
+        weekendDays: overallWeekendDays,
+        creditsGenerated: overallCreditsGenerated,
+        creditsUsed: overallCreditsUsed,
+        creditsBalance: overallCreditsBalance,
+      },
+      month: {
+        workedDays: monthWorkedDays,
+        weekendDays: monthWeekendDays,
+        creditsGenerated: monthCreditsGenerated,
+        creditsUsed: monthCreditsUsed,
+        creditsBalance: monthCreditsGenerated - monthCreditsUsed,
+      },
+    };
+  }, [myEntries, myLeaveRequestsFromAdmin, currentMonth]);
 
   // Leave form
   const daysRequested = useMemo(() => {
@@ -515,8 +557,8 @@ export default function Portal() {
       toast.error('Preencha todos os campos.');
       return;
     }
-    if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance) {
-      toast.error(`Saldo insuficiente. Disponível: ${myStats.creditsBalance} dias`);
+    if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.overall.creditsBalance) {
+      toast.error(`Saldo insuficiente. Disponível: ${myStats.overall.creditsBalance} dias`);
       return;
     }
 
@@ -758,21 +800,21 @@ export default function Portal() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-primary">{myStats.workedDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados</p>
+                      <p className="text-2xl font-black text-primary">{myStats.month.workedDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados (mês)</p>
                     </CardContent>
                   </Card>
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-amber-500">{myStats.weekendDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana</p>
+                      <p className="text-2xl font-black text-amber-500">{myStats.month.weekendDays}</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana (mês)</p>
                     </CardContent>
                   </Card>
                   <Card className="border-0 shadow-md rounded-2xl">
                     <CardContent className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <TrendingUp className="w-4 h-4 text-emerald-500" />
-                        <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                        <p className="text-2xl font-black text-emerald-600">{myStats.month.creditsGenerated}</p>
                       </div>
                       <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados</p>
                     </CardContent>
@@ -781,7 +823,7 @@ export default function Portal() {
                     <CardContent className="p-4 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <TrendingDown className="w-4 h-4 text-red-500" />
-                        <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                        <p className="text-2xl font-black text-red-600">{myStats.month.creditsUsed}</p>
                       </div>
                       <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados</p>
                     </CardContent>
@@ -794,12 +836,12 @@ export default function Portal() {
                 <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
                   <CardContent className="p-8 text-center space-y-6">
                     <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos (Geral)</p>
                       <p className={cn(
                         "text-6xl font-black",
                         myStats.creditsBalance > 0 ? "text-emerald-600" : myStats.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
                       )}>
-                        {myStats.creditsBalance}
+                        {myStats.overall.creditsBalance}
                       </p>
                       <p className="text-sm text-slate-500 mt-2">dias disponíveis para folga</p>
                     </div>
@@ -807,19 +849,19 @@ export default function Portal() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
                         <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-                        <p className="text-2xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+                        <p className="text-2xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
                         <p className="text-[10px] font-bold text-emerald-500 uppercase">Gerados</p>
                       </div>
                       <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20">
                         <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-1" />
-                        <p className="text-2xl font-black text-red-600">{myStats.creditsUsed}</p>
+                        <p className="text-2xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
                         <p className="text-[10px] font-bold text-red-500 uppercase">Utilizados</p>
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-400">
-                      Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
-                    </p>
+                      <p className="text-xs text-slate-400">
+                        Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
+                      </p>
                   </CardContent>
                 </Card>
               </div>
