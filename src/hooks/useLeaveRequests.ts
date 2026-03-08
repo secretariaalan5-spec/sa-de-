@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
 import { generateId } from '@/lib/uuid';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useLeaveRequests() {
     const { state, updateServiceState, loading } = useServiceState();
@@ -28,12 +29,26 @@ export function useLeaveRequests() {
         }));
     }, [updateServiceState]);
 
+    /** Remove o pedido local e, se veio do portal, apaga também da tabela professional_leave_requests */
     const deleteRequest = useCallback((id: string) => {
+        const target = requests.find(r => r.id === id);
+
+        // Se o pedido tem origem no portal, apaga do Supabase para sincronizar com o portal
+        if (target?.portalLeaveId) {
+            supabase
+                .from('professional_leave_requests' as any)
+                .delete()
+                .eq('id', target.portalLeaveId)
+                .then(({ error }) => {
+                    if (error) console.error('Erro ao apagar pedido do portal:', error);
+                });
+        }
+
         updateServiceState(prev => ({
             ...prev,
             requests: prev.requests.filter(r => r.id !== id)
         }));
-    }, [updateServiceState]);
+    }, [updateServiceState, requests]);
 
     const getRequestsByProfessional = useCallback((professionalId: string) => {
         return requests.filter(r => r.professionalId === professionalId);
