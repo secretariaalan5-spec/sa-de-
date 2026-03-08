@@ -1,40 +1,39 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  User, Users, Copy, Check, Plus, Clock, KeyRound, UserPlus,
-  Activity, RefreshCw,
+  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
+/* ── Rótulos legíveis para cada tipo de ação ── */
 const ACTION_LABELS: Record<string, string> = {
   leave_request_created: '📋 Registrou pedido de folga',
   leave_request_deleted: '🗑️ Removeu pedido de folga',
   schedule_published: '📤 Publicou escala no portal',
+  professional_approved: '✅ Aprovou profissional',
+  portal_leave_approved: '✅ Aprovou folga do portal',
 };
+
+const SUPABASE_URL = 'https://qxpqzbswtdfatdrtqhrw.supabase.co';
 
 export default function ProfilePage() {
   const {
-    profile, teamProfiles, invites, activityLog, loading,
-    updateProfile, generateInviteCode, joinTeamByCode, refreshProfile,
+    profile, activityLog, loading, updateProfile, refreshProfile,
   } = useProfile();
 
+  /* ── Estado local ── */
   const [editName, setEditName] = useState('');
   const [editingName, setEditingName] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [joinCode, setJoinCode] = useState('');
-  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-  const [generatingCode, setGeneratingCode] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (loading) {
     return (
@@ -44,6 +43,7 @@ export default function ProfilePage() {
     );
   }
 
+  /* ── Salvar nome ── */
   const handleSaveName = () => {
     if (editName.trim()) {
       updateProfile({ display_name: editName.trim() });
@@ -51,51 +51,156 @@ export default function ProfilePage() {
     }
   };
 
-  const handleGenerateCode = async () => {
-    setGeneratingCode(true);
-    await generateInviteCode();
-    setGeneratingCode(false);
-  };
+  /* ── Upload de avatar ── */
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
 
-  const handleJoinTeam = async () => {
-    if (!joinCode.trim()) return;
-    const success = await joinTeamByCode(joinCode);
-    if (success) {
-      setJoinDialogOpen(false);
-      setJoinCode('');
+    // Validação de tamanho (max 2 MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 2 MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `${profile.user_id}/avatar.${ext}`;
+
+      // Upload para o bucket 'avatars'
+      const { error: uploadErr } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      // URL pública do avatar
+      const avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
+
+      // Salva no perfil
+      await updateProfile({ avatar_url: avatarUrl });
+      toast.success('Foto de perfil atualizada!');
+    } catch (err: any) {
+      console.error('Erro ao enviar avatar:', err);
+      toast.error('Erro ao enviar foto: ' + (err.message || ''));
+    } finally {
+      setUploading(false);
+      // Limpa o input para permitir reenvio do mesmo arquivo
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopiedCode(code);
-      toast.success('Código copiado!');
-      setTimeout(() => setCopiedCode(null), 2000);
-    });
+  /* ── Remover avatar ── */
+  const handleRemoveAvatar = async () => {
+    if (!profile?.avatar_url) return;
+    setUploading(true);
+    try {
+      // Extrai o caminho do arquivo a partir da URL
+      const pathMatch = profile.avatar_url.match(/avatars\/(.+?)(\?|$)/);
+      if (pathMatch?.[1]) {
+        await supabase.storage.from('avatars').remove([pathMatch[1]]);
+      }
+      await updateProfile({ avatar_url: null as any });
+      toast.success('Foto removida');
+    } catch {
+      toast.error('Erro ao remover foto');
+    } finally {
+      setUploading(false);
+    }
   };
 
+  /* ── Iniciais para avatar fallback ── */
+  const initials = (profile?.display_name || '?')
+    .split(' ')
+    .map(w => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-6 max-w-2xl">
       <PageHeader
-        title="Perfil & Equipe"
-        description="Gerencie seu perfil, convide membros e veja o histórico de ações"
+        title="Meu Perfil"
+        description="Gerencie sua foto, nome e acompanhe suas ações"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+      {/* ── Card principal: Avatar + Nome ── */}
+      <Card>
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex flex-col items-center gap-5">
 
-        {/* ── Meu Perfil ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <User className="w-5 h-5 text-primary" />
-              Meu Perfil
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
+            {/* Avatar com botão de câmera */}
+            <div className="relative group">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  className="w-28 h-28 rounded-full object-cover border-4 border-border shadow-md"
+                />
+              ) : (
+                <div className="w-28 h-28 rounded-full bg-primary/15 border-4 border-border shadow-md flex items-center justify-center">
+                  <span className="text-3xl font-bold text-primary">{initials}</span>
+                </div>
+              )}
+
+              {/* Overlay de câmera */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute inset-0 rounded-full bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center cursor-pointer"
+                aria-label="Alterar foto"
+              >
+                <Camera className="w-6 h-6 text-background opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              {/* Indicador de loading */}
+              {uploading && (
+                <div className="absolute inset-0 rounded-full bg-foreground/50 flex items-center justify-center">
+                  <RefreshCw className="w-6 h-6 text-background animate-spin" />
+                </div>
+              )}
+
+              {/* Input file escondido */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+            </div>
+
+            {/* Botões de foto */}
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                {profile?.avatar_url ? 'Trocar foto' : 'Adicionar foto'}
+              </Button>
+              {profile?.avatar_url && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 text-xs text-destructive hover:text-destructive"
+                  onClick={handleRemoveAvatar}
+                  disabled={uploading}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remover
+                </Button>
+              )}
+            </div>
+
+            {/* Nome de exibição */}
+            <div className="w-full max-w-sm space-y-1.5">
               <Label className="text-xs text-muted-foreground">Nome de exibição</Label>
               {editingName ? (
-                <div className="flex gap-2 mt-1">
+                <div className="flex gap-2">
                   <Input
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
@@ -103,213 +208,98 @@ export default function ProfilePage() {
                     onKeyDown={e => e.key === 'Enter' && handleSaveName()}
                     autoFocus
                   />
-                  <Button size="sm" onClick={handleSaveName}>Salvar</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancelar</Button>
+                  <Button size="icon" variant="default" className="shrink-0" onClick={handleSaveName}>
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingName(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="font-medium text-lg">{profile?.display_name || 'Sem nome'}</span>
+                <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-2.5 border border-border">
+                  <span className="font-semibold text-foreground">
+                    {profile?.display_name || 'Sem nome'}
+                  </span>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    className="h-7 text-xs"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => {
                       setEditName(profile?.display_name || '');
                       setEditingName(true);
                     }}
                   >
-                    Editar
+                    <Pencil className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               )}
             </div>
-            <div className="text-xs text-muted-foreground">
-              Membro desde {profile?.created_at && format(new Date(profile.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* ── Equipe ── */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="w-5 h-5 text-primary" />
-              Minha Equipe
-            </CardTitle>
-            <CardDescription>
-              {teamProfiles.length} {teamProfiles.length === 1 ? 'membro' : 'membros'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {teamProfiles.map(member => (
-              <div
-                key={member.id}
-                className={cn(
-                  'flex items-center gap-3 p-3 rounded-lg border',
-                  member.user_id === profile?.user_id
-                    ? 'bg-primary/5 border-primary/20'
-                    : 'bg-muted/30 border-border'
-                )}
-              >
-                <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-sm">
-                  {(member.display_name || '?')[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{member.display_name || 'Sem nome'}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {member.user_id === profile?.user_id && '(Você)'}
+            {/* Membro desde */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="w-3.5 h-3.5" />
+              Membro desde{' '}
+              {profile?.created_at &&
+                format(new Date(profile.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Histórico de Ações ── */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Histórico de Ações
+            </h2>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={refreshProfile}>
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {activityLog.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Nenhuma ação registrada ainda.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {activityLog.map(log => (
+                <div
+                  key={log.id}
+                  className="flex gap-3 p-3 rounded-lg bg-muted/30 border border-border text-sm"
+                >
+                  {/* Avatar pequeno do autor */}
+                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                    {(log.profile?.display_name || '?')[0].toUpperCase()}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-xs text-muted-foreground">
+                      {log.profile?.display_name || 'Desconhecido'}
+                    </div>
+                    <div className="text-sm text-foreground">
+                      {ACTION_LABELS[log.action] || log.action}
+                    </div>
+                    {log.details && Object.keys(log.details).length > 0 && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {(log.details as any).professionalName &&
+                          `Profissional: ${(log.details as any).professionalName}`}
+                        {(log.details as any).leaveType &&
+                          ` • ${(log.details as any).leaveType}`}
+                      </div>
+                    )}
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-
-            <div className="flex gap-2 pt-2">
-              <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5" />
-                    Entrar com Código
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Entrar em uma Equipe</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Código de Convite</Label>
-                      <Input
-                        value={joinCode}
-                        onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                        placeholder="Ex: CONV-AB3D4F"
-                        className="font-mono"
-                      />
-                    </div>
-                    <Button onClick={handleJoinTeam} className="w-full" disabled={!joinCode.trim()}>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Entrar na Equipe
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* ── Códigos de Convite ── */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Plus className="w-5 h-5 text-primary" />
-                Códigos de Convite
-              </CardTitle>
-              <Button size="sm" onClick={handleGenerateCode} disabled={generatingCode} className="gap-1.5">
-                {generatingCode ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                Gerar Código
-              </Button>
-            </div>
-            <CardDescription>
-              Gere códigos para convidar novos admins. Cada código expira em 7 dias.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {invites.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum código gerado ainda.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {invites.map(invite => {
-                  const expired = new Date(invite.expires_at) < new Date();
-                  const used = !!invite.used_by;
-
-                  return (
-                    <div
-                      key={invite.id}
-                      className={cn(
-                        'flex items-center justify-between p-3 rounded-lg border text-sm',
-                        used ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' :
-                        expired ? 'bg-muted/50 border-border opacity-60' :
-                        'bg-card border-border'
-                      )}
-                    >
-                      <div>
-                        <span className="font-mono font-bold tracking-wider">{invite.code}</span>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {used ? 'Utilizado' : expired ? 'Expirado' : `Expira em ${format(new Date(invite.expires_at), 'dd/MM/yyyy')}`}
-                        </div>
-                      </div>
-                      {!used && !expired && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => copyCode(invite.code)}
-                        >
-                          {copiedCode === invite.code ? (
-                            <Check className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Log de Atividades ── */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Activity className="w-5 h-5 text-primary" />
-                Histórico de Ações
-              </CardTitle>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={refreshProfile}>
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {activityLog.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhuma ação registrada ainda.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {activityLog.map(log => (
-                  <div key={log.id} className="flex gap-3 p-3 rounded-lg bg-muted/30 border border-border text-sm">
-                    <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                      {(log.profile?.display_name || '?')[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-xs">{log.profile?.display_name || 'Desconhecido'}</div>
-                      <div className="text-sm">
-                        {ACTION_LABELS[log.action] || log.action}
-                      </div>
-                      {log.details && Object.keys(log.details).length > 0 && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {(log.details as any).professionalName && `Profissional: ${(log.details as any).professionalName}`}
-                          {(log.details as any).leaveType && ` • ${(log.details as any).leaveType}`}
-                        </div>
-                      )}
-                      <div className="text-[11px] text-muted-foreground mt-1">
-                        {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
