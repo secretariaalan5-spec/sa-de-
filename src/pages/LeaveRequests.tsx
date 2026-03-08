@@ -122,7 +122,6 @@ export default function LeaveRequestsPage() {
             toast.error(result.error as string);
             return;
         }
-        });
 
         const prof = professionals.find(p => p.id === leave.professional_id);
         toast.success(`Folga aprovada para ${prof?.name || 'profissional'}!`);
