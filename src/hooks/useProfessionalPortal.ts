@@ -12,6 +12,7 @@ export interface ProfessionalUser {
   team_id: string | null;
   category: string;
   status: string;
+  avatar_url: string | null;
   created_at: string;
 }
 
