@@ -211,6 +211,11 @@ export default function LeaveRequestsPage() {
                                                 <span className="text-xs font-bold text-primary">
                                                     {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
                                                 </span>
+                                                {isShortNotice && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-warning/50 text-warning bg-warning/10">
+                                                        ⚠ Menos de 10 dias
+                                                    </Badge>
+                                                )}
                                             </div>
                                             {leave.observations && (
                                                 <p className="text-[11px] text-muted-foreground italic mt-1 truncate">"{leave.observations}"</p>
