@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
