@@ -18,7 +18,7 @@ import {
   Syringe,
   UserPlus,
   CalendarOff,
-  BarChart3,
+  
   FileText,
   CloudUpload,
   RefreshCw,
