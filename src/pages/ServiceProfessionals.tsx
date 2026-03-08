@@ -296,6 +296,7 @@ export default function ServiceProfessionalsPage() {
             )}
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold truncate">{prof.name}</h2>
+              {emailMap[prof.id] && <p className="text-sm text-muted-foreground truncate">{emailMap[prof.id]}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <Badge variant="secondary" className={isNurse ? 'cat-text-nurse' : 'cat-text-tech'}>
                   {isNurse ? 'Enfermeiro(a)' : 'Técnico(a)'}
