@@ -200,7 +200,7 @@ export default function Registration() {
 
       {/* Tab Navigation */}
       <div>
-        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
+        <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit flex-wrap">
           <button
             onClick={() => setActiveTab('pending')}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
@@ -218,15 +218,37 @@ export default function Registration() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('team')}
+            onClick={() => setActiveTab('enfermeiros')}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
-              activeTab === 'team'
+              activeTab === 'enfermeiros'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Stethoscope className="w-3.5 h-3.5" />
+            Enfermeiros ({approvedUsers.filter(u => u.category === 'nurse').length})
+          </button>
+          <button
+            onClick={() => setActiveTab('tecnicos')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'tecnicos'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Syringe className="w-3.5 h-3.5" />
+            Técnicos ({approvedUsers.filter(u => u.category === 'tech').length})
+          </button>
+          <button
+            onClick={() => setActiveTab('emult')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'emult'
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Equipe ({approvedUsers.length})
+            eMult ({approvedUsers.filter(u => u.category === 'emult').length})
           </button>
         </div>
 
@@ -250,9 +272,8 @@ export default function Registration() {
               <Card key={user.id}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${categoryBg(user.category)} ${categoryColor(user.category)}`}>
-                    {user.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : <Syringe className="w-4 h-4" />}
+                    {user.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : user.category === 'tech' ? <Syringe className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                   </div>
-
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
@@ -260,7 +281,6 @@ export default function Registration() {
                       {categoryLabel(user.category)}
                     </span>
                   </div>
-
                   <div className="flex gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" className="h-8 gap-1 text-accent border-accent/30 hover:bg-accent/10" onClick={() => handleApprove(user)}>
                       <Check className="w-3.5 h-3.5" /> Aprovar
@@ -276,58 +296,49 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Team Tab */}
-      {activeTab === 'team' && (
-        <div className="space-y-3">
-          {approvedUsers.length > 0 && (
-            <div className="flex gap-4 text-xs font-medium text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Stethoscope className="w-3.5 h-3.5 text-accent" />
-                {approvedUsers.filter(u => u.category === 'nurse').length} Enfermeiro(s)
-              </span>
-              <span className="flex items-center gap-1">
-                <Syringe className="w-3.5 h-3.5 text-primary" />
-                {approvedUsers.filter(u => u.category === 'tech').length} Técnico(s)
-              </span>
-            </div>
-          )}
+      {/* Category Tabs (Enfermeiros / Técnicos / eMult) */}
+      {(activeTab === 'enfermeiros' || activeTab === 'tecnicos' || activeTab === 'emult') && (() => {
+        const categoryFilter = activeTab === 'enfermeiros' ? 'nurse' : activeTab === 'tecnicos' ? 'tech' : 'emult';
+        const filtered = approvedUsers.filter(u => u.category === categoryFilter);
+        const emptyLabel = activeTab === 'enfermeiros' ? 'enfermeiro' : activeTab === 'tecnicos' ? 'técnico' : 'profissional eMult';
 
-          {approvedUsers.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Nenhum profissional na equipe</p>
-              <p className="text-xs mt-1 opacity-70">Aprove solicitações pendentes para adicionar</p>
-            </div>
-          ) : (
-            approvedUsers.map(user => (
-              <Card key={user.id} className="group">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${categoryBg(user.category)} ${categoryColor(user.category)}`}>
-                    {user.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : <Syringe className="w-4 h-4" />}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    <span className={`text-[11px] font-medium ${categoryColor(user.category)}`}>
-                      {categoryLabel(user.category)}
-                    </span>
-                  </div>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                    onClick={() => handleRemoveApproved(user)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-      )}
+        return (
+          <div className="space-y-3">
+            {filtered.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Nenhum {emptyLabel} na equipe</p>
+                <p className="text-xs mt-1 opacity-70">Aprove solicitações pendentes para adicionar</p>
+              </div>
+            ) : (
+              filtered.map(user => (
+                <Card key={user.id} className="group">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${categoryBg(user.category)} ${categoryColor(user.category)}`}>
+                      {user.category === 'nurse' ? <Stethoscope className="w-4 h-4" /> : user.category === 'tech' ? <Syringe className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      <span className={`text-[11px] font-medium ${categoryColor(user.category)}`}>
+                        {categoryLabel(user.category)}
+                      </span>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={() => handleRemoveApproved(user)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
