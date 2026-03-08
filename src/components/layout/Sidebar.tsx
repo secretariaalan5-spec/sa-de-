@@ -34,6 +34,7 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { Button } from '@/components/ui/button';
+import { usePendingLeaveCount } from '@/hooks/usePendingLeaveCount';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
