@@ -46,7 +46,7 @@ const navItems = [
 ];
 
 const serviceItems = [
-  
+  { to: '/escalas-servicos/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
