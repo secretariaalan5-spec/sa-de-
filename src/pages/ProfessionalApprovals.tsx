@@ -524,15 +524,3 @@ function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categor
     </Card>
   );
 }
-
-interface ProfessionalUserRecord {
-  id: string;
-  user_id: string;
-  email: string;
-  full_name: string;
-  professional_id: string | null;
-  team_id: string | null;
-  category: string;
-  status: string;
-  created_at: string;
-}
