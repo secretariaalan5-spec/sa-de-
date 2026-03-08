@@ -5,17 +5,17 @@ import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useServiceStats } from '@/hooks/useServiceStats';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  Printer, Users, Stethoscope, Syringe, TrendingUp, CalendarOff, ChevronLeft,
-  BarChart3, Clock, Award, AlertTriangle,
+  Printer, Users, Stethoscope, Syringe, TrendingUp, CalendarOff,
+  BarChart3, Clock, Award, AlertTriangle, ChevronRight,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-type ReportView = 'menu' | 'nurses' | 'techs' | 'leaves' | 'credits' | 'summary';
+type ReportTab = 'summary' | 'nurses' | 'techs' | 'leaves' | 'credits';
 
 export default function ServiceReportsPage() {
   const { professionals } = useServiceProfessionals();
@@ -34,7 +34,7 @@ export default function ServiceReportsPage() {
   });
 
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [activeView, setActiveView] = useState<ReportView>('menu');
+  const [activeTab, setActiveTab] = useState<ReportTab>('summary');
 
   const handlePrint = () => window.print();
 
@@ -54,6 +54,15 @@ export default function ServiceReportsPage() {
     })
   );
 
+  const leaveTypeLabels: Record<string, string> = {
+    folga_credito: 'Folga por Crédito',
+    falta: 'Falta',
+    atestado: 'Atestado',
+    ferias: 'Férias',
+    licenca: 'Licença',
+    outro: 'Outro',
+  };
+
   // ── Summary stats ──
   const summaryData = useMemo(() => {
     const nurseStats = nurses.map(p => getStatsForProfessional(p.id, p.name, p.category));
@@ -70,7 +79,6 @@ export default function ServiceReportsPage() {
     const negativeBalance = allStats.filter(st => st.creditsBalance < 0);
     const topWorkers = [...allStats].sort((a, b) => b.workedDays - a.workedDays).slice(0, 5);
 
-    // Leave types distribution
     const leaveByType: Record<string, number> = {};
     monthLeaveRequests.forEach(r => {
       leaveByType[r.leaveType] = (leaveByType[r.leaveType] || 0) + 1;
@@ -93,157 +101,164 @@ export default function ServiceReportsPage() {
     };
   }, [nurses, techs, getStatsForProfessional, getTechStats, monthLeaveRequests]);
 
-  const leaveTypeLabels: Record<string, string> = {
-    folga_credito: 'Folga por Crédito',
-    falta: 'Falta',
-    atestado: 'Atestado',
-    ferias: 'Férias',
-    licenca: 'Licença',
-    outro: 'Outro',
-  };
-
-  const reportCards = [
-    { id: 'summary' as ReportView, title: 'Resumo Geral', description: 'Visão consolidada do mês', icon: BarChart3, count: null, accent: 'from-primary/20 to-primary/5' },
-    { id: 'nurses' as ReportView, title: 'Escala de Enfermeiros', description: 'Calendário mensal dos enfermeiros', icon: Stethoscope, count: nurses.length, accent: 'from-accent/20 to-accent/5' },
-    { id: 'techs' as ReportView, title: 'Escala de Técnicos', description: 'Calendário mensal dos técnicos', icon: Syringe, count: techs.length, accent: 'from-warning/20 to-warning/5' },
-    { id: 'leaves' as ReportView, title: 'Pedidos de Folga', description: 'Folgas registradas no mês', icon: CalendarOff, count: monthLeaveRequests.length, accent: 'from-destructive/15 to-destructive/5' },
-    { id: 'credits' as ReportView, title: 'Extrato de Créditos', description: 'Saldo de créditos por profissional', icon: TrendingUp, count: nurses.length + techs.length, accent: 'from-accent/20 to-accent/5' },
+  const tabs: { id: ReportTab; label: string; icon: React.ElementType; badge?: number }[] = [
+    { id: 'summary', label: 'Resumo', icon: BarChart3 },
+    { id: 'nurses', label: 'Enfermeiros', icon: Stethoscope, badge: nurses.length },
+    { id: 'techs', label: 'Técnicos', icon: Syringe, badge: techs.length },
+    { id: 'leaves', label: 'Folgas', icon: CalendarOff, badge: monthLeaveRequests.length },
+    { id: 'credits', label: 'Créditos', icon: TrendingUp },
   ];
 
-  // ── Summary Report ──
-  const renderSummaryReport = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">
-        Resumo Geral — <span className="capitalize">{format(monthStart, 'MMMM yyyy', { locale: ptBR })}</span>
-      </h2>
+  // ── KPI Card ──
+  const KpiCard = ({ icon: Icon, label, value, color = 'text-primary', sub }: {
+    icon: React.ElementType; label: string; value: string | number; color?: string; sub?: string;
+  }) => (
+    <div className="rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-muted")}>
+        <Icon className={cn("w-5 h-5", color)} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        <p className="text-xl font-bold text-foreground leading-tight mt-0.5">{value}</p>
+        {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+      </div>
+    </div>
+  );
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Profissionais Ativos', value: summaryData.totalProfessionals, icon: Users, color: 'text-primary' },
-          { label: 'Total Dias Trabalhados', value: summaryData.totalWorkedDays, icon: Clock, color: 'text-accent' },
-          { label: 'Dias de FDS', value: summaryData.totalWeekendDays, icon: Award, color: 'text-warning' },
-          { label: 'Folgas no Mês', value: summaryData.totalLeaves, icon: CalendarOff, color: 'text-destructive' },
-        ].map(kpi => (
-          <div key={kpi.label} className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <kpi.icon className={cn("w-4 h-4", kpi.color)} />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{kpi.value}</p>
-          </div>
-        ))}
+  // ── Summary Report ──
+  const renderSummary = () => (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard icon={Users} label="Profissionais Ativos" value={summaryData.totalProfessionals} />
+        <KpiCard icon={Clock} label="Dias Trabalhados" value={summaryData.totalWorkedDays} color="text-accent" />
+        <KpiCard icon={Award} label="Dias de FDS" value={summaryData.totalWeekendDays} color="text-warning" sub={`${summaryData.totalCreditsGenerated} créditos gerados`} />
+        <KpiCard icon={CalendarOff} label="Folgas no Mês" value={summaryData.totalLeaves} color="text-destructive" sub={`${summaryData.totalLeaveDays} dias totais`} />
       </div>
 
-      {/* Credits overview */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="px-5 py-3 border-b border-border bg-muted/20">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Balanço de Créditos
-          </h3>
+      {/* Credits balance bar */}
+      <Card className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold">Balanço de Créditos</span>
         </div>
         <div className="grid grid-cols-3 divide-x divide-border">
-          <div className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Gerados</p>
-            <p className="text-xl font-bold text-accent">+{summaryData.totalCreditsGenerated}</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Utilizados</p>
-            <p className="text-xl font-bold text-destructive">−{summaryData.totalCreditsUsed}</p>
-          </div>
-          <div className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Saldo Total</p>
-            <p className={cn("text-xl font-bold", summaryData.totalCreditsBalance >= 0 ? "text-accent" : "text-destructive")}>
-              {summaryData.totalCreditsBalance}
-            </p>
-          </div>
+          {[
+            { label: 'Gerados', value: `+${summaryData.totalCreditsGenerated}`, cls: 'text-accent' },
+            { label: 'Utilizados', value: `−${summaryData.totalCreditsUsed}`, cls: 'text-destructive' },
+            { label: 'Saldo', value: String(summaryData.totalCreditsBalance), cls: summaryData.totalCreditsBalance >= 0 ? 'text-accent' : 'text-destructive' },
+          ].map(c => (
+            <div key={c.label} className="p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
+              <p className={cn("text-2xl font-bold", c.cls)}>{c.value}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Top workers */}
+        {summaryData.topWorkers.length > 0 && (
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+              <Award className="w-4 h-4 text-warning" />
+              <span className="text-sm font-semibold">Top 5 — Mais Dias Trabalhados</span>
+            </div>
+            <div className="divide-y divide-border">
+              {summaryData.topWorkers.map((st, i) => (
+                <div key={st.professionalId} className="flex items-center gap-3 px-5 py-3">
+                  <div className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                    i === 0 ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground"
+                  )}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{st.professionalName}</p>
+                    <p className="text-xs text-muted-foreground">{st.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-foreground">{st.workedDays} dias</p>
+                    <p className="text-[11px] text-muted-foreground">{st.weekendDays} FDS</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Leave distribution + alerts */}
+        <div className="space-y-4">
+          {/* Negative balance alerts */}
+          {summaryData.negativeBalance.length > 0 && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-sm font-semibold text-destructive">Saldo Negativo</span>
+              </div>
+              <div className="space-y-2">
+                {summaryData.negativeBalance.map(st => (
+                  <div key={st.professionalId} className="flex items-center justify-between text-sm">
+                    <span className="text-foreground font-medium">{st.professionalName}</span>
+                    <span className="text-destructive font-bold">{st.creditsBalance}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Leave types */}
+          {Object.keys(summaryData.leaveByType).length > 0 && (
+            <Card className="overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+                <CalendarOff className="w-4 h-4 text-destructive" />
+                <span className="text-sm font-semibold">Folgas por Tipo</span>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                {Object.entries(summaryData.leaveByType).map(([type, count]) => {
+                  const total = summaryData.totalLeaves;
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                  return (
+                    <div key={type}>
+                      <div className="flex items-center justify-between text-sm mb-1.5">
+                        <span className="text-foreground font-medium">{leaveTypeLabels[type] || type}</span>
+                        <span className="text-muted-foreground text-xs">{count} ({pct}%)</span>
+                      </div>
+                      <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick links */}
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3 border-b border-border">
+              <span className="text-sm font-semibold">Acesso Rápido</span>
+            </div>
+            <div className="divide-y divide-border">
+              {[
+                { tab: 'nurses' as ReportTab, label: 'Ver escala de enfermeiros', icon: Stethoscope },
+                { tab: 'techs' as ReportTab, label: 'Ver escala de técnicos', icon: Syringe },
+                { tab: 'credits' as ReportTab, label: 'Ver extrato de créditos', icon: TrendingUp },
+              ].map(link => (
+                <button
+                  key={link.tab}
+                  onClick={() => setActiveTab(link.tab)}
+                  className="flex items-center gap-3 px-5 py-3 w-full text-left hover:bg-muted/50 transition-colors group"
+                >
+                  <link.icon className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-foreground group-hover:text-primary transition-colors flex-1">{link.label}</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </button>
+              ))}
+            </div>
+          </Card>
         </div>
       </div>
-
-      {/* Negative balance alerts */}
-      {summaryData.negativeBalance.length > 0 && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            <h3 className="text-sm font-semibold text-destructive">Profissionais com Saldo Negativo</h3>
-          </div>
-          <div className="space-y-2">
-            {summaryData.negativeBalance.map(st => (
-              <div key={st.professionalId} className="flex items-center justify-between text-sm">
-                <span className="text-foreground font-medium">{st.professionalName}</span>
-                <span className="text-destructive font-bold">{st.creditsBalance} créditos</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Top workers */}
-      {summaryData.topWorkers.length > 0 && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border bg-muted/20">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Award className="w-4 h-4 text-warning" />
-              Top 5 — Mais Dias Trabalhados
-            </h3>
-          </div>
-          <div className="divide-y divide-border">
-            {summaryData.topWorkers.map((st, i) => (
-              <div key={st.professionalId} className="flex items-center gap-3 px-5 py-3">
-                <div className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                  i === 0 ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground"
-                )}>
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{st.professionalName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {st.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-foreground">{st.workedDays} dias</p>
-                  <p className="text-[11px] text-muted-foreground">{st.weekendDays} FDS</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Leave types distribution */}
-      {Object.keys(summaryData.leaveByType).length > 0 && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border bg-muted/20">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <CalendarOff className="w-4 h-4 text-destructive" />
-              Distribuição de Folgas por Tipo
-            </h3>
-          </div>
-          <div className="p-4 space-y-3">
-            {Object.entries(summaryData.leaveByType).map(([type, count]) => {
-              const total = summaryData.totalLeaves;
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              return (
-                <div key={type}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-foreground font-medium">{leaveTypeLabels[type] || type}</span>
-                    <span className="text-muted-foreground">{count} ({pct}%)</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -251,35 +266,20 @@ export default function ServiceReportsPage() {
   const renderCalendar = (type: 'nurse' | 'tech') => {
     const profs = type === 'nurse' ? nurses : techs;
     const entries = type === 'nurse' ? allEntries : techEntries;
-    const typeLabel = type === 'nurse' ? 'Enfermeiros' : 'Técnicos';
-
-    // Summary stats for this category
     const statsGetter = type === 'nurse' ? getStatsForProfessional : getTechStats;
     const categoryStats = profs.map(p => statsGetter(p.id, p.name, p.category));
     const totalWorked = categoryStats.reduce((s, st) => s + st.workedDays, 0);
     const totalWeekend = categoryStats.reduce((s, st) => s + st.weekendDays, 0);
 
     return (
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Escala de {typeLabel} — <span className="capitalize">{format(monthStart, 'MMMM yyyy', { locale: ptBR })}</span></h2>
-
-        {/* Category KPIs */}
+      <div className="space-y-5">
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Profissionais</p>
-            <p className="text-xl font-bold text-foreground">{profs.length}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total Escalados</p>
-            <p className="text-xl font-bold text-foreground">{totalWorked}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Dias FDS</p>
-            <p className="text-xl font-bold text-warning">{totalWeekend}</p>
-          </div>
+          <KpiCard icon={Users} label="Profissionais" value={profs.length} />
+          <KpiCard icon={Clock} label="Total Escalados" value={totalWorked} color="text-accent" />
+          <KpiCard icon={Award} label="Dias FDS" value={totalWeekend} color="text-warning" />
         </div>
 
-        <div className="border border-border rounded-lg overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="grid grid-cols-7 bg-primary text-primary-foreground">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
               <div key={day} className="p-2 text-center font-semibold text-xs border-r border-primary-foreground/20 last:border-r-0">
@@ -297,7 +297,6 @@ export default function ServiceReportsPage() {
               const dayEntries = entries.filter(e =>
                 e.date === dateStr && profs.some(p => p.id === e.professionalId)
               );
-
               return (
                 <div
                   key={dateStr}
@@ -316,11 +315,7 @@ export default function ServiceReportsPage() {
                     {dayEntries.map(entry => {
                       const prof = profs.find(p => p.id === entry.professionalId);
                       return (
-                        <div
-                          key={entry.id}
-                          className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate"
-                          title={prof?.name}
-                        >
+                        <div key={entry.id} className="text-[10px] bg-primary/10 text-primary px-1 py-0.5 rounded truncate" title={prof?.name}>
                           {prof?.name}
                         </div>
                       );
@@ -330,20 +325,21 @@ export default function ServiceReportsPage() {
               );
             })}
           </div>
-        </div>
+        </Card>
 
-        {/* Per-professional summary table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-muted/20">
-            <h3 className="text-sm font-semibold">Resumo Individual</h3>
+        {/* Per-professional table */}
+        <Card className="overflow-hidden">
+          <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">Resumo Individual</span>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Profissional</TableHead>
-                <TableHead className="text-center">Dias Escalados</TableHead>
+                <TableHead className="text-center">Dias</TableHead>
                 <TableHead className="text-center">FDS</TableHead>
-                <TableHead className="text-center">Créditos</TableHead>
+                <TableHead className="text-center">Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -352,11 +348,11 @@ export default function ServiceReportsPage() {
                   <TableCell className="font-medium">{st.professionalName}</TableCell>
                   <TableCell className="text-center">{st.workedDays}</TableCell>
                   <TableCell className="text-center">
-                    <span className="bg-warning/20 text-warning-foreground px-2 py-0.5 rounded text-sm">{st.weekendDays}</span>
+                    <span className="bg-warning/20 text-warning-foreground px-2 py-0.5 rounded text-xs font-medium">{st.weekendDays}</span>
                   </TableCell>
                   <TableCell className="text-center">
                     <span className={cn(
-                      "px-2 py-0.5 rounded font-bold text-sm",
+                      "px-2 py-0.5 rounded font-bold text-xs",
                       st.creditsBalance > 0 ? "bg-accent/15 text-accent"
                         : st.creditsBalance < 0 ? "bg-destructive/15 text-destructive"
                         : "bg-muted text-muted-foreground"
@@ -368,13 +364,13 @@ export default function ServiceReportsPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </Card>
       </div>
     );
   };
 
   // ── Leave Report ──
-  const renderLeaveReport = () => {
+  const renderLeaves = () => {
     const grouped = monthLeaveRequests.reduce((acc, req) => {
       if (!acc[req.professionalId]) acc[req.professionalId] = [];
       acc[req.professionalId].push(req);
@@ -384,79 +380,70 @@ export default function ServiceReportsPage() {
     const totalDays = monthLeaveRequests.reduce((s, r) => s + r.daysRequested, 0);
 
     return (
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Pedidos de Folga — <span className="capitalize">{format(monthStart, 'MMMM yyyy', { locale: ptBR })}</span></h2>
-
-        {/* Leave KPIs */}
+      <div className="space-y-5">
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total de Pedidos</p>
-            <p className="text-xl font-bold text-foreground">{monthLeaveRequests.length}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Total de Dias</p>
-            <p className="text-xl font-bold text-foreground">{totalDays}</p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">Profissionais</p>
-            <p className="text-xl font-bold text-foreground">{Object.keys(grouped).length}</p>
-          </div>
+          <KpiCard icon={CalendarOff} label="Total Pedidos" value={monthLeaveRequests.length} color="text-destructive" />
+          <KpiCard icon={Clock} label="Total de Dias" value={totalDays} />
+          <KpiCard icon={Users} label="Profissionais" value={Object.keys(grouped).length} />
         </div>
 
         {Object.keys(grouped).length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">Nenhum pedido de folga registrado para este mês.</p>
+          <Card className="p-8 text-center">
+            <CalendarOff className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground">Nenhum pedido de folga registrado para este mês.</p>
+          </Card>
         ) : (
           Object.entries(grouped).map(([profId, profRequests]) => {
             const prof = professionals.find(p => p.id === profId);
             if (!prof) return null;
             return (
-              <Card key={profId}>
-                <CardHeader className="bg-muted/50 py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    {prof.name}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      ({prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'})
+              <Card key={profId} className="overflow-hidden">
+                <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-semibold">{prof.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {prof.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
                     </span>
-                    <span className="ml-auto text-xs font-medium text-muted-foreground">
-                      {profRequests.reduce((s, r) => s + r.daysRequested, 0)} dias
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Datas</TableHead>
-                        <TableHead className="text-center">Dias</TableHead>
-                        <TableHead>Observações</TableHead>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {profRequests.reduce((s, r) => s + r.daysRequested, 0)} dias
+                  </span>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Datas</TableHead>
+                      <TableHead className="text-center">Dias</TableHead>
+                      <TableHead>Obs.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {profRequests.map(req => (
+                      <TableRow key={req.id}>
+                        <TableCell>
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-medium">
+                            {leaveTypeLabels[req.leaveType] || req.leaveType}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {req.leaveDates.map(date => (
+                              <span key={date} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                                {format(new Date(date), 'dd/MM')}
+                              </span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-medium">{req.daysRequested}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">{req.observations || '—'}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {profRequests.map(req => (
-                        <TableRow key={req.id}>
-                          <TableCell className="text-sm">
-                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
-                              {leaveTypeLabels[req.leaveType] || req.leaveType}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {req.leaveDates.map(date => (
-                                <span key={date} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
-                                  {format(new Date(date), 'dd/MM')}
-                                </span>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center font-medium">{req.daysRequested}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{req.observations || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
+                    ))}
+                  </TableBody>
+                </Table>
               </Card>
             );
           })
@@ -466,159 +453,152 @@ export default function ServiceReportsPage() {
   };
 
   // ── Credits Table ──
-  const renderCreditsTable = (profs: typeof nurses, label: string, statsGetter: typeof getStatsForProfessional) => {
+  const renderCreditsSection = (profs: typeof nurses, label: string, icon: React.ElementType, statsGetter: typeof getStatsForProfessional) => {
     const stats = profs.map(p => statsGetter(p.id, p.name, p.category));
     const totalGenerated = stats.reduce((s, st) => s + st.creditsGenerated, 0);
     const totalUsed = stats.reduce((s, st) => s + st.creditsUsed, 0);
+    const Icon = icon;
 
     return (
-      <Card>
-        <CardHeader className="bg-muted/50 py-3">
-          <CardTitle className="text-sm flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              {label}
+      <Card className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <span className="text-sm font-semibold flex items-center gap-2">
+            <Icon className="w-4 h-4 text-primary" />
+            {label}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Saldo: <span className={cn("font-bold", (totalGenerated - totalUsed) >= 0 ? "text-accent" : "text-destructive")}>
+              {totalGenerated - totalUsed}
             </span>
-            <span className="text-xs font-normal text-muted-foreground">
-              Saldo: <span className={cn("font-bold", (totalGenerated - totalUsed) >= 0 ? "text-accent" : "text-destructive")}>
-                {totalGenerated - totalUsed}
-              </span>
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Profissional</TableHead>
-                <TableHead className="text-center">Dias Trab.</TableHead>
-                <TableHead className="text-center">FDS</TableHead>
-                <TableHead className="text-center">Créditos +</TableHead>
-                <TableHead className="text-center">Créditos −</TableHead>
-                <TableHead className="text-center">Saldo</TableHead>
+          </span>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Profissional</TableHead>
+              <TableHead className="text-center">Dias</TableHead>
+              <TableHead className="text-center">FDS</TableHead>
+              <TableHead className="text-center">Créd. +</TableHead>
+              <TableHead className="text-center">Créd. −</TableHead>
+              <TableHead className="text-center">Saldo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {stats.map(st => (
+              <TableRow key={st.professionalId}>
+                <TableCell className="font-medium">{st.professionalName}</TableCell>
+                <TableCell className="text-center">{st.workedDays}</TableCell>
+                <TableCell className="text-center">
+                  <span className="bg-warning/20 text-warning-foreground px-2 py-0.5 rounded text-xs font-medium">{st.weekendDays}</span>
+                </TableCell>
+                <TableCell className="text-center font-semibold text-accent">+{st.creditsGenerated}</TableCell>
+                <TableCell className="text-center text-destructive">{st.creditsUsed > 0 ? `−${st.creditsUsed}` : '0'}</TableCell>
+                <TableCell className="text-center">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded font-bold text-xs",
+                    st.creditsBalance > 0 ? "bg-accent/15 text-accent"
+                      : st.creditsBalance < 0 ? "bg-destructive/15 text-destructive"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {st.creditsBalance}
+                  </span>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stats.map(st => (
-                <TableRow key={st.professionalId}>
-                  <TableCell className="font-medium">{st.professionalName}</TableCell>
-                  <TableCell className="text-center">{st.workedDays}</TableCell>
-                  <TableCell className="text-center">
-                    <span className="bg-warning/20 text-warning-foreground px-2 py-0.5 rounded text-sm">{st.weekendDays}</span>
-                  </TableCell>
-                  <TableCell className="text-center font-semibold text-accent">+{st.creditsGenerated}</TableCell>
-                  <TableCell className="text-center text-destructive">{st.creditsUsed > 0 ? `−${st.creditsUsed}` : '0'}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded font-bold",
-                      st.creditsBalance > 0 ? "bg-accent/15 text-accent"
-                        : st.creditsBalance < 0 ? "bg-destructive/15 text-destructive"
-                        : "bg-muted text-muted-foreground"
-                    )}>
-                      {st.creditsBalance}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
+            ))}
+          </TableBody>
+        </Table>
       </Card>
     );
   };
 
-  const renderCreditsReport = () => (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Extrato de Créditos — <span className="capitalize">{format(monthStart, 'MMMM yyyy', { locale: ptBR })}</span></h2>
-      {nurses.length > 0 && renderCreditsTable(nurses, 'Enfermeiros', getStatsForProfessional)}
-      {techs.length > 0 && renderCreditsTable(techs, 'Técnicos', getTechStats)}
+  const renderCredits = () => (
+    <div className="space-y-5">
+      {/* Total overview */}
+      <Card className="overflow-hidden">
+        <div className="grid grid-cols-3 divide-x divide-border">
+          {[
+            { label: 'Total Gerados', value: `+${summaryData.totalCreditsGenerated}`, cls: 'text-accent' },
+            { label: 'Total Utilizados', value: `−${summaryData.totalCreditsUsed}`, cls: 'text-destructive' },
+            { label: 'Saldo Geral', value: String(summaryData.totalCreditsBalance), cls: summaryData.totalCreditsBalance >= 0 ? 'text-accent' : 'text-destructive' },
+          ].map(c => (
+            <div key={c.label} className="p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
+              <p className={cn("text-2xl font-bold", c.cls)}>{c.value}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+      {nurses.length > 0 && renderCreditsSection(nurses, 'Enfermeiros', Stethoscope, getStatsForProfessional)}
+      {techs.length > 0 && renderCreditsSection(techs, 'Técnicos', Syringe, getTechStats)}
     </div>
   );
 
-  const renderActiveReport = () => {
-    switch (activeView) {
-      case 'summary': return renderSummaryReport();
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'summary': return renderSummary();
       case 'nurses': return renderCalendar('nurse');
       case 'techs': return renderCalendar('tech');
-      case 'leaves': return renderLeaveReport();
-      case 'credits': return renderCreditsReport();
-      default: return null;
+      case 'leaves': return renderLeaves();
+      case 'credits': return renderCredits();
     }
   };
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-5">
       <PageHeader
         title="Relatórios"
-        description="Gere e imprima relatórios de escalas, folgas e créditos"
-      />
-
-      {/* Filtros */}
-      <div className="form-section">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div>
+        description={`${format(monthStart, "MMMM 'de' yyyy", { locale: ptBR })} — Visão completa das escalas`}
+        action={
+          <div className="flex items-center gap-2">
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-9 rounded-lg border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </div>
-          {activeView !== 'menu' && (
-            <Button onClick={handlePrint} className="gap-2">
+            <Button onClick={handlePrint} size="sm" variant="outline" className="gap-1.5 no-print">
               <Printer className="w-4 h-4" />
               Imprimir
             </Button>
-          )}
-        </div>
+          </div>
+        }
+      />
+
+      {/* Tab navigation */}
+      <div className="flex gap-1 overflow-x-auto pb-1 no-print">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap shrink-0",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={cn(
+                  "text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full",
+                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/15 text-muted-foreground"
+                )}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {activeView === 'menu' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {reportCards.map(card => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.id}
-                onClick={() => setActiveView(card.id)}
-                className="form-section cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group overflow-hidden"
-              >
-                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity rounded-lg", card.accent)} />
-                <div className="relative flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold group-hover:text-primary transition-colors">{card.title}</h3>
-                    <p className="text-xs text-muted-foreground">{card.description}</p>
-                  </div>
-                  {card.count !== null && (
-                    <div className="text-right shrink-0">
-                      <span className="text-xl font-bold">{card.count}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveView('menu')}
-            className="gap-1 no-print"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Voltar
-          </Button>
-
-          <div className="form-section print-area">
-            {renderActiveReport()}
-          </div>
-        </div>
-      )}
+      {/* Content */}
+      <div className="print-area">
+        {renderContent()}
+      </div>
     </div>
   );
 }
