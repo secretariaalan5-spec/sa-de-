@@ -64,13 +64,15 @@ export default function LeaveRequestsPage() {
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
     const handleApprovePortalLeave = async (leave: ProfLeaveRequest) => {
-        const { error } = await (supabase
+        const { error, count } = await (supabase
             .from('professional_leave_requests' as any)
             .update({ status: 'approved' } as any)
-            .eq('id', leave.id) as any);
+            .eq('id', leave.id)
+            .select() as any);
 
         if (error) {
-            toast.error('Erro ao aprovar folga');
+            console.error('Erro ao aprovar folga:', error);
+            toast.error('Erro ao aprovar folga: ' + error.message);
             return;
         }
 
@@ -107,10 +109,12 @@ export default function LeaveRequestsPage() {
         const { error } = await (supabase
             .from('professional_leave_requests' as any)
             .update({ status: 'rejected' } as any)
-            .eq('id', leave.id) as any);
+            .eq('id', leave.id)
+            .select() as any);
 
         if (error) {
-            toast.error('Erro ao rejeitar folga');
+            console.error('Erro ao rejeitar folga:', error);
+            toast.error('Erro ao rejeitar folga: ' + error.message);
             return;
         }
 
@@ -136,57 +140,59 @@ export default function LeaveRequestsPage() {
                         Nenhum pedido de folga pendente vindo do portal.
                     </div>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {pendingPortalLeaves.map(leave => {
                             const prof = professionals.find(p => p.id === leave.professional_id);
                             const avatarUrl = avatarMap[leave.professional_id];
                             return (
-                                <div key={leave.id} className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-                                    <Avatar className="h-10 w-10 shrink-0">
-                                        {avatarUrl ? (
-                                            <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
-                                        ) : null}
-                                        <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                                            {(prof?.name || 'P').slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                <div key={leave.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20">
+                                            {avatarUrl ? (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
+                                            ) : null}
+                                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-semibold text-sm text-foreground truncate">{prof?.name || 'Profissional'}</span>
-                                            {leave.category === 'nurse'
-                                                ? <Stethoscope className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                                : <Syringe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                                            <Badge variant="secondary" className="text-[11px]">
-                                                {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                            <span>
-                                                {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
-                                                {leave.end_date !== leave.start_date && (
-                                                    <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
-                                                )}
-                                            </span>
-                                            <span className="font-medium text-primary">
-                                                {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
-                                            </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Profissional'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary">
+                                                    {leave.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
+                                                    {leave.end_date !== leave.start_date && (
+                                                        <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                            </div>
                                             {leave.observations && (
-                                                <span className="italic truncate max-w-[150px]">"{leave.observations}"</span>
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">"{leave.observations}"</p>
                                             )}
-                                            <span className="hidden sm:inline">
-                                                Enviado {format(new Date(leave.created_at), 'dd/MM HH:mm')}
-                                            </span>
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Enviado em {format(new Date(leave.created_at), 'dd/MM/yyyy HH:mm')}
+                                            </p>
                                         </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => handleApprovePortalLeave(leave)}>
-                                            <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
-                                        </Button>
-                                        <Button size="sm" variant="destructive" className="h-8 px-3" onClick={() => handleRejectPortalLeave(leave)}>
-                                            <X className="w-3.5 h-3.5 mr-1" /> Rejeitar
-                                        </Button>
+                                        <div className="flex flex-col gap-1.5 shrink-0">
+                                            <Button size="sm" className="h-8 px-4 rounded-xl text-xs font-bold" onClick={() => handleApprovePortalLeave(leave)}>
+                                                <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-8 px-4 rounded-xl text-xs font-medium text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => handleRejectPortalLeave(leave)}>
+                                                <X className="w-3.5 h-3.5 mr-1" /> Rejeitar
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -208,18 +214,8 @@ export default function LeaveRequestsPage() {
                         description="Os afastamentos aprovados pelo portal aparecerão aqui."
                     />
                 ) : (
-                    <div className="bg-card rounded-xl border border-border overflow-hidden">
-                        <div className="grid grid-cols-[40px_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-4 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
-                            <span />
-                            <span>Nome</span>
-                            <span className="hidden sm:block w-28">Tipo</span>
-                            <span className="w-24">Período</span>
-                            <span className="w-16 text-center">Dias</span>
-                            <span className="hidden md:block w-24">Registrado</span>
-                            <span className="w-8" />
-                        </div>
-
-                        {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((request, idx) => {
+                    <div className="space-y-3">
+                        {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((request) => {
                             const prof = professionals.find(p => p.id === request.professionalId);
                             const avatarUrl = avatarMap[request.professionalId];
                             const startDate = request.leaveDates[0];
@@ -228,63 +224,61 @@ export default function LeaveRequestsPage() {
                             return (
                                 <div
                                     key={request.id}
-                                    className={`grid grid-cols-[40px_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40 ${idx < requests.length - 1 ? 'border-b border-border' : ''}`}
+                                    className="bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
                                 >
-                                    <Avatar className="h-9 w-9 shrink-0">
-                                        {avatarUrl ? <AvatarImage src={avatarUrl} alt={prof?.name || ''} /> : null}
-                                        <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                                            {(prof?.name || 'P').slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted">
+                                            {avatarUrl ? <AvatarImage src={avatarUrl} alt={prof?.name || ''} /> : null}
+                                            <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
 
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="font-medium text-sm text-foreground truncate">{prof?.name || 'Desconhecido'}</span>
-                                            {request.category === 'nurse'
-                                                ? <Stethoscope className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                                : <Syringe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Desconhecido'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-muted-foreground/30">
+                                                    {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
+                                                    {endDate && endDate !== startDate && (
+                                                        <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                            </div>
+                                            {request.observations && (
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">{request.observations}</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Registrado em {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
+                                            </p>
                                         </div>
-                                        {request.observations && (
-                                            <p className="text-[11px] text-muted-foreground italic truncate">{request.observations}</p>
-                                        )}
+
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 shrink-0 rounded-xl hover:bg-destructive/10"
+                                            onClick={() => {
+                                                const profName = prof?.name || 'Desconhecido';
+                                                deleteRequest(request.id);
+                                                logActivity('leave_request_deleted', {
+                                                    professionalName: profName,
+                                                    leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4 text-destructive" />
+                                        </Button>
                                     </div>
-
-                                    <div className="hidden sm:block w-28">
-                                        <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
-                                            {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
-                                        </Badge>
-                                    </div>
-
-                                    <span className="text-xs text-foreground w-24">
-                                        {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
-                                        {endDate && endDate !== startDate && (
-                                            <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
-                                        )}
-                                    </span>
-
-                                    <span className="text-xs font-semibold text-primary w-16 text-center">
-                                        {request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}
-                                    </span>
-
-                                    <span className="hidden md:block text-[11px] text-muted-foreground w-24">
-                                        {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
-                                    </span>
-
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 shrink-0"
-                                        onClick={() => {
-                                            const profName = prof?.name || 'Desconhecido';
-                                            deleteRequest(request.id);
-                                            logActivity('leave_request_deleted', {
-                                                professionalName: profName,
-                                                leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
-                                            });
-                                        }}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                    </Button>
                                 </div>
                             );
                         })}
