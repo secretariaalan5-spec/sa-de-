@@ -197,6 +197,7 @@ export default function ServiceProfessionalsPage() {
     const catLabel = isNurse ? 'Enfermeiro' : 'Técnico';
     const Icon = isNurse ? Stethoscope : Syringe;
     const avatarUrl = avatarMap[prof.id];
+    const [imgLoaded, setImgLoaded] = useState(false);
 
     return (
       <div
@@ -206,11 +207,21 @@ export default function ServiceProfessionalsPage() {
         <div className={`h-1 -mx-5 -mt-5 mb-4 ${catBar}`} />
         <div className="flex items-center gap-3">
           {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={prof.name}
-              className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-border"
-            />
+            <div className="relative w-11 h-11 rounded-xl shrink-0 border-2 border-border overflow-hidden bg-muted">
+              {!imgLoaded && (
+                <div className="absolute inset-0 animate-pulse bg-muted" />
+              )}
+              <img
+                src={avatarUrl}
+                alt={prof.name}
+                loading="eager"
+                onLoad={() => setImgLoaded(true)}
+                className={cn(
+                  "w-full h-full object-cover transition-opacity duration-200",
+                  imgLoaded ? "opacity-100" : "opacity-0"
+                )}
+              />
+            </div>
           ) : (
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${catIcon}`}>
               <Icon className="w-4 h-4" />
