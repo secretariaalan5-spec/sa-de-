@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   format,
   startOfMonth,
@@ -9,12 +9,11 @@ import {
   differenceInCalendarDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
   ChevronLeft,
@@ -29,7 +28,6 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  FileText,
   Download,
   Plus,
   Chrome,
@@ -41,9 +39,8 @@ import {
   Camera,
   CreditCard,
   CalendarOff,
-  Settings,
-  ChevronDown,
   Shield,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,267 +49,168 @@ import { LEAVE_TYPE_LABELS, LeaveType, LeaveRequest } from '@/types/serviceSched
 import { useProfessionalPortal } from '@/hooks/useProfessionalPortal';
 import { toast } from 'sonner';
 
-// ─────────────────────────────────────────
-// Tipos portal
-// ─────────────────────────────────────────
+// ─── Types ───
 interface ServiceProfessionalPortal {
-  id: string;
-  name: string;
-  category: 'tech' | 'nurse';
-  monthlyHours: number;
-  active: boolean;
+  id: string; name: string; category: 'tech' | 'nurse'; monthlyHours: number; active: boolean;
 }
 interface ServiceScheduleEntry {
-  id: string;
-  professionalId: string;
-  date: string;
-  type: 'nurse' | 'tech';
-  isWeekend?: boolean;
+  id: string; professionalId: string; date: string; type: 'nurse' | 'tech'; isWeekend?: boolean;
 }
 interface PortalData {
-  publishedAt: string;
-  adminName?: string;
-  service: {
-    professionals: ServiceProfessionalPortal[];
-    nurseEntries: ServiceScheduleEntry[];
-    techEntries: ServiceScheduleEntry[];
-    leaveRequests?: LeaveRequest[];
-  };
+  publishedAt: string; adminName?: string;
+  service: { professionals: ServiceProfessionalPortal[]; nurseEntries: ServiceScheduleEntry[]; techEntries: ServiceScheduleEntry[]; leaveRequests?: LeaveRequest[]; };
 }
-
 type PortalTab = 'schedule' | 'credits' | 'leaves' | 'profile';
 
-// ─────────────────────────────────────────
-// Google Login Screen
-// ─────────────────────────────────────────
-function GoogleLoginScreen({
-  onLogin,
-  loading,
-  onInstall,
-  showInstall,
-}: {
-  onLogin: () => void;
-  loading: boolean;
-  onInstall: () => void;
-  showInstall: boolean;
-}) {
+// ─── Credit Ring SVG ───
+function CreditRing({ balance, total }: { balance: number; total: number }) {
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
+  const pct = total > 0 ? Math.max(0, Math.min(1, balance / total)) : 0;
+  const offset = circumference * (1 - pct);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-[50vh] bg-gradient-to-b from-primary/8 to-transparent" />
-
-      <div className="w-full max-w-sm relative z-10">
-        <div className="text-center mb-8 space-y-3">
-          <div className="relative inline-block">
-            <div className="w-20 h-20 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-xl shadow-primary/25 mx-auto">
-              <img
-                src="/logo-saude-plus.png"
-                alt="Saúde+"
-                className="h-12 w-auto brightness-0 invert"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <Stethoscope className="h-10 w-10 text-primary-foreground absolute inset-0 m-auto opacity-15" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-foreground">
-              Portal <span className="text-primary">Saúde+</span>
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">Acesso do profissional de saúde</p>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-3xl shadow-xl border border-border/50 overflow-hidden">
-          <div className="p-8 space-y-5">
-            <div className="text-center space-y-1">
-              <h2 className="text-lg font-bold text-foreground">Bem-vindo(a)</h2>
-              <p className="text-xs text-muted-foreground">
-                Acesse suas escalas, créditos e solicite folgas
-              </p>
-            </div>
-
-            <Button
-              onClick={onLogin}
-              disabled={loading}
-              className="w-full h-14 text-base font-bold rounded-2xl gap-3 shadow-lg shadow-primary/15"
-            >
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Chrome className="h-5 w-5" />
-              )}
-              Entrar com Google
-            </Button>
-
-            {showInstall && (
-              <Button
-                variant="outline"
-                onClick={onInstall}
-                className="w-full h-12 rounded-2xl font-semibold gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Instalar App
-              </Button>
-            )}
-          </div>
-
-          <div className="bg-muted/30 px-8 py-4 border-t border-border/30">
-            <p className="text-[10px] text-center text-muted-foreground">
-              Acesso exclusivo para profissionais da Secretaria de Saúde
-            </p>
-          </div>
-        </div>
+    <div className="relative w-40 h-40 mx-auto">
+      <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth="10" opacity="0.3" />
+        <circle
+          cx="70" cy="70" r={radius} fill="none"
+          stroke={balance >= 0 ? "hsl(var(--accent))" : "hsl(var(--destructive))"}
+          strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          className="portal-ring"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn(
+          "text-4xl font-black leading-none",
+          balance > 0 ? "text-accent" : balance < 0 ? "text-destructive" : "text-muted-foreground"
+        )}>{balance}</span>
+        <span className="text-[10px] font-semibold text-muted-foreground mt-1">dias</span>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────
-// Registration Screen
-// ─────────────────────────────────────────
-function RegistrationScreen({
-  onRegister,
-  teamId,
-  userEmail,
-  userName,
-}: {
-  onRegister: (teamId: string, category: string, fullName: string) => void;
-  teamId: string | null;
-  userEmail: string;
-  userName: string;
-}) {
+// ─── Login Screen ───
+function GoogleLoginScreen({ onLogin, loading, onInstall, showInstall }: { onLogin: () => void; loading: boolean; onInstall: () => void; showInstall: boolean; }) {
+  return (
+    <div className="portal-native min-h-screen bg-background flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-xs space-y-8">
+        <div className="text-center space-y-3">
+          <div className="w-20 h-20 rounded-[22px] bg-primary flex items-center justify-center mx-auto shadow-xl shadow-primary/20 portal-press">
+            <img src="/logo-saude-plus.png" alt="Saúde+" className="h-11 w-auto brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <Stethoscope className="h-9 w-9 text-primary-foreground absolute opacity-10" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Portal Saúde+</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Acesso do profissional</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <button onClick={onLogin} disabled={loading}
+            className="portal-press w-full h-[52px] rounded-[14px] bg-foreground text-background font-semibold text-[15px] flex items-center justify-center gap-2.5 shadow-lg disabled:opacity-50">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Chrome className="h-5 w-5" />}
+            Continuar com Google
+          </button>
+
+          {showInstall && (
+            <button onClick={onInstall}
+              className="portal-press w-full h-[48px] rounded-[14px] border-2 border-border text-foreground font-semibold text-sm flex items-center justify-center gap-2">
+              <Download className="h-4 w-4" /> Instalar App
+            </button>
+          )}
+        </div>
+
+        <p className="text-[10px] text-center text-muted-foreground/60">Acesso exclusivo para profissionais da Secretaria de Saúde</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Registration Screen ───
+function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onRegister: (t: string, c: string, n: string) => void; teamId: string | null; userEmail: string; userName: string; }) {
   const [fullName, setFullName] = useState(userName || '');
   const [category, setCategory] = useState('');
 
   if (!teamId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-sm w-full rounded-3xl border shadow-xl">
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
-              <AlertCircle className="h-7 w-7 text-destructive" />
-            </div>
-            <h2 className="text-lg font-bold">Link inválido</h2>
-            <p className="text-sm text-muted-foreground">
-              Use o link fornecido pelo seu administrador para acessar o portal.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="portal-card-inset p-8 text-center space-y-3 max-w-xs w-full">
+          <AlertCircle className="h-10 w-10 mx-auto text-destructive" />
+          <h2 className="text-lg font-bold">Link inválido</h2>
+          <p className="text-sm text-muted-foreground">Use o link fornecido pelo administrador.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
-        <Card className="rounded-3xl border shadow-xl">
-          <CardContent className="p-8 space-y-5">
-            <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-                <User className="h-7 w-7 text-primary" />
-              </div>
-              <h2 className="text-lg font-bold">Solicitar Acesso</h2>
-              <p className="text-xs text-muted-foreground">
-                Complete seu cadastro para acessar o portal
-              </p>
-            </div>
-
-            <div className="bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
-              <p>Logado como <span className="font-medium text-foreground">{userEmail}</span></p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Nome completo</Label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Nome Sobrenome"
-                className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Categoria profissional</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue placeholder="Selecione sua categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nurse">
-                    <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
-                  </SelectItem>
-                  <SelectItem value="tech">
-                    <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
-                  </SelectItem>
-                  <SelectItem value="emult">
-                    <span className="flex items-center gap-2"><Users className="w-4 h-4" /> eMult</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              onClick={() => onRegister(teamId, category, fullName.trim())}
-              disabled={!category || !fullName.trim()}
-              className="w-full h-12 rounded-xl font-bold"
-            >
-              Enviar Solicitação
-            </Button>
-
-            <p className="text-[10px] text-center text-muted-foreground">
-              O administrador precisará aprovar seu acesso.
-            </p>
-          </CardContent>
-        </Card>
+    <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="portal-card-inset p-6 space-y-5 max-w-xs w-full">
+        <div className="text-center space-y-1">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto"><User className="h-6 w-6 text-primary" /></div>
+          <h2 className="text-lg font-bold mt-2">Solicitar Acesso</h2>
+        </div>
+        <div className="bg-muted/50 rounded-xl px-3 py-2 text-xs text-muted-foreground">{userEmail}</div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-muted-foreground">Nome completo</Label>
+          <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nome Sobrenome"
+            className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-muted-foreground">Categoria</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nurse"><span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" />Enfermeiro(a)</span></SelectItem>
+              <SelectItem value="tech"><span className="flex items-center gap-2"><Syringe className="w-4 h-4" />Técnico(a)</span></SelectItem>
+              <SelectItem value="emult"><span className="flex items-center gap-2"><Users className="w-4 h-4" />eMult</span></SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <button onClick={() => onRegister(teamId, category, fullName.trim())} disabled={!category || !fullName.trim()}
+          className="portal-press w-full h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm disabled:opacity-40">
+          Enviar Solicitação
+        </button>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────
-// Pending Approval Screen
-// ─────────────────────────────────────────
+// ─── Pending Screen ───
 function PendingScreen({ onLogout, status }: { onLogout: () => void; status: string }) {
-  const isPending = status === 'pending';
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="max-w-sm w-full rounded-3xl border shadow-xl">
-        <CardContent className="p-8 text-center space-y-5">
-          {isPending ? (
-            <>
-              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
-                <HourglassIcon className="h-8 w-8 text-amber-500 animate-pulse" />
-              </div>
-              <h2 className="text-lg font-bold">Aguardando Aprovação</h2>
-              <p className="text-sm text-muted-foreground">
-                Sua solicitação foi enviada. Você receberá acesso após a aprovação do administrador.
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-                <XCircle className="h-8 w-8 text-destructive" />
-              </div>
-              <h2 className="text-lg font-bold">Acesso Negado</h2>
-              <p className="text-sm text-muted-foreground">
-                Sua solicitação foi rejeitada. Entre em contato com a coordenação.
-              </p>
-            </>
-          )}
-          <Button variant="outline" onClick={onLogout} className="gap-2 rounded-xl">
-            <LogOut className="h-4 w-4" /> Sair
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="portal-card-inset p-8 text-center space-y-4 max-w-xs w-full">
+        {status === 'pending' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-warning/15 flex items-center justify-center mx-auto">
+              <HourglassIcon className="h-7 w-7 text-warning animate-pulse" />
+            </div>
+            <h2 className="text-lg font-bold">Aguardando Aprovação</h2>
+            <p className="text-sm text-muted-foreground">Sua solicitação será analisada pelo administrador.</p>
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+              <XCircle className="h-7 w-7 text-destructive" />
+            </div>
+            <h2 className="text-lg font-bold">Acesso Negado</h2>
+            <p className="text-sm text-muted-foreground">Entre em contato com a coordenação.</p>
+          </>
+        )}
+        <button onClick={onLogout} className="portal-press text-sm text-muted-foreground font-medium flex items-center gap-1.5 mx-auto">
+          <LogOut className="h-3.5 w-3.5" /> Sair
+        </button>
+      </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────
-// Bottom Navigation Bar
-// ─────────────────────────────────────────
-function PortalBottomNav({ activeTab, onTabChange }: { activeTab: PortalTab; onTabChange: (tab: PortalTab) => void }) {
+// ─── Bottom Nav ───
+function BottomNav({ active, onChange, leaveCount }: { active: PortalTab; onChange: (t: PortalTab) => void; leaveCount: number }) {
   const tabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
     { id: 'schedule', icon: Calendar, label: 'Escala' },
     { id: 'credits', icon: CreditCard, label: 'Créditos' },
@@ -321,56 +219,39 @@ function PortalBottomNav({ activeTab, onTabChange }: { activeTab: PortalTab; onT
   ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-      <div className="flex items-stretch max-w-lg mx-auto">
+    <nav className="fixed bottom-0 inset-x-0 z-50 portal-glass border-t border-border/40 safe-area-bottom">
+      <div className="grid grid-cols-4 max-w-lg mx-auto h-[54px]">
         {tabs.map(tab => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = active === tab.id;
           return (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all duration-200 relative",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground active:scale-95"
-              )}
-            >
-              {isActive && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-primary rounded-b-full" />
-              )}
-              <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
-              <span className={cn("text-[10px] font-semibold", isActive && "font-bold")}>{tab.label}</span>
+            <button key={tab.id} onClick={() => onChange(tab.id)}
+              className={cn("portal-press flex flex-col items-center justify-center gap-[2px] relative", isActive ? "text-primary" : "text-muted-foreground")}>
+              <div className="relative">
+                <Icon className={cn("h-[22px] w-[22px] transition-all duration-200", isActive && "scale-105")} strokeWidth={isActive ? 2.5 : 2} />
+                {tab.id === 'leaves' && leaveCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center">{leaveCount}</span>
+                )}
+              </div>
+              <span className={cn("text-[10px] leading-none", isActive ? "font-bold" : "font-medium")}>{tab.label}</span>
+              {isActive && <div className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-[3px] bg-primary rounded-full" />}
             </button>
           );
         })}
       </div>
-      {/* Safe area spacer for iPhones */}
-      <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );
 }
 
-// ─────────────────────────────────────────
-// Main Portal Component
-// ─────────────────────────────────────────
+// ─── Main ───
 export default function Portal() {
   const {
-    session,
-    professionalUser,
-    leaveRequests,
-    loading,
-    loginWithGoogle,
-    logout,
-    registerProfessional,
-    submitLeaveRequest,
-    refreshLeaveRequests,
-    refreshProfile,
+    session, professionalUser, leaveRequests, loading,
+    loginWithGoogle, logout, registerProfessional, submitLeaveRequest,
+    refreshLeaveRequests, refreshProfile,
   } = useProfessionalPortal();
 
   interface BeforeInstallPromptEvent extends Event {
-    readonly platforms?: string[];
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
   }
@@ -382,65 +263,42 @@ export default function Portal() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<PortalTab>('schedule');
-  const [leaveForm, setLeaveForm] = useState({
-    leaveType: '' as LeaveType | '',
-    startDate: '',
-    endDate: '',
-    observations: '',
-  });
+  const [leaveForm, setLeaveForm] = useState({ leaveType: '' as LeaveType | '', startDate: '', endDate: '', observations: '' });
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // ── Get team ID from URL or localStorage ──
   const getTeamId = (): string | null => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    return urlParams.get('team') || hashParams.get('team') || localStorage.getItem('portal_team_id');
+    const u = new URLSearchParams(window.location.search);
+    const h = new URLSearchParams(window.location.hash.slice(1));
+    return u.get('team') || h.get('team') || localStorage.getItem('portal_team_id');
   };
-
   const teamIdFromUrl = getTeamId();
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const t = urlParams.get('team') || hashParams.get('team');
+    const u = new URLSearchParams(window.location.search);
+    const h = new URLSearchParams(window.location.hash.slice(1));
+    const t = u.get('team') || h.get('team');
     if (t) localStorage.setItem('portal_team_id', t);
   }, []);
 
   useEffect(() => {
-    const ensureTeamForProfessional = async () => {
-      if (!professionalUser || !teamIdFromUrl) return;
-      if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
+    if (!professionalUser || !teamIdFromUrl) return;
+    if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
+      (async () => {
         try {
-          await supabase.rpc('register_professional_via_portal' as any, {
-            _team_id: teamIdFromUrl,
-            _category: professionalUser.category,
-            _full_name: professionalUser.full_name,
-            _email: professionalUser.email,
-          } as any);
+          await supabase.rpc('register_professional_via_portal' as any, { _team_id: teamIdFromUrl, _category: professionalUser.category, _full_name: professionalUser.full_name, _email: professionalUser.email } as any);
           await refreshProfile();
-        } catch (err) {
-          console.error('Erro ao atualizar equipe do profissional:', err);
-        }
-      }
-    };
-    ensureTeamForProfessional();
+        } catch (err) { console.error(err); }
+      })();
+    }
   }, [professionalUser, teamIdFromUrl, refreshProfile]);
 
-  // PWA install
   useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    const h = (e: Event) => { e.preventDefault(); setDeferredPrompt(e as BeforeInstallPromptEvent); };
+    window.addEventListener('beforeinstallprompt', h);
+    return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
 
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setDeferredPrompt(null);
-  };
+  const handleInstall = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') setDeferredPrompt(null); };
 
   const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;
 
@@ -448,34 +306,17 @@ export default function Portal() {
     if (!effectiveTeamId) return;
     setLoadingPortal(true);
     try {
-      const { data, error } = await supabase
-        .from('portal_schedules' as any)
-        .select('*')
-        .eq('emult_data->>teamId', effectiveTeamId)
-        .order('published_at', { ascending: false })
-        .limit(1)
-        .maybeSingle() as any;
-
+      const { data, error } = await supabase.from('portal_schedules' as any).select('*').eq('emult_data->>teamId', effectiveTeamId).order('published_at', { ascending: false }).limit(1).maybeSingle() as any;
       if (error) throw error;
-      if (data) {
-        setPortalData({
-          publishedAt: data.published_at,
-          adminName: data.admin_name || undefined,
-          service: data.service_data as unknown as PortalData['service'],
-        });
-      }
-    } catch (err) {
-      console.error('Erro ao carregar dados do portal:', err);
-    } finally {
-      setLoadingPortal(false);
-    }
+      if (data) setPortalData({ publishedAt: data.published_at, adminName: data.admin_name || undefined, service: data.service_data as unknown as PortalData['service'] });
+    } catch (err) { console.error(err); } finally { setLoadingPortal(false); }
   }, [effectiveTeamId]);
 
-  useEffect(() => {
-    if (professionalUser?.status === 'approved') fetchPortalData();
-  }, [professionalUser, fetchPortalData]);
+  useEffect(() => { if (professionalUser?.status === 'approved') fetchPortalData(); }, [professionalUser, fetchPortalData]);
 
-  // Computed data
+  // Scroll to top on tab change
+  useEffect(() => { contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }, [activeTab]);
+
   const myProfessional = useMemo(() => {
     if (!portalData || !professionalUser?.professional_id) return null;
     return portalData.service.professionals.find(p => p.id === professionalUser.professional_id) || null;
@@ -483,651 +324,445 @@ export default function Portal() {
 
   const myEntries = useMemo(() => {
     if (!professionalUser?.professional_id || !portalData) return [];
-    const allEntries = [
-      ...(portalData.service.nurseEntries || []),
-      ...(portalData.service.techEntries || []),
-    ];
-    return allEntries.filter(e => e.professionalId === professionalUser.professional_id);
+    return [...(portalData.service.nurseEntries || []), ...(portalData.service.techEntries || [])].filter(e => e.professionalId === professionalUser.professional_id);
   }, [portalData, professionalUser]);
 
   const myLeaveRequestsFromAdmin = useMemo(() => {
     if (!professionalUser?.professional_id || !portalData?.service?.leaveRequests) return [];
-    return (portalData.service.leaveRequests as LeaveRequest[])
-      .filter(r => r.professionalId === professionalUser.professional_id);
+    return (portalData.service.leaveRequests as LeaveRequest[]).filter(r => r.professionalId === professionalUser.professional_id);
   }, [portalData, professionalUser]);
 
   const myStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
     const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
-    const overallWeekendEntries = pastEntries.filter(e => e.isWeekend);
-    const overallWeekendDates = new Set(overallWeekendEntries.map(e => e.date));
-    const overallWeekendDays = overallWeekendDates.size;
+    const overallWeekendDays = new Set(pastEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const overallCreditsGenerated = overallWeekendDays * 2;
-    const overallCreditsUsed = myLeaveRequestsFromAdmin
-      .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
-      .reduce((sum, r) => sum + r.daysRequested, 0);
-    const overallCreditsBalance = overallCreditsGenerated - overallCreditsUsed;
+    const overallCreditsUsed = myLeaveRequestsFromAdmin.filter(r => r.leaveType === 'folga_credito' && r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
 
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const monthEntries = myEntries.filter(e => {
-      const d = new Date(e.date);
-      return d >= monthStart && d <= monthEnd && d <= today;
-    });
+    const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
+    const monthEntries = myEntries.filter(e => { const d = new Date(e.date); return d >= ms && d <= me && d <= today; });
     const monthWorkedDays = new Set(monthEntries.map(e => e.date)).size;
-    const monthWeekendEntries = monthEntries.filter(e => e.isWeekend);
-    const monthWeekendDates = new Set(monthWeekendEntries.map(e => e.date));
-    const monthWeekendDays = monthWeekendDates.size;
+    const monthWeekendDays = new Set(monthEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const monthCreditsGenerated = monthWeekendDays * 2;
-    const monthCreditsUsed = myLeaveRequestsFromAdmin
-      .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
-      .reduce((sum, r) => {
-        if (!r.leaveDates?.length) return sum;
-        const first = new Date(r.leaveDates[0] + 'T00:00:00');
-        const last = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00');
-        if (last < monthStart || first > monthEnd) return sum;
-        return sum + r.daysRequested;
-      }, 0);
+    const monthCreditsUsed = myLeaveRequestsFromAdmin.filter(r => r.leaveType === 'folga_credito' && r.status === 'approved').reduce((s, r) => {
+      if (!r.leaveDates?.length) return s;
+      const f = new Date(r.leaveDates[0] + 'T00:00:00'); const l = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00');
+      if (l < ms || f > me) return s; return s + r.daysRequested;
+    }, 0);
 
     return {
-      overall: {
-        workedDays: overallWorkedDays,
-        weekendDays: overallWeekendDays,
-        creditsGenerated: overallCreditsGenerated,
-        creditsUsed: overallCreditsUsed,
-        creditsBalance: overallCreditsBalance,
-      },
-      month: {
-        workedDays: monthWorkedDays,
-        weekendDays: monthWeekendDays,
-        creditsGenerated: monthCreditsGenerated,
-        creditsUsed: monthCreditsUsed,
-        creditsBalance: monthCreditsGenerated - monthCreditsUsed,
-      },
+      overall: { workedDays: overallWorkedDays, weekendDays: overallWeekendDays, creditsGenerated: overallCreditsGenerated, creditsUsed: overallCreditsUsed, creditsBalance: overallCreditsGenerated - overallCreditsUsed },
+      month: { workedDays: monthWorkedDays, weekendDays: monthWeekendDays, creditsGenerated: monthCreditsGenerated, creditsUsed: monthCreditsUsed, creditsBalance: monthCreditsGenerated - monthCreditsUsed },
     };
   }, [myEntries, myLeaveRequestsFromAdmin, currentMonth]);
 
-  // Leave form helpers
   const daysRequested = useMemo(() => {
     if (!leaveForm.startDate || !leaveForm.endDate) return 0;
-    const start = new Date(leaveForm.startDate + 'T00:00:00');
-    const end = new Date(leaveForm.endDate + 'T00:00:00');
-    if (end < start) return 0;
-    return differenceInCalendarDays(end, start) + 1;
+    const s = new Date(leaveForm.startDate + 'T00:00:00'); const e = new Date(leaveForm.endDate + 'T00:00:00');
+    return e < s ? 0 : differenceInCalendarDays(e, s) + 1;
   }, [leaveForm.startDate, leaveForm.endDate]);
 
   const isShortNotice = useMemo(() => {
     if (!leaveForm.startDate) return false;
-    const start = new Date(leaveForm.startDate + 'T00:00:00');
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return differenceInCalendarDays(start, today) < 10;
+    const s = new Date(leaveForm.startDate + 'T00:00:00'); const t = new Date(); t.setHours(0, 0, 0, 0);
+    return differenceInCalendarDays(s, t) < 10;
   }, [leaveForm.startDate]);
 
   const handleSubmitLeave = async () => {
-    if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) {
-      toast.error('Preencha todos os campos.');
-      return;
-    }
-    if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.overall.creditsBalance) {
-      toast.error(`Saldo insuficiente. Disponível: ${myStats.overall.creditsBalance} dias`);
-      return;
-    }
-    const success = await submitLeaveRequest({
-      leave_type: leaveForm.leaveType,
-      start_date: leaveForm.startDate,
-      end_date: leaveForm.endDate,
-      days_requested: daysRequested,
-      observations: leaveForm.observations || undefined,
-    });
-    if (success) {
-      setLeaveForm({ leaveType: '', startDate: '', endDate: '', observations: '' });
-      setLeaveDialogOpen(false);
-    }
+    if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) { toast.error('Preencha todos os campos.'); return; }
+    if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.overall.creditsBalance) { toast.error(`Saldo insuficiente: ${myStats.overall.creditsBalance} dias`); return; }
+    const ok = await submitLeaveRequest({ leave_type: leaveForm.leaveType, start_date: leaveForm.startDate, end_date: leaveForm.endDate, days_requested: daysRequested, observations: leaveForm.observations || undefined });
+    if (ok) { setLeaveForm({ leaveType: '', startDate: '', endDate: '', observations: '' }); setLeaveDialogOpen(false); }
   };
 
-  const handleAvatarUpload = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
+  const handleAvatarUpload = () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !session?.user) return;
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('A imagem deve ter no máximo 2 MB');
-        return;
-      }
+      if (file.size > 2 * 1024 * 1024) { toast.error('Máximo 2 MB'); return; }
       setAvatarUploading(true);
       try {
         const ext = file.name.split('.').pop() || 'jpg';
         const filePath = `${session.user.id}/avatar.${ext}`;
-        const { error: uploadErr } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, file, { upsert: true });
-        if (uploadErr) throw uploadErr;
-        const avatarUrl = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
-        await (supabase.from('professional_users' as any).update({ avatar_url: avatarUrl } as any).eq('user_id', session.user.id) as any);
-        await refreshProfile();
-        toast.success('Foto atualizada!');
-      } catch (err: any) {
-        toast.error('Erro ao enviar foto: ' + (err.message || ''));
-      } finally {
-        setAvatarUploading(false);
-      }
+        const { error: ue } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+        if (ue) throw ue;
+        const url = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
+        await (supabase.from('professional_users' as any).update({ avatar_url: url } as any).eq('user_id', session.user.id) as any);
+        await refreshProfile(); toast.success('Foto atualizada!');
+      } catch (err: any) { toast.error('Erro: ' + (err.message || '')); } finally { setAvatarUploading(false); }
     };
     input.click();
   };
 
-  // ─── Render States ───
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // ─── Guards ───
+  if (loading) return <div className="portal-native min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
+  if (!session) return <GoogleLoginScreen onLogin={loginWithGoogle} loading={false} onInstall={handleInstall} showInstall={!!deferredPrompt} />;
+  if (!professionalUser) return <RegistrationScreen onRegister={registerProfessional} teamId={teamIdFromUrl} userEmail={session.user.email || ''} userName={session.user.user_metadata?.full_name || ''} />;
+  if (professionalUser.status !== 'approved') return <PendingScreen onLogout={logout} status={professionalUser.status} />;
 
-  if (!session) {
-    return (
-      <GoogleLoginScreen
-        onLogin={loginWithGoogle}
-        loading={false}
-        onInstall={handleInstall}
-        showInstall={!!deferredPrompt}
-      />
-    );
-  }
-
-  if (!professionalUser) {
-    return (
-      <RegistrationScreen
-        onRegister={registerProfessional}
-        teamId={teamIdFromUrl}
-        userEmail={session.user.email || ''}
-        userName={session.user.user_metadata?.full_name || ''}
-      />
-    );
-  }
-
-  if (professionalUser.status !== 'approved') {
-    return <PendingScreen onLogout={logout} status={professionalUser.status} />;
-  }
-
-  // ─── Helper funcs ───
-  const goToPreviousMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
-  const goToNextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
-
-  const updatedLabel = portalData
-    ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR })
-    : 'Sem dados';
+  // ─── Helpers ───
+  const prevMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
+  const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
+  const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
+  const CategoryIcon = professionalUser.category === 'nurse' ? Stethoscope : professionalUser.category === 'tech' ? Syringe : Users;
 
   const statusBadge = (status: string) => {
-    switch (status) {
-      case 'approved': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />Aprovado</Badge>;
-      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
-      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]"><HourglassIcon className="w-3 h-3 mr-1" />Pendente</Badge>;
-    }
+    if (status === 'approved') return <span className="inline-flex items-center gap-1 text-[10px] font-bold text-accent"><CheckCircle2 className="w-3 h-3" />Aprovado</span>;
+    if (status === 'rejected') return <span className="inline-flex items-center gap-1 text-[10px] font-bold text-destructive"><XCircle className="w-3 h-3" />Rejeitado</span>;
+    return <span className="inline-flex items-center gap-1 text-[10px] font-bold text-warning"><Clock className="w-3 h-3" />Pendente</span>;
   };
 
-  const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
-  const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
-
-  // ─── APPROVED MAIN PORTAL ───
+  // ─── RENDER ───
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Compact Header */}
-      <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-xl border-b border-border/50">
-        <div className="px-4 h-14 flex items-center justify-between max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 ring-2 ring-primary/20">
-              {professionalUser.avatar_url ? (
-                <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-4 h-4 text-primary" />
-              )}
+    <div className="portal-native min-h-screen bg-background flex flex-col">
+      {/* ── iOS-style header ── */}
+      <header className="portal-glass sticky top-0 z-40 border-b border-border/30">
+        <div className="px-4 max-w-lg mx-auto">
+          {/* Top row: avatar + name + refresh */}
+          <div className="h-[52px] flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0 ring-[1.5px] ring-primary/20">
+                {professionalUser.avatar_url
+                  ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : <User className="w-3.5 h-3.5 text-muted-foreground" />}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-foreground leading-tight truncate">Olá, {firstName} 👋</p>
+                <p className="text-[10px] text-muted-foreground leading-tight truncate">{categoryLabel}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground truncate">Olá, {firstName}</p>
-              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Atualizado {updatedLabel}
-              </p>
-            </div>
+            <button
+              onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+              disabled={loadingPortal}
+              className="portal-press w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground">
+              <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
-            disabled={loadingPortal}
-            className="rounded-full h-9 w-9"
-          >
-            <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
-          </Button>
         </div>
       </header>
 
-      {/* Tab Content */}
-      <main className="max-w-2xl mx-auto px-4 py-5">
-        {loadingPortal ? (
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full rounded-2xl" />
-            <Skeleton className="h-64 w-full rounded-2xl" />
-          </div>
-        ) : (
-          <>
-            {/* ═══ SCHEDULE TAB ═══ */}
-            {activeTab === 'schedule' && (
-              <div className="space-y-5 animate-in fade-in duration-300">
-                {/* Month navigator */}
-                <div className="flex items-center justify-between">
-                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-full h-9 w-9">
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  <h2 className="text-base font-black capitalize text-foreground">
-                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                  </h2>
-                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-full h-9 w-9">
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </div>
+      {/* ── Content area ── */}
+      <div ref={contentRef} className="flex-1 overflow-y-auto pb-24">
+        <div className="max-w-lg mx-auto px-4 py-4">
+          {loadingPortal ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full rounded-2xl" />
+              <Skeleton className="h-60 w-full rounded-2xl" />
+            </div>
+          ) : (
+            <div className="portal-page-enter">
+              {/* ════════ SCHEDULE ════════ */}
+              {activeTab === 'schedule' && (
+                <div className="space-y-4">
+                  {/* Month nav */}
+                  <div className="flex items-center justify-between">
+                    <button onClick={prevMonth} className="portal-press w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted/50">
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <h2 className="text-[15px] font-extrabold capitalize text-foreground tracking-tight">
+                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                    </h2>
+                    <button onClick={nextMonth} className="portal-press w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted/50">
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
 
-                {/* Calendar */}
-                <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-7 text-center bg-muted/40 border-b border-border/50">
-                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                      <div key={i} className="py-2.5 text-[10px] font-bold text-muted-foreground uppercase">{d}</div>
+                  {/* Calendar grid */}
+                  <div className="portal-card-inset overflow-hidden">
+                    <div className="grid grid-cols-7 text-center">
+                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                        <div key={i} className="py-2 text-[10px] font-bold text-muted-foreground/60">{d}</div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-px bg-border/20">
+                      {(() => {
+                        const ms = startOfMonth(currentMonth);
+                        const me = endOfMonth(currentMonth);
+                        const days = eachDayOfInterval({ start: ms, end: me });
+                        const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square bg-background" />);
+
+                        const cells = days.map(day => {
+                          const ds = format(day, 'yyyy-MM-dd');
+                          const hasWork = myEntries.some(e => e.date === ds);
+                          const isWknd = getDay(day) === 0 || getDay(day) === 6;
+                          const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
+                          const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
+
+                          return (
+                            <div key={ds} className={cn("aspect-square flex flex-col items-center justify-center bg-background relative")}>
+                              <span className={cn(
+                                "text-[13px] font-semibold w-8 h-8 flex items-center justify-center rounded-full transition-all",
+                                isToday && "bg-primary text-primary-foreground font-bold shadow-sm shadow-primary/30",
+                                hasLeave && !isToday && "bg-destructive/10 text-destructive",
+                                !isToday && !hasLeave && isWknd && "text-muted-foreground/50",
+                                !isToday && !hasLeave && !isWknd && "text-foreground",
+                              )}>
+                                {format(day, 'd')}
+                              </span>
+                              {hasWork && !hasLeave && (
+                                <div className={cn(
+                                  "absolute bottom-[3px] w-[5px] h-[5px] rounded-full",
+                                  isWknd ? "bg-warning" : "bg-accent"
+                                )} />
+                              )}
+                              {hasLeave && (
+                                <div className="absolute bottom-[3px] w-[5px] h-[5px] rounded-full bg-destructive" />
+                              )}
+                            </div>
+                          );
+                        });
+                        return [...blanks, ...cells];
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center justify-center gap-4 text-[9px] font-semibold text-muted-foreground">
+                    <span className="flex items-center gap-1"><div className="w-[6px] h-[6px] rounded-full bg-accent" />Dia útil</span>
+                    <span className="flex items-center gap-1"><div className="w-[6px] h-[6px] rounded-full bg-warning" />FDS</span>
+                    <span className="flex items-center gap-1"><div className="w-[6px] h-[6px] rounded-full bg-destructive" />Afastamento</span>
+                  </div>
+
+                  {/* Month summary cards */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: myStats.month.workedDays, label: 'Escalas', color: 'text-primary' },
+                      { value: myStats.month.weekendDays, label: 'FDS', color: 'text-warning' },
+                      { value: myStats.month.creditsBalance, label: 'Créditos', color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive' },
+                    ].map((s, i) => (
+                      <div key={i} className="portal-card-inset p-3 text-center">
+                        <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                      </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7">
-                    {(() => {
-                      const mStart = startOfMonth(currentMonth);
-                      const mEnd = endOfMonth(currentMonth);
-                      const days = eachDayOfInterval({ start: mStart, end: mEnd });
-                      const startDow = getDay(mStart);
-                      const blanks = Array.from({ length: startDow }, (_, i) => (
-                        <div key={`b-${i}`} className="aspect-square" />
-                      ));
 
-                      const dayCells = days.map(day => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const hasWork = myEntries.some(e => e.date === dateStr);
-                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
-
-                        return (
-                          <div
-                            key={dateStr}
-                            className={cn(
-                              "aspect-square flex flex-col items-center justify-center relative transition-colors",
-                              isToday && "bg-primary/8",
-                            )}
-                          >
-                            <span className={cn(
-                              "text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full",
-                              isToday && "bg-primary text-primary-foreground font-bold",
-                              !isToday && isWeekend && "text-muted-foreground",
-                              !isToday && !isWeekend && "text-foreground"
-                            )}>
-                              {format(day, 'd')}
-                            </span>
-                            {hasWork && (
-                              <div className={cn(
-                                "w-1.5 h-1.5 rounded-full mt-0.5 absolute bottom-1",
-                                isWeekend ? "bg-amber-400" : "bg-emerald-500"
-                              )} />
-                            )}
-                          </div>
-                        );
-                      });
-
-                      return [...blanks, ...dayCells];
-                    })()}
-                  </div>
-                </div>
-
-                {/* Legend */}
-                <div className="flex items-center justify-center gap-5 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" />Dia útil</span>
-                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" />Fim de semana</span>
-                  <span className="flex items-center gap-1.5"><div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[8px] font-bold">H</div>Hoje</span>
-                </div>
-
-                {/* Quick stats */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-card rounded-2xl border border-border/50 p-4 text-center">
-                    <p className="text-2xl font-black text-primary">{myStats.month.workedDays}</p>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase mt-0.5">Dias no mês</p>
-                  </div>
-                  <div className="bg-card rounded-2xl border border-border/50 p-4 text-center">
-                    <p className="text-2xl font-black text-amber-500">{myStats.month.weekendDays}</p>
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase mt-0.5">Fins de semana</p>
-                  </div>
-                </div>
-
-                {/* Overall summary */}
-                <div className="bg-muted/30 rounded-2xl border border-border/50 p-4">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wide mb-2">Resumo Geral</p>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-lg font-black text-foreground">{myStats.overall.workedDays}</p>
-                      <p className="text-[9px] text-muted-foreground">Dias totais</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-amber-500">{myStats.overall.weekendDays}</p>
-                      <p className="text-[9px] text-muted-foreground">FDS totais</p>
-                    </div>
-                    <div>
-                      <p className={cn("text-lg font-black", myStats.overall.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>{myStats.overall.creditsBalance}</p>
-                      <p className="text-[9px] text-muted-foreground">Saldo créditos</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ═══ CREDITS TAB ═══ */}
-            {activeTab === 'credits' && (
-              <div className="space-y-5 animate-in fade-in duration-300">
-                {/* Main balance */}
-                <div className="bg-card rounded-3xl border border-border/50 shadow-sm p-8 text-center">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Saldo de Créditos</p>
-                  <p className={cn(
-                    "text-6xl font-black leading-none",
-                    myStats.overall.creditsBalance > 0 ? "text-emerald-600" : myStats.overall.creditsBalance < 0 ? "text-destructive" : "text-muted-foreground"
-                  )}>
-                    {myStats.overall.creditsBalance}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">dias disponíveis</p>
-                </div>
-
-                {/* Generated vs Used */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/30 p-5 text-center">
-                    <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-3xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
-                    <p className="text-[10px] font-bold text-emerald-600/70 uppercase mt-1">Gerados</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200/50 dark:border-red-700/30 p-5 text-center">
-                    <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-2" />
-                    <p className="text-3xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
-                    <p className="text-[10px] font-bold text-red-600/70 uppercase mt-1">Utilizados</p>
-                  </div>
-                </div>
-
-                {/* Month stats */}
-                <div className="bg-card rounded-2xl border border-border/50 p-5">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wide mb-3">
-                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Créditos gerados</span>
-                      <span className="text-sm font-bold text-emerald-600">+{myStats.month.creditsGenerated}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Créditos utilizados</span>
-                      <span className="text-sm font-bold text-red-500">-{myStats.month.creditsUsed}</span>
-                    </div>
-                    <div className="border-t border-border/50 pt-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">Saldo do mês</span>
-                      <span className={cn("text-sm font-black", myStats.month.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>
-                        {myStats.month.creditsBalance}
+                  {/* Overall bar */}
+                  <div className="portal-card-inset p-3 flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-muted-foreground">Geral</span>
+                    <div className="flex gap-4">
+                      <span>{myStats.overall.workedDays} <span className="text-muted-foreground">dias</span></span>
+                      <span>{myStats.overall.weekendDays} <span className="text-muted-foreground">fds</span></span>
+                      <span className={cn("font-bold", myStats.overall.creditsBalance >= 0 ? "text-accent" : "text-destructive")}>
+                        {myStats.overall.creditsBalance} <span className="font-normal text-muted-foreground">créd</span>
                       </span>
                     </div>
                   </div>
                 </div>
+              )}
 
-                <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-muted-foreground">
-                    Créditos são gerados automaticamente: <strong>2 dias</strong> por cada final de semana trabalhado.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ═══ LEAVES TAB ═══ */}
-            {activeTab === 'leaves' && (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full h-12 rounded-2xl font-bold shadow-sm gap-2">
-                      <Plus className="h-4 w-4" /> Solicitar Folga
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="rounded-3xl max-w-sm mx-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-lg font-black">Nova Solicitação</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-1">
-                      <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
-                        <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-foreground/70">
-                          Solicite com no mínimo <span className="font-bold">10 dias de antecedência</span>. Imprevistos serão analisados pela coordenação.
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs font-semibold text-muted-foreground">Tipo</Label>
-                        <Select
-                          value={leaveForm.leaveType}
-                          onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
-                        >
-                          <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(LEAVE_TYPE_LABELS).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>{label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {leaveForm.leaveType === 'folga_credito' && (
-                          <p className="text-[11px] text-emerald-600 mt-1 font-medium">
-                            Saldo disponível: {myStats.overall.creditsBalance} dias
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs font-semibold text-muted-foreground">Início</Label>
-                          <input
-                            type="date"
-                            value={leaveForm.startDate}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                            className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs font-semibold text-muted-foreground">Fim</Label>
-                          <input
-                            type="date"
-                            value={leaveForm.endDate}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                            className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
-                          />
-                        </div>
-                      </div>
-
-                      {daysRequested > 0 && (
-                        <p className="text-center text-sm font-bold text-primary">
-                          {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}
-                        </p>
-                      )}
-
-                      <div>
-                        <Label className="text-xs font-semibold text-muted-foreground">Observações (opcional)</Label>
-                        <Textarea
-                          value={leaveForm.observations}
-                          onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
-                          placeholder="Motivo ou detalhes..."
-                          className="rounded-xl resize-none"
-                          rows={2}
-                        />
-                      </div>
-
-                      {isShortNotice && leaveForm.startDate && (
-                        <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
-                          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                            <span className="font-bold">Prazo inferior ao recomendado.</span> Sua solicitação passará por análise especial da coordenação.
-                          </p>
-                        </div>
-                      )}
-
-                      <Button
-                        onClick={handleSubmitLeave}
-                        className="w-full h-11 rounded-xl font-bold"
-                        disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
-                      >
-                        {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicitação'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                {leaveRequests.length === 0 ? (
-                  <div className="bg-card rounded-2xl border border-border/50 p-10 text-center">
-                    <CalendarOff className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-                    <p className="font-semibold text-sm text-muted-foreground">Nenhuma solicitação</p>
-                    <p className="text-[11px] text-muted-foreground/70 mt-1">Use o botão acima para pedir folgas</p>
+              {/* ════════ CREDITS ════════ */}
+              {activeTab === 'credits' && (
+                <div className="space-y-5">
+                  <div className="portal-card-inset p-6">
+                    <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Saldo de Créditos</p>
+                    <CreditRing balance={myStats.overall.creditsBalance} total={Math.max(myStats.overall.creditsGenerated, 1)} />
+                    <p className="text-center text-sm text-muted-foreground mt-3">dias disponíveis para folga</p>
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {leaveRequests.map(req => (
-                      <div key={req.id} className="bg-card rounded-2xl border border-border/50 p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-bold text-sm text-foreground truncate">
-                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
-                              {req.end_date !== req.start_date && (
-                                <> → {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
-                              )}
-                              <span className="ml-1.5 font-bold text-primary">{req.days_requested}d</span>
-                            </p>
-                          </div>
-                          {statusBadge(req.status)}
-                        </div>
-                        {req.observations && (
-                          <p className="text-[11px] text-muted-foreground/70 italic mt-2 border-t border-border/30 pt-2">"{req.observations}"</p>
-                        )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="portal-card-inset p-4 text-center space-y-1">
+                      <TrendingUp className="w-5 h-5 text-accent mx-auto" />
+                      <p className="text-2xl font-black text-accent">{myStats.overall.creditsGenerated}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Gerados</p>
+                    </div>
+                    <div className="portal-card-inset p-4 text-center space-y-1">
+                      <TrendingDown className="w-5 h-5 text-destructive mx-auto" />
+                      <p className="text-2xl font-black text-destructive">{myStats.overall.creditsUsed}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Utilizados</p>
+                    </div>
+                  </div>
+
+                  <div className="portal-card-inset divide-y divide-border/40">
+                    <div className="p-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                    </div>
+                    {[
+                      { label: 'Créditos gerados', value: `+${myStats.month.creditsGenerated}`, color: 'text-accent' },
+                      { label: 'Créditos utilizados', value: `-${myStats.month.creditsUsed}`, color: 'text-destructive' },
+                      { label: 'Saldo do mês', value: `${myStats.month.creditsBalance}`, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', bold: true },
+                    ].map((row, i) => (
+                      <div key={i} className="px-4 py-3 flex items-center justify-between">
+                        <span className={cn("text-[13px]", row.bold ? "font-bold text-foreground" : "text-muted-foreground")}>{row.label}</span>
+                        <span className={cn("text-[13px] font-bold", row.color)}>{row.value}</span>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* ═══ PROFILE TAB ═══ */}
-            {activeTab === 'profile' && (
-              <div className="space-y-5 animate-in fade-in duration-300">
-                {/* Avatar + Name */}
-                <div className="bg-card rounded-3xl border border-border/50 shadow-sm p-6 flex flex-col items-center text-center">
-                  <div className="relative group mb-4">
-                    <div className="w-24 h-24 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-4 ring-primary/10">
-                      {professionalUser.avatar_url ? (
-                        <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-10 h-10 text-muted-foreground" />
-                      )}
+                  <div className="flex items-start gap-2 px-1">
+                    <Sparkles className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-muted-foreground/70">Cada FDS trabalhado gera <strong>2 créditos</strong> automaticamente.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ════════ LEAVES ════════ */}
+              {activeTab === 'leaves' && (
+                <div className="space-y-4">
+                  <button onClick={() => setLeaveDialogOpen(true)}
+                    className="portal-press w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm shadow-primary/15">
+                    <Plus className="h-4 w-4" /> Nova Solicitação
+                  </button>
+
+                  <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                    <DialogContent className="rounded-3xl max-w-[340px] mx-auto p-5">
+                      <DialogHeader>
+                        <DialogTitle className="text-[16px] font-extrabold">Nova Solicitação</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3.5 pt-1">
+                        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-primary/5 border border-primary/10">
+                          <AlertCircle className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-foreground/70 leading-relaxed">
+                            Solicite com mínimo <strong>10 dias</strong> de antecedência. Imprevistos serão analisados pela coordenação.
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label className="text-[10px] font-bold text-muted-foreground uppercase">Tipo</Label>
+                          <Select value={leaveForm.leaveType} onValueChange={(v) => setLeaveForm(p => ({ ...p, leaveType: v as LeaveType }))}>
+                            <SelectTrigger className="h-10 rounded-xl text-[13px]"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                            <SelectContent>{Object.entries(LEAVE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                          </Select>
+                          {leaveForm.leaveType === 'folga_credito' && <p className="text-[10px] text-accent mt-1 font-semibold">Saldo: {myStats.overall.creditsBalance} dias</p>}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <Label className="text-[10px] font-bold text-muted-foreground uppercase">Início</Label>
+                            <input type="date" value={leaveForm.startDate} onChange={(e) => setLeaveForm(p => ({ ...p, startDate: e.target.value }))}
+                              className="flex h-10 w-full rounded-xl border border-input bg-background px-2.5 text-[13px]" />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] font-bold text-muted-foreground uppercase">Fim</Label>
+                            <input type="date" value={leaveForm.endDate} onChange={(e) => setLeaveForm(p => ({ ...p, endDate: e.target.value }))}
+                              className="flex h-10 w-full rounded-xl border border-input bg-background px-2.5 text-[13px]" />
+                          </div>
+                        </div>
+
+                        {daysRequested > 0 && <p className="text-center text-[13px] font-bold text-primary">{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</p>}
+
+                        <div>
+                          <Label className="text-[10px] font-bold text-muted-foreground uppercase">Observações</Label>
+                          <Textarea value={leaveForm.observations} onChange={(e) => setLeaveForm(p => ({ ...p, observations: e.target.value }))}
+                            placeholder="Opcional..." className="rounded-xl resize-none text-[13px]" rows={2} />
+                        </div>
+
+                        {isShortNotice && leaveForm.startDate && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-warning/10 border border-warning/20">
+                            <AlertCircle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-foreground/70"><strong>Prazo inferior ao recomendado.</strong> Sujeito à análise da coordenação.</p>
+                          </div>
+                        )}
+
+                        <button onClick={handleSubmitLeave}
+                          disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
+                          className="portal-press w-full h-11 rounded-xl bg-primary text-primary-foreground font-bold text-[13px] disabled:opacity-40">
+                          {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar'}
+                        </button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {leaveRequests.length === 0 ? (
+                    <div className="portal-card-inset p-10 text-center">
+                      <CalendarOff className="w-8 h-8 mx-auto text-muted-foreground/20 mb-2" />
+                      <p className="text-[13px] font-semibold text-muted-foreground">Nenhuma solicitação</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">Toque no botão acima para pedir folga</p>
                     </div>
-                    <button
-                      onClick={handleAvatarUpload}
-                      disabled={avatarUploading}
-                      className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                    >
-                      {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                  ) : (
+                    <div className="space-y-2">
+                      {leaveRequests.map(req => (
+                        <div key={req.id} className="portal-card-inset p-3.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-bold text-[13px] text-foreground truncate">{LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {format(new Date(req.start_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}
+                                {req.end_date !== req.start_date && <> → {format(new Date(req.end_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}</>}
+                                <span className="ml-1 font-bold text-primary">{req.days_requested}d</span>
+                              </p>
+                            </div>
+                            {statusBadge(req.status)}
+                          </div>
+                          {req.observations && <p className="text-[10px] text-muted-foreground/60 italic mt-2 pt-2 border-t border-border/30">"{req.observations}"</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ════════ PROFILE ════════ */}
+              {activeTab === 'profile' && (
+                <div className="space-y-4">
+                  {/* Avatar card */}
+                  <div className="portal-card-inset p-6 flex flex-col items-center">
+                    <div className="relative mb-3">
+                      <div className="w-[88px] h-[88px] rounded-full overflow-hidden bg-muted ring-[3px] ring-primary/15 flex items-center justify-center">
+                        {professionalUser.avatar_url
+                          ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                          : <User className="w-8 h-8 text-muted-foreground" />}
+                      </div>
+                      <button onClick={handleAvatarUpload} disabled={avatarUploading}
+                        className="portal-press absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25">
+                        {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <h2 className="text-lg font-extrabold text-foreground">{myProfessional?.name || professionalUser.full_name}</h2>
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
+                      <CategoryIcon className="w-3 h-3" /> {categoryLabel}
+                    </div>
+                  </div>
+
+                  {/* Info rows */}
+                  <div className="portal-card-inset divide-y divide-border/40">
+                    {[
+                      { icon: User, label: 'E-mail', value: professionalUser.email },
+                      { icon: Shield, label: 'Status', value: 'Aprovado', valueClass: 'text-accent font-semibold' },
+                      { icon: CreditCard, label: 'Créditos', value: `${myStats.overall.creditsBalance} dias`, valueClass: myStats.overall.creditsBalance >= 0 ? 'text-accent font-semibold' : 'text-destructive font-semibold' },
+                      { icon: Calendar, label: 'Dias escalados', value: `${myStats.overall.workedDays} dias` },
+                    ].map((row, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-8 h-8 rounded-[10px] bg-muted flex items-center justify-center shrink-0">
+                          <row.icon className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{row.label}</p>
+                          <p className={cn("text-[13px] text-foreground truncate", row.valueClass)}>{row.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2">
+                    {deferredPrompt && (
+                      <button onClick={handleInstall}
+                        className="portal-press w-full h-11 rounded-2xl border-2 border-border text-foreground font-semibold text-[13px] flex items-center justify-center gap-2">
+                        <Download className="h-4 w-4" /> Instalar App
+                      </button>
+                    )}
+                    <button onClick={logout}
+                      className="portal-press w-full h-11 rounded-2xl border-2 border-destructive/20 text-destructive font-semibold text-[13px] flex items-center justify-center gap-2 hover:bg-destructive/5">
+                      <LogOut className="h-4 w-4" /> Sair da Conta
                     </button>
                   </div>
-                  <h2 className="text-xl font-black text-foreground">
-                    {myProfessional?.name || professionalUser.full_name}
-                  </h2>
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    {professionalUser.category === 'nurse' ? <Stethoscope className="w-3.5 h-3.5" /> : professionalUser.category === 'tech' ? <Syringe className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-                    {categoryLabel}
-                  </div>
+
+                  <p className="text-center text-[9px] text-muted-foreground/40 uppercase tracking-[0.15em] font-bold pt-4 pb-2">
+                    © 2025 Secretaria Municipal de Saúde
+                  </p>
                 </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
-                {/* Info items */}
-                <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">E-mail</p>
-                      <p className="text-sm text-foreground truncate">{professionalUser.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <Shield className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Status</p>
-                      <p className="text-sm text-emerald-600 font-semibold flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Aprovado
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Última atualização</p>
-                      <p className="text-sm text-foreground">{updatedLabel}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Saldo de Créditos</p>
-                      <p className={cn("text-sm font-bold", myStats.overall.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>
-                        {myStats.overall.creditsBalance} dias
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-2.5">
-                  {deferredPrompt && (
-                    <Button
-                      variant="outline"
-                      onClick={handleInstall}
-                      className="w-full h-12 rounded-2xl font-semibold gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Instalar Aplicativo
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={logout}
-                    className="w-full h-12 rounded-2xl font-semibold gap-2 text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/20"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sair da Conta
-                  </Button>
-                </div>
-
-                <p className="text-center text-[10px] text-muted-foreground/50 uppercase tracking-widest font-bold pt-4">
-                  © 2025 Secretaria Municipal de Saúde
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <PortalBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* ── Bottom Nav ── */}
+      <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} />
     </div>
   );
 }
