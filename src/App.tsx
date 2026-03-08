@@ -24,6 +24,7 @@ import ServiceReportsPage from "./pages/ServiceReports";
 import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
+import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -79,6 +80,7 @@ const App = () => (
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
+                <Route path="/aprovacoes" element={<ProfessionalApprovals />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
               </Route>

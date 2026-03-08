@@ -46,7 +46,7 @@ const navItems = [
 ];
 
 const serviceItems = [
-  { to: '/escalas-servicos/cadastro', icon: UserPlus, label: 'Cadastro' },
+  
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
@@ -163,6 +163,18 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Links & Aprovações - top level */}
+          <NavLink
+            to="/aprovacoes"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) => cn(
+              "nav-item text-sm font-medium",
+              isActive && "active"
+            )}
+          >
+            <UserPlus size={18} />
+            <span>Links & Aprovações</span>
+          </NavLink>
 
           <div className="h-px bg-border/50 my-4 mx-2" />
 
