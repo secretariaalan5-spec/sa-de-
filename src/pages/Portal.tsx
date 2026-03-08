@@ -339,6 +339,7 @@ export default function Portal() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
