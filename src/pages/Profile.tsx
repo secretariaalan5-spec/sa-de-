@@ -33,7 +33,15 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Buscar email do auth
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setAdminEmail(user.email);
+    });
+  }, []);
 
   if (loading) {
     return (
