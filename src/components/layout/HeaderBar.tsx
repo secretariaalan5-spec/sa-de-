@@ -15,6 +15,7 @@ export function HeaderBar() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const navigate = useNavigate();
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const pendingLeaves = usePendingLeaveCount();
 
     useEffect(() => {
         const loadProfile = async () => {
