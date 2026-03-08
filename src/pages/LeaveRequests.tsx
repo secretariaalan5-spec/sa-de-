@@ -5,7 +5,7 @@ import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Stethoscope, Syringe, Users, Check, X, CalendarOff } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 import { supabase } from '@/integrations/supabase/client';
