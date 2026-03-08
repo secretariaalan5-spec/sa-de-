@@ -4,7 +4,7 @@
  * Clique no card para ver créditos, folgas, fins de semana e baixar PDF.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { ServiceProfessional, LEAVE_TYPE_LABELS, LeaveType } from '@/types/servi
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import jsPDF from 'jspdf';
 
 const ITEMS_PER_PAGE = 12;
@@ -45,6 +46,27 @@ export default function ServiceProfessionalsPage() {
   const [activeTab, setActiveTab] = useState<'nurse' | 'tech'>('nurse');
   const [nursePage, setNursePage] = useState(1);
   const [techPage, setTechPage] = useState(1);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+
+  // Fetch avatar URLs from professional_users
+  const fetchAvatars = useCallback(async () => {
+    const { data } = await (supabase
+      .from('professional_users' as any)
+      .select('professional_id, avatar_url')
+      .not('avatar_url', 'is', null)
+      .not('professional_id', 'is', null) as any);
+    if (data) {
+      const map: Record<string, string> = {};
+      (data as any[]).forEach(row => {
+        if (row.professional_id && row.avatar_url) {
+          map[row.professional_id] = row.avatar_url;
+        }
+      });
+      setAvatarMap(map);
+    }
+  }, []);
+
+  useEffect(() => { fetchAvatars(); }, [fetchAvatars]);
 
   const filtered = useMemo(() => {
     if (!searchTerm.trim()) return professionals;
@@ -171,6 +193,7 @@ export default function ServiceProfessionalsPage() {
     const catText = isNurse ? 'cat-text-nurse' : 'cat-text-tech';
     const catLabel = isNurse ? 'Enfermeiro' : 'Técnico';
     const Icon = isNurse ? Stethoscope : Syringe;
+    const avatarUrl = avatarMap[prof.id];
 
     return (
       <div
@@ -179,9 +202,17 @@ export default function ServiceProfessionalsPage() {
       >
         <div className={`h-1 -mx-5 -mt-5 mb-4 ${catBar}`} />
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${catIcon}`}>
-            <Icon className="w-4 h-4" />
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={prof.name}
+              className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-border"
+            />
+          ) : (
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${catIcon}`}>
+              <Icon className="w-4 h-4" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm text-foreground truncate">{prof.name}</h3>
@@ -229,6 +260,7 @@ export default function ServiceProfessionalsPage() {
     const weekendEntries = pastEntries.filter(e => e.isWeekend).sort((a, b) => a.date.localeCompare(b.date));
     const isNurse = prof.category === 'nurse';
     const Icon = isNurse ? Stethoscope : Syringe;
+    const avatarUrl = avatarMap[prof.id];
 
     return (
       <div className="space-y-6">
@@ -244,12 +276,20 @@ export default function ServiceProfessionalsPage() {
         {/* Profile Header */}
         <div className="form-section">
           <div className="flex items-center gap-4">
-            <div className={cn(
-              "w-14 h-14 rounded-xl flex items-center justify-center",
-              isNurse ? "cat-icon-nurse" : "cat-icon-tech"
-            )}>
-              <Icon className="w-6 h-6" />
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={prof.name}
+                className="w-14 h-14 rounded-xl object-cover shrink-0 border-2 border-border"
+              />
+            ) : (
+              <div className={cn(
+                "w-14 h-14 rounded-xl flex items-center justify-center",
+                isNurse ? "cat-icon-nurse" : "cat-icon-tech"
+              )}>
+                <Icon className="w-6 h-6" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold truncate">{prof.name}</h2>
               <div className="flex flex-wrap items-center gap-2 mt-1">

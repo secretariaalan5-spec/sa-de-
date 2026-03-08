@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   XCircle,
   HourglassIcon,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -338,6 +339,7 @@ export default function Portal() {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
@@ -635,13 +637,61 @@ export default function Portal() {
       <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="container mx-auto px-4 h-20 md:h-24 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 md:gap-5">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 shrink-0 overflow-hidden border border-slate-100 dark:border-slate-700">
-              <img
-                src="/logo-saude-plus.png"
-                alt="Saúde+"
-                className="h-full w-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
+            {/* Avatar do profissional */}
+            <div className="relative group shrink-0">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 overflow-hidden border border-slate-100 dark:border-slate-700">
+                {professionalUser.avatar_url ? (
+                  <img
+                    src={professionalUser.avatar_url}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="h-6 w-6 md:h-8 md:w-8 text-slate-400" />
+                )}
+              </div>
+              <button
+                onClick={async () => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file || !session?.user) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error('A imagem deve ter no máximo 2 MB');
+                      return;
+                    }
+                    setAvatarUploading(true);
+                    try {
+                      const ext = file.name.split('.').pop() || 'jpg';
+                      const filePath = `${session.user.id}/avatar.${ext}`;
+                      const { error: uploadErr } = await supabase.storage
+                        .from('avatars')
+                        .upload(filePath, file, { upsert: true });
+                      if (uploadErr) throw uploadErr;
+                      const avatarUrl = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
+                      await (supabase.from('professional_users' as any).update({ avatar_url: avatarUrl } as any).eq('user_id', session.user.id) as any);
+                      await refreshProfile();
+                      toast.success('Foto atualizada!');
+                    } catch (err: any) {
+                      toast.error('Erro ao enviar foto: ' + (err.message || ''));
+                    } finally {
+                      setAvatarUploading(false);
+                    }
+                  };
+                  input.click();
+                }}
+                disabled={avatarUploading}
+                className="absolute inset-0 rounded-2xl md:rounded-3xl bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center cursor-pointer"
+                aria-label="Alterar foto"
+              >
+                {avatarUploading ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin opacity-0 group-hover:opacity-100 transition-opacity" />
+                ) : (
+                  <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </button>
             </div>
             <div className="min-w-0">
               <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
