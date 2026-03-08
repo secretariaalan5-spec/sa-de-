@@ -941,6 +941,12 @@ export default function Portal() {
                       <DialogTitle className="text-xl font-black">Nova Solicitação de Folga</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-2">
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40">
+                        <AlertCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          As solicitações devem ser realizadas com no mínimo <span className="font-bold">10 dias de antecedência</span>. Em casos excepcionais ou imprevistos, é possível enviar a solicitação com prazo inferior, porém estará sujeita à análise e aprovação da coordenação.
+                        </p>
+                      </div>
                       <div>
                         <Label className="text-xs font-bold uppercase text-slate-400">Tipo de Afastamento</Label>
                         <Select
@@ -999,7 +1005,7 @@ export default function Portal() {
                         <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
                           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                           <p className="text-xs text-amber-700 dark:text-amber-300">
-                            <span className="font-bold">Atenção:</span> pedidos devem ser feitos com pelo menos 10 dias de antecedência. Seu pedido será enviado, mas a aprovação pode ser impactada.
+                            <span className="font-bold">Prazo inferior ao recomendado.</span> Sua solicitação será enviada normalmente, mas por estar fora do prazo mínimo de 10 dias, passará por uma análise especial da coordenação.
                           </p>
                         </div>
                       )}
