@@ -285,11 +285,11 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Category Tabs (Enfermeiros / Técnicos / eMult) */}
-      {(activeTab === 'enfermeiros' || activeTab === 'tecnicos' || activeTab === 'emult') && (() => {
-        const categoryFilter = activeTab === 'enfermeiros' ? 'nurse' : activeTab === 'tecnicos' ? 'tech' : 'emult';
+      {/* Category Tabs (Enfermeiros / Técnicos) */}
+      {(activeTab === 'enfermeiros' || activeTab === 'tecnicos') && (() => {
+        const categoryFilter = activeTab === 'enfermeiros' ? 'nurse' : 'tech';
         const filtered = approvedUsers.filter(u => u.category === categoryFilter);
-        const emptyLabel = activeTab === 'enfermeiros' ? 'enfermeiro' : activeTab === 'tecnicos' ? 'técnico' : 'profissional eMult';
+        const emptyLabel = activeTab === 'enfermeiros' ? 'enfermeiro' : 'técnico';
 
         return (
           <div className="space-y-3">
