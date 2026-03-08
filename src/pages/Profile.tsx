@@ -243,6 +243,14 @@ export default function ProfilePage() {
               )}
             </div>
 
+            {/* Email */}
+            {adminEmail && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="w-4 h-4" />
+                <span>{adminEmail}</span>
+              </div>
+            )}
+
             {/* Membro desde */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="w-3.5 h-3.5" />
