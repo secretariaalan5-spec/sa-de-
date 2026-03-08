@@ -20,15 +20,36 @@ export function HeaderBar() {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    setAdminName(user.user_metadata?.full_name || '');
                     setAdminEmail(user.email || '');
-                    setAvatarUrl(user.user_metadata?.avatar_url || null);
+
+                    // Buscar dados do perfil na tabela profiles (avatar e nome atualizados)
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('display_name, avatar_url')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+
+                    if (profile) {
+                        setAdminName(profile.display_name || user.user_metadata?.full_name || '');
+                        setAvatarUrl(profile.avatar_url || null);
+                    } else {
+                        setAdminName(user.user_metadata?.full_name || '');
+                        setAvatarUrl(user.user_metadata?.avatar_url || null);
+                    }
                 }
             } catch (err) {
                 console.error('Erro ao carregar perfil:', err);
             }
         };
         loadProfile();
+
+        // Escutar mudanças em tempo real na tabela profiles
+        const channel = supabase
+            .channel('header-profile-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+                loadProfile();
+            })
+            .subscribe();
 
         // Clique fora para fechar o dropdown
         const handleClickOutside = (event: MouseEvent) => {
@@ -37,7 +58,10 @@ export function HeaderBar() {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const handleLogout = async () => {

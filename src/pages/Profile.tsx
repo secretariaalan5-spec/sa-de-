@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2,
+  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
