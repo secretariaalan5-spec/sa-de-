@@ -260,6 +260,7 @@ export default function ServiceProfessionalsPage() {
     const weekendEntries = pastEntries.filter(e => e.isWeekend).sort((a, b) => a.date.localeCompare(b.date));
     const isNurse = prof.category === 'nurse';
     const Icon = isNurse ? Stethoscope : Syringe;
+    const avatarUrl = avatarMap[prof.id];
 
     return (
       <div className="space-y-6">
@@ -275,12 +276,20 @@ export default function ServiceProfessionalsPage() {
         {/* Profile Header */}
         <div className="form-section">
           <div className="flex items-center gap-4">
-            <div className={cn(
-              "w-14 h-14 rounded-xl flex items-center justify-center",
-              isNurse ? "cat-icon-nurse" : "cat-icon-tech"
-            )}>
-              <Icon className="w-6 h-6" />
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={prof.name}
+                className="w-14 h-14 rounded-xl object-cover shrink-0 border-2 border-border"
+              />
+            ) : (
+              <div className={cn(
+                "w-14 h-14 rounded-xl flex items-center justify-center",
+                isNurse ? "cat-icon-nurse" : "cat-icon-tech"
+              )}>
+                <Icon className="w-6 h-6" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold truncate">{prof.name}</h2>
               <div className="flex flex-wrap items-center gap-2 mt-1">
