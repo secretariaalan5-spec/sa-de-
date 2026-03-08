@@ -35,6 +35,7 @@ export default function LeaveRequestsPage() {
     const { profile, logActivity } = useProfile();
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
+    const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
 
     const fetchPortalLeaves = useCallback(async () => {
         if (!profile?.team_id) return;
@@ -45,6 +46,19 @@ export default function LeaveRequestsPage() {
             .eq('status', 'pending')
             .order('created_at', { ascending: false }) as any);
         setPendingPortalLeaves((leaves || []) as ProfLeaveRequest[]);
+
+        // Fetch avatars for professionals
+        const { data: profUsers } = await supabase
+            .from('professional_users')
+            .select('professional_id, avatar_url')
+            .eq('team_id', profile.team_id);
+        if (profUsers) {
+            const map: Record<string, string> = {};
+            profUsers.forEach((pu: any) => {
+                if (pu.professional_id && pu.avatar_url) map[pu.professional_id] = pu.avatar_url;
+            });
+            setAvatarMap(map);
+        }
     }, [profile?.team_id]);
 
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
