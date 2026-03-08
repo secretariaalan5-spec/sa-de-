@@ -70,6 +70,7 @@ export function Sidebar() {
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
   const { requests: leaveRequests } = useLeaveRequests();
+  const pendingLeaves = usePendingLeaveCount();
 
   /** Publica todas as escalas (eMult + Serviços) no portal público. */
   const handlePublish = async () => {
