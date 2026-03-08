@@ -549,6 +549,13 @@ export default function Portal() {
     return differenceInCalendarDays(end, start) + 1;
   }, [leaveForm.startDate, leaveForm.endDate]);
 
+  const isShortNotice = useMemo(() => {
+    if (!leaveForm.startDate) return false;
+    const start = new Date(leaveForm.startDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return differenceInCalendarDays(start, today) < 10;
+  }, [leaveForm.startDate]);
+
   const handleSubmitLeave = async () => {
     if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) {
       toast.error('Preencha todos os campos.');
