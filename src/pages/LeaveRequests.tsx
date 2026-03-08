@@ -140,57 +140,59 @@ export default function LeaveRequestsPage() {
                         Nenhum pedido de folga pendente vindo do portal.
                     </div>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {pendingPortalLeaves.map(leave => {
                             const prof = professionals.find(p => p.id === leave.professional_id);
                             const avatarUrl = avatarMap[leave.professional_id];
                             return (
-                                <div key={leave.id} className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-                                    <Avatar className="h-10 w-10 shrink-0">
-                                        {avatarUrl ? (
-                                            <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
-                                        ) : null}
-                                        <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                                            {(prof?.name || 'P').slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                <div key={leave.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20">
+                                            {avatarUrl ? (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
+                                            ) : null}
+                                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-semibold text-sm text-foreground truncate">{prof?.name || 'Profissional'}</span>
-                                            {leave.category === 'nurse'
-                                                ? <Stethoscope className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                                : <Syringe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                                            <Badge variant="secondary" className="text-[11px]">
-                                                {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                            <span>
-                                                {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
-                                                {leave.end_date !== leave.start_date && (
-                                                    <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
-                                                )}
-                                            </span>
-                                            <span className="font-medium text-primary">
-                                                {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
-                                            </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Profissional'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary">
+                                                    {leave.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
+                                                    {leave.end_date !== leave.start_date && (
+                                                        <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                            </div>
                                             {leave.observations && (
-                                                <span className="italic truncate max-w-[150px]">"{leave.observations}"</span>
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">"{leave.observations}"</p>
                                             )}
-                                            <span className="hidden sm:inline">
-                                                Enviado {format(new Date(leave.created_at), 'dd/MM HH:mm')}
-                                            </span>
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Enviado em {format(new Date(leave.created_at), 'dd/MM/yyyy HH:mm')}
+                                            </p>
                                         </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => handleApprovePortalLeave(leave)}>
-                                            <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
-                                        </Button>
-                                        <Button size="sm" variant="destructive" className="h-8 px-3" onClick={() => handleRejectPortalLeave(leave)}>
-                                            <X className="w-3.5 h-3.5 mr-1" /> Rejeitar
-                                        </Button>
+                                        <div className="flex flex-col gap-1.5 shrink-0">
+                                            <Button size="sm" className="h-8 px-4 rounded-xl text-xs font-bold" onClick={() => handleApprovePortalLeave(leave)}>
+                                                <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-8 px-4 rounded-xl text-xs font-medium text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => handleRejectPortalLeave(leave)}>
+                                                <X className="w-3.5 h-3.5 mr-1" /> Rejeitar
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             );
