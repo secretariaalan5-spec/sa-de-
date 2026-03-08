@@ -64,13 +64,15 @@ export default function LeaveRequestsPage() {
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
     const handleApprovePortalLeave = async (leave: ProfLeaveRequest) => {
-        const { error } = await (supabase
+        const { error, count } = await (supabase
             .from('professional_leave_requests' as any)
             .update({ status: 'approved' } as any)
-            .eq('id', leave.id) as any);
+            .eq('id', leave.id)
+            .select() as any);
 
         if (error) {
-            toast.error('Erro ao aprovar folga');
+            console.error('Erro ao aprovar folga:', error);
+            toast.error('Erro ao aprovar folga: ' + error.message);
             return;
         }
 
