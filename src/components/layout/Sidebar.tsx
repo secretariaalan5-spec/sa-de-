@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/emult/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/unidades', icon: Building2, label: 'Unidades' },
   { to: '/funcoes', icon: Briefcase, label: 'Funções' },
   { to: '/restricoes', icon: AlertTriangle, label: 'Restrições' },
