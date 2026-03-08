@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
@@ -36,6 +36,11 @@ export default function LeaveRequestsPage() {
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
     const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+    const [loadedAvatars, setLoadedAvatars] = useState<Set<string>>(new Set());
+
+    const markAvatarLoaded = useCallback((id: string) => {
+        setLoadedAvatars(prev => { const next = new Set(prev); next.add(id); return next; });
+    }, []);
 
     const fetchPortalLeaves = useCallback(async () => {
         if (!profile?.team_id) return;
@@ -58,8 +63,14 @@ export default function LeaveRequestsPage() {
                 if (pu.professional_id && pu.avatar_url) map[pu.professional_id] = pu.avatar_url;
             });
             setAvatarMap(map);
+            // Preload images
+            Object.entries(map).forEach(([id, url]) => {
+                const img = new Image();
+                img.onload = () => markAvatarLoaded(id);
+                img.src = url;
+            });
         }
-    }, [profile?.team_id]);
+    }, [profile?.team_id, markAvatarLoaded]);
 
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
@@ -147,9 +158,11 @@ export default function LeaveRequestsPage() {
                             return (
                                 <div key={leave.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
                                     <div className="flex items-center gap-4">
-                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20">
-                                            {avatarUrl ? (
-                                                <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
+                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20 overflow-hidden">
+                                            {avatarUrl && loadedAvatars.has(leave.professional_id) ? (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} className="animate-fade-in" />
+                                            ) : avatarUrl ? (
+                                                <div className="w-full h-full animate-pulse bg-muted rounded-full" />
                                             ) : null}
                                             <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
                                                 {(prof?.name || 'P').slice(0, 2).toUpperCase()}
@@ -227,8 +240,12 @@ export default function LeaveRequestsPage() {
                                     className="bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted">
-                                            {avatarUrl ? <AvatarImage src={avatarUrl} alt={prof?.name || ''} /> : null}
+                                        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted overflow-hidden">
+                                            {avatarUrl && loadedAvatars.has(request.professionalId) ? (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || ''} className="animate-fade-in" />
+                                            ) : avatarUrl ? (
+                                                <div className="w-full h-full animate-pulse bg-muted rounded-full" />
+                                            ) : null}
                                             <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
                                                 {(prof?.name || 'P').slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
