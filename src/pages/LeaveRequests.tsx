@@ -214,18 +214,8 @@ export default function LeaveRequestsPage() {
                         description="Os afastamentos aprovados pelo portal aparecerão aqui."
                     />
                 ) : (
-                    <div className="bg-card rounded-xl border border-border overflow-hidden">
-                        <div className="grid grid-cols-[40px_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-4 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
-                            <span />
-                            <span>Nome</span>
-                            <span className="hidden sm:block w-28">Tipo</span>
-                            <span className="w-24">Período</span>
-                            <span className="w-16 text-center">Dias</span>
-                            <span className="hidden md:block w-24">Registrado</span>
-                            <span className="w-8" />
-                        </div>
-
-                        {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((request, idx) => {
+                    <div className="space-y-3">
+                        {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((request) => {
                             const prof = professionals.find(p => p.id === request.professionalId);
                             const avatarUrl = avatarMap[request.professionalId];
                             const startDate = request.leaveDates[0];
@@ -234,63 +224,61 @@ export default function LeaveRequestsPage() {
                             return (
                                 <div
                                     key={request.id}
-                                    className={`grid grid-cols-[40px_1fr_auto_auto_auto_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40 ${idx < requests.length - 1 ? 'border-b border-border' : ''}`}
+                                    className="bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
                                 >
-                                    <Avatar className="h-9 w-9 shrink-0">
-                                        {avatarUrl ? <AvatarImage src={avatarUrl} alt={prof?.name || ''} /> : null}
-                                        <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                                            {(prof?.name || 'P').slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted">
+                                            {avatarUrl ? <AvatarImage src={avatarUrl} alt={prof?.name || ''} /> : null}
+                                            <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
 
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="font-medium text-sm text-foreground truncate">{prof?.name || 'Desconhecido'}</span>
-                                            {request.category === 'nurse'
-                                                ? <Stethoscope className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                                : <Syringe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Desconhecido'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-muted-foreground/30">
+                                                    {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
+                                                    {endDate && endDate !== startDate && (
+                                                        <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                            </div>
+                                            {request.observations && (
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">{request.observations}</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Registrado em {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
+                                            </p>
                                         </div>
-                                        {request.observations && (
-                                            <p className="text-[11px] text-muted-foreground italic truncate">{request.observations}</p>
-                                        )}
+
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 shrink-0 rounded-xl hover:bg-destructive/10"
+                                            onClick={() => {
+                                                const profName = prof?.name || 'Desconhecido';
+                                                deleteRequest(request.id);
+                                                logActivity('leave_request_deleted', {
+                                                    professionalName: profName,
+                                                    leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4 text-destructive" />
+                                        </Button>
                                     </div>
-
-                                    <div className="hidden sm:block w-28">
-                                        <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
-                                            {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
-                                        </Badge>
-                                    </div>
-
-                                    <span className="text-xs text-foreground w-24">
-                                        {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
-                                        {endDate && endDate !== startDate && (
-                                            <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
-                                        )}
-                                    </span>
-
-                                    <span className="text-xs font-semibold text-primary w-16 text-center">
-                                        {request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}
-                                    </span>
-
-                                    <span className="hidden md:block text-[11px] text-muted-foreground w-24">
-                                        {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
-                                    </span>
-
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7 shrink-0"
-                                        onClick={() => {
-                                            const profName = prof?.name || 'Desconhecido';
-                                            deleteRequest(request.id);
-                                            logActivity('leave_request_deleted', {
-                                                professionalName: profName,
-                                                leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
-                                            });
-                                        }}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                    </Button>
                                 </div>
                             );
                         })}
