@@ -81,8 +81,8 @@ export default function Registration() {
       .order('created_at', { ascending: false }) as any);
 
     const allUsers = (users || []) as ProfessionalUserRecord[];
-    setPendingUsers(allUsers.filter(u => u.status === 'pending'));
-    setApprovedUsers(allUsers.filter(u => u.status === 'approved'));
+    setPendingUsers(allUsers.filter(u => u.status === 'pending' && u.category !== 'emult'));
+    setApprovedUsers(allUsers.filter(u => u.status === 'approved' && u.category !== 'emult'));
     setLoadingApprovals(false);
   }, [profile?.team_id]);
 
