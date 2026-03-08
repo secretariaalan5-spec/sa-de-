@@ -185,20 +185,28 @@ export function Sidebar() {
           {/* Service Group Items */}
           {isServicosOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {serviceItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => cn(
-                    "nav-item text-sm",
-                    isActive && "active"
-                  )}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
+              {serviceItems.map((item) => {
+                const showBadge = item.to === '/escalas-servicos/folgas' && pendingLeaves > 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) => cn(
+                      "nav-item text-sm relative",
+                      isActive && "active"
+                    )}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                    {showBadge && (
+                      <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                        {pendingLeaves > 9 ? '9+' : pendingLeaves}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           )}
 
