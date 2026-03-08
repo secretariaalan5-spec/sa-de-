@@ -31,7 +31,7 @@ interface ProfLeaveRequest {
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
-    const { requests, deleteRequest, addRequest } = useLeaveRequests();
+    const { requests, deleteRequest, addRequest, getConflictingDates } = useLeaveRequests();
     const { profile, logActivity } = useProfile();
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
@@ -75,7 +75,27 @@ export default function LeaveRequestsPage() {
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
     const handleApprovePortalLeave = async (leave: ProfLeaveRequest) => {
-        const { error, count } = await (supabase
+        // Build leave dates first to check conflicts
+        const startDate = new Date(leave.start_date + 'T00:00:00');
+        const leaveDates: string[] = [];
+        for (let i = 0; i < leave.days_requested; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            leaveDates.push(format(d, 'yyyy-MM-dd'));
+        }
+
+        // Check for conflicts before approving
+        const conflicts = getConflictingDates(leave.professional_id, leaveDates);
+        if (conflicts.length > 0) {
+            const formatted = conflicts.map(d => {
+                const [y, m, day] = d.split('-');
+                return `${day}/${m}`;
+            }).join(', ');
+            toast.error(`Conflito: já existe afastamento aprovado nas datas ${formatted}. Rejeite ou remova o afastamento existente primeiro.`);
+            return;
+        }
+
+        const { error } = await (supabase
             .from('professional_leave_requests' as any)
             .update({ status: 'approved' } as any)
             .eq('id', leave.id)
@@ -87,15 +107,7 @@ export default function LeaveRequestsPage() {
             return;
         }
 
-        const startDate = new Date(leave.start_date + 'T00:00:00');
-        const leaveDates: string[] = [];
-        for (let i = 0; i < leave.days_requested; i++) {
-            const d = new Date(startDate);
-            d.setDate(d.getDate() + i);
-            leaveDates.push(format(d, 'yyyy-MM-dd'));
-        }
-
-        addRequest({
+        const result = addRequest({
             professionalId: leave.professional_id,
             category: leave.category as 'nurse' | 'tech',
             leaveType: leave.leave_type as LeaveType,
@@ -105,6 +117,11 @@ export default function LeaveRequestsPage() {
             observations: leave.observations || undefined,
             portalLeaveId: leave.id,
         });
+
+        if (result && 'error' in result) {
+            toast.error(result.error as string);
+            return;
+        }
 
         const prof = professionals.find(p => p.id === leave.professional_id);
         toast.success(`Folga aprovada para ${prof?.name || 'profissional'}!`);
