@@ -32,7 +32,7 @@ export default function Registration() {
   const [pendingUsers, setPendingUsers] = useState<ProfessionalUserRecord[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ProfessionalUserRecord[]>([]);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pending' | 'enfermeiros' | 'tecnicos' | 'emult'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'enfermeiros' | 'tecnicos'>('pending');
 
   const portalLink = teamId
     ? `${window.location.origin}/portal?team=${teamId}`
@@ -81,8 +81,8 @@ export default function Registration() {
       .order('created_at', { ascending: false }) as any);
 
     const allUsers = (users || []) as ProfessionalUserRecord[];
-    setPendingUsers(allUsers.filter(u => u.status === 'pending'));
-    setApprovedUsers(allUsers.filter(u => u.status === 'approved'));
+    setPendingUsers(allUsers.filter(u => u.status === 'pending' && u.category !== 'emult'));
+    setApprovedUsers(allUsers.filter(u => u.status === 'approved' && u.category !== 'emult'));
     setLoadingApprovals(false);
   }, [profile?.team_id]);
 
@@ -239,17 +239,6 @@ export default function Registration() {
             <Syringe className="w-3.5 h-3.5" />
             Técnicos ({approvedUsers.filter(u => u.category === 'tech').length})
           </button>
-          <button
-            onClick={() => setActiveTab('emult')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
-              activeTab === 'emult'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            eMult ({approvedUsers.filter(u => u.category === 'emult').length})
-          </button>
         </div>
 
         {loadingApprovals && (
@@ -296,11 +285,11 @@ export default function Registration() {
         </div>
       )}
 
-      {/* Category Tabs (Enfermeiros / Técnicos / eMult) */}
-      {(activeTab === 'enfermeiros' || activeTab === 'tecnicos' || activeTab === 'emult') && (() => {
-        const categoryFilter = activeTab === 'enfermeiros' ? 'nurse' : activeTab === 'tecnicos' ? 'tech' : 'emult';
+      {/* Category Tabs (Enfermeiros / Técnicos) */}
+      {(activeTab === 'enfermeiros' || activeTab === 'tecnicos') && (() => {
+        const categoryFilter = activeTab === 'enfermeiros' ? 'nurse' : 'tech';
         const filtered = approvedUsers.filter(u => u.category === categoryFilter);
-        const emptyLabel = activeTab === 'enfermeiros' ? 'enfermeiro' : activeTab === 'tecnicos' ? 'técnico' : 'profissional eMult';
+        const emptyLabel = activeTab === 'enfermeiros' ? 'enfermeiro' : 'técnico';
 
         return (
           <div className="space-y-3">
