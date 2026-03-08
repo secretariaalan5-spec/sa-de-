@@ -88,5 +88,6 @@ export function useLeaveRequests() {
         deleteRequest,
         getRequestsByProfessional,
         getTotalCreditsUsedByProfessional,
+        getConflictingDates,
     };
 }
