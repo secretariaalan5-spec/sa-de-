@@ -17,6 +17,7 @@ import Export from "./pages/Export";
 import Settings from "./pages/Settings";
 import ProfilePage from "./pages/Profile";
 import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
+import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
@@ -25,6 +26,7 @@ import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
+import EmultProfessionals from "./pages/EmultProfessionals";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -80,7 +82,9 @@ const App = () => (
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
+                <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
                 <Route path="/aprovacoes" element={<ProfessionalApprovals />} />
+                <Route path="/emult/profissionais" element={<EmultProfessionals />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
               </Route>
