@@ -86,9 +86,9 @@ const App = () => (
               <Route path="/portal" element={<Portal />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </ServiceStateProvider>
-      </AppDataProvider>
+          </ServiceStateProvider>
+        </AppDataProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
