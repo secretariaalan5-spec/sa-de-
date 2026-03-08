@@ -549,6 +549,13 @@ export default function Portal() {
     return differenceInCalendarDays(end, start) + 1;
   }, [leaveForm.startDate, leaveForm.endDate]);
 
+  const isShortNotice = useMemo(() => {
+    if (!leaveForm.startDate) return false;
+    const start = new Date(leaveForm.startDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return differenceInCalendarDays(start, today) < 10;
+  }, [leaveForm.startDate]);
+
   const handleSubmitLeave = async () => {
     if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) {
       toast.error('Preencha todos os campos.');
@@ -988,12 +995,20 @@ export default function Portal() {
                           rows={3}
                         />
                       </div>
+                      {isShortNotice && leaveForm.startDate && (
+                        <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
+                          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-700 dark:text-amber-300">
+                            <span className="font-bold">Atenção:</span> pedidos devem ser feitos com pelo menos 10 dias de antecedência. Seu pedido será enviado, mas a aprovação pode ser impactada.
+                          </p>
+                        </div>
+                      )}
                       <Button
                         onClick={handleSubmitLeave}
                         className="w-full h-12 rounded-xl font-bold"
                         disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
                       >
-                        Enviar Solicitação
+                        {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicitação'}
                       </Button>
                     </div>
                   </DialogContent>

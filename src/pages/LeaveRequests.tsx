@@ -5,13 +5,14 @@ import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertCircle, Stethoscope, Syringe, Users, Check, X, CalendarOff } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 interface ProfLeaveRequest {
     id: string;
@@ -172,8 +173,12 @@ export default function LeaveRequestsPage() {
                         {pendingPortalLeaves.map(leave => {
                             const prof = professionals.find(p => p.id === leave.professional_id);
                             const avatarUrl = avatarMap[leave.professional_id];
+                            const startDate = new Date(leave.start_date + 'T00:00:00');
+                            const today = new Date(); today.setHours(0, 0, 0, 0);
+                            const daysUntil = differenceInCalendarDays(startDate, today);
+                            const isShortNotice = daysUntil < 10;
                             return (
-                                <div key={leave.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+                                <div key={leave.id} className={cn("bg-card rounded-2xl border p-5 shadow-sm hover:shadow-md transition-shadow", isShortNotice ? "border-warning/50" : "border-border")}>
                                     <div className="flex items-center gap-4">
                                         <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20 overflow-hidden">
                                             {avatarUrl && loadedAvatars.has(leave.professional_id) ? (
@@ -206,6 +211,11 @@ export default function LeaveRequestsPage() {
                                                 <span className="text-xs font-bold text-primary">
                                                     {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
                                                 </span>
+                                                {isShortNotice && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-warning/50 text-warning bg-warning/10">
+                                                        ⚠ Menos de 10 dias
+                                                    </Badge>
+                                                )}
                                             </div>
                                             {leave.observations && (
                                                 <p className="text-[11px] text-muted-foreground italic mt-1 truncate">"{leave.observations}"</p>
