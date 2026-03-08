@@ -199,6 +199,7 @@ export default function ProfessionalApprovals() {
       leaveDates,
       daysRequested: leave.days_requested,
       observations: `[Portal] ${leave.observations || ''}`.trim(),
+      portalLeaveId: leave.id, // Vincula ao registro do portal para sincronizar exclusões
     });
 
     const prof = professionals.find(p => p.id === leave.professional_id);

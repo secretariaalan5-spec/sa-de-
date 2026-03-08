@@ -43,6 +43,8 @@ export interface LeaveRequest {
     observations?: string;
     status: 'pending' | 'approved' | 'rejected';
     createdAt: string;
+    /** ID do pedido na tabela professional_leave_requests (portal) — usado para sincronizar exclusões */
+    portalLeaveId?: string;
 }
 
 export interface ServiceProfessional {
