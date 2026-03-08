@@ -20,7 +20,7 @@ import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
 import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
-import IndividualControlPage from "./pages/IndividualControl";
+
 import ServiceReportsPage from "./pages/ServiceReports";
 import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
@@ -79,7 +79,7 @@ const App = () => (
                 <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
                 <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
-                <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
+                
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
                 <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />

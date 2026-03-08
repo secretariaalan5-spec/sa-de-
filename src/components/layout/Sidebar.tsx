@@ -18,7 +18,7 @@ import {
   Syringe,
   UserPlus,
   CalendarOff,
-  BarChart3,
+  
   FileText,
   CloudUpload,
   RefreshCw,
@@ -51,7 +51,7 @@ const serviceItems = [
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
-  { to: '/escalas-servicos/controle', icon: BarChart3, label: 'Controle Individual' },
+  
   { to: '/escalas-servicos/relatorios', icon: FileText, label: 'Relatórios' },
 ];
 
