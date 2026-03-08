@@ -34,6 +34,7 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { Button } from '@/components/ui/button';
+import { usePendingLeaveCount } from '@/hooks/usePendingLeaveCount';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -69,6 +70,7 @@ export function Sidebar() {
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
   const { requests: leaveRequests } = useLeaveRequests();
+  const pendingLeaves = usePendingLeaveCount();
 
   /** Publica todas as escalas (eMult + Serviços) no portal público. */
   const handlePublish = async () => {
@@ -183,20 +185,28 @@ export function Sidebar() {
           {/* Service Group Items */}
           {isServicosOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {serviceItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => cn(
-                    "nav-item text-sm",
-                    isActive && "active"
-                  )}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
+              {serviceItems.map((item) => {
+                const showBadge = item.to === '/escalas-servicos/folgas' && pendingLeaves > 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) => cn(
+                      "nav-item text-sm relative",
+                      isActive && "active"
+                    )}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                    {showBadge && (
+                      <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                        {pendingLeaves > 9 ? '9+' : pendingLeaves}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           )}
 

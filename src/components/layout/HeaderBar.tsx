@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-    User, Settings, LogOut, UserPlus, ChevronDown,
+    User, Settings, LogOut, UserPlus, ChevronDown, Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePendingLeaveCount } from '@/hooks/usePendingLeaveCount';
 
 export function HeaderBar() {
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -14,6 +15,7 @@ export function HeaderBar() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const navigate = useNavigate();
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const pendingLeaves = usePendingLeaveCount();
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -73,6 +75,20 @@ export function HeaderBar() {
     return (
         <header className="sticky top-0 z-30 flex items-center justify-end h-16 px-4 lg:px-10 bg-transparent no-print pointer-events-none">
             <div className="flex-1" />
+
+            {/* Notification bell */}
+            {pendingLeaves > 0 && (
+                <button
+                    onClick={() => navigate('/escalas-servicos/folgas')}
+                    className="pointer-events-auto relative mr-3 p-2 rounded-full hover:bg-card/80 transition-colors"
+                    aria-label={`${pendingLeaves} pedido(s) de folga pendente(s)`}
+                >
+                    <Bell className="w-5 h-5 text-muted-foreground" />
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1 animate-in zoom-in duration-200">
+                        {pendingLeaves > 9 ? '9+' : pendingLeaves}
+                    </span>
+                </button>
+            )}
 
             <div className="relative pointer-events-auto" ref={dropdownRef}>
                 <button
