@@ -239,17 +239,6 @@ export default function Registration() {
             <Syringe className="w-3.5 h-3.5" />
             Técnicos ({approvedUsers.filter(u => u.category === 'tech').length})
           </button>
-          <button
-            onClick={() => setActiveTab('emult')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
-              activeTab === 'emult'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            eMult ({approvedUsers.filter(u => u.category === 'emult').length})
-          </button>
         </div>
 
         {loadingApprovals && (
