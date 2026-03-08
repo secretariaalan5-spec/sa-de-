@@ -163,6 +163,18 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {/* Links & Aprovações - top level */}
+          <NavLink
+            to="/aprovacoes"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) => cn(
+              "nav-item text-sm font-medium",
+              isActive && "active"
+            )}
+          >
+            <UserPlus size={18} />
+            <span>Links & Aprovações</span>
+          </NavLink>
 
           <div className="h-px bg-border/50 my-4 mx-2" />
 
