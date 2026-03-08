@@ -1,5 +1,13 @@
+/**
+ * ServiceProfessionals — Gestão de enfermeiros e técnicos para escalas de serviço.
+ *
+ * Exibe profissionais em cards padronizados com cores de categoria (design tokens).
+ * Organiza por abas (Enfermeiros / Técnicos) com busca e paginação.
+ */
+
 import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Stethoscope, Syringe, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Stethoscope, Syringe, Search, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ServiceProfessional } from '@/types/serviceSchedule';
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { format } from 'date-fns';
 
@@ -61,13 +67,11 @@ export default function ServiceProfessionalsPage() {
         setDialogOpen(true);
     };
 
+    /** Filtro global por nome */
     const filtered = useMemo(() => {
-        let list = professionals;
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            list = list.filter(p => p.name.toLowerCase().includes(term));
-        }
-        return list;
+        if (!searchTerm.trim()) return professionals;
+        const term = searchTerm.toLowerCase();
+        return professionals.filter(p => p.name.toLowerCase().includes(term));
     }, [professionals, searchTerm]);
 
     const nurses = useMemo(() => filtered.filter(p => p.category === 'nurse'), [filtered]);
@@ -76,7 +80,7 @@ export default function ServiceProfessionalsPage() {
     const paginatedNurses = nurses.slice(0, nursePage * ITEMS_PER_PAGE);
     const paginatedTechs = techs.slice(0, techPage * ITEMS_PER_PAGE);
 
-    // Reset pages when search changes
+    // Reset da paginação ao alterar busca
     useEffect(() => {
         setNursePage(1);
         setTechPage(1);
@@ -84,41 +88,44 @@ export default function ServiceProfessionalsPage() {
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
+    /**
+     * ProfessionalCard — Card padronizado usando tokens de categoria do design system.
+     */
     const ProfessionalCard = ({ prof }: { prof: ServiceProfessional }) => {
         const isOnLeave = requests.some(r =>
-            r.professionalId === prof.id &&
-            r.leaveDates.includes(today)
+            r.professionalId === prof.id && r.leaveDates.includes(today)
         );
-
         const isNurse = prof.category === 'nurse';
 
         return (
             <div className={cn(
-                "flex flex-col p-4 border rounded-xl transition-all group",
+                "prof-card group",
                 !prof.active
-                    ? "bg-muted/40 border-dashed"
+                    ? "prof-card--inactive"
                     : isOnLeave
-                        ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50"
+                        ? "prof-card--on-leave"
                         : isNurse
-                            ? "bg-blue-50/50 dark:bg-blue-950/10 border-blue-100 dark:border-blue-900/30"
-                            : "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30",
-                "hover:shadow-md"
+                            ? "prof-card--nurse"
+                            : "prof-card--tech"
             )}>
+                {/* Cabeçalho: nome + ações */}
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-foreground truncate" title={prof.name}>{prof.name}</span>
                             {isOnLeave && (
-                                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" title="De Folga Hoje" />
+                                <span className="flex h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" title="De Folga Hoje" />
                             )}
                         </div>
                         <span className={cn(
                             "text-[10px] uppercase font-bold tracking-wider",
-                            isOnLeave ? "text-amber-600" : isNurse ? "text-blue-600" : "text-emerald-600"
+                            isOnLeave ? "text-warning" : isNurse ? "cat-text-nurse" : "cat-text-tech"
                         )}>
                             {prof.monthlyHours}h mensal • {isNurse ? 'Enfermeiro' : 'Técnico'}
                         </span>
                     </div>
+
+                    {/* Ações (edit/delete) */}
                     <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => handleEdit(prof)}>
                             <Pencil className="w-3.5 h-3.5" />
@@ -129,14 +136,15 @@ export default function ServiceProfessionalsPage() {
                     </div>
                 </div>
 
+                {/* Badges de status */}
                 <div className="flex flex-wrap gap-2 mt-2">
                     {isOnLeave && (
-                        <span className="text-[9px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        <span className="text-[9px] bg-warning/15 text-warning font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
                             De Folga (Hoje)
                         </span>
                     )}
                     {!prof.active && (
-                        <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        <span className="text-[9px] bg-destructive/15 text-destructive font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
                             Inativo
                         </span>
                     )}
@@ -147,12 +155,14 @@ export default function ServiceProfessionalsPage() {
 
     return (
         <div className="animate-fade-in space-y-6 max-w-6xl mx-auto">
+            {/* Header + botão de ação */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <PageHeader
                     title="Cadastro de Profissionais"
                     description="Gerencie enfermeiros e técnicos para as escalas de serviço"
                 />
 
+                {/* Dialog de criação/edição */}
                 <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
                     <DialogTrigger asChild>
                         <Button className="shadow-lg shadow-primary/20">
@@ -166,12 +176,12 @@ export default function ServiceProfessionalsPage() {
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
                             <div>
-                                <Label className="text-xs font-bold uppercase text-muted-foreground">Nome Completo</Label>
+                                <Label className="field-label">Nome Completo</Label>
                                 <Input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nome do profissional" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Categoria</Label>
+                                    <Label className="field-label">Categoria</Label>
                                     <Select value={form.category} onValueChange={(value: 'nurse' | 'tech') => setForm(prev => ({ ...prev, category: value }))}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -181,7 +191,7 @@ export default function ServiceProfessionalsPage() {
                                     </Select>
                                 </div>
                                 <div>
-                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Carga Horária Mensal</Label>
+                                    <Label className="field-label">Carga Horária Mensal</Label>
                                     <Input type="number" value={form.monthlyHours} onChange={(e) => setForm(prev => ({ ...prev, monthlyHours: Number(e.target.value) }))} />
                                 </div>
                             </div>
@@ -189,13 +199,15 @@ export default function ServiceProfessionalsPage() {
                                 <Switch checked={form.active} onCheckedChange={(checked) => setForm(prev => ({ ...prev, active: checked }))} />
                                 <Label className="text-sm font-medium cursor-pointer">Profissional em atividade</Label>
                             </div>
-                            <Button onClick={handleSubmit} className="w-full h-11">{editingId ? 'Salvar Alterações' : 'Cadastrar Profissional'}</Button>
+                            <Button onClick={handleSubmit} className="w-full h-11">
+                                {editingId ? 'Salvar Alterações' : 'Cadastrar Profissional'}
+                            </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {/* Search & Tabs Controls */}
+            {/* Busca + Abas */}
             <div className="flex flex-col gap-6">
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -221,14 +233,13 @@ export default function ServiceProfessionalsPage() {
                         </TabsTrigger>
                     </TabsList>
 
+                    {/* Aba Enfermeiros */}
                     <TabsContent value="nurse" className="focus-visible:outline-none">
                         {nurses.length === 0 ? (
-                            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
-                                <p className="text-muted-foreground text-sm">Nenhum enfermeiro encontrado.</p>
-                            </div>
+                            <EmptyState icon={Stethoscope} title="Nenhum enfermeiro encontrado" description="Cadastre enfermeiros para começar." />
                         ) : (
                             <div className="space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {paginatedNurses.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
                                 </div>
                                 {paginatedNurses.length < nurses.length && (
@@ -242,14 +253,13 @@ export default function ServiceProfessionalsPage() {
                         )}
                     </TabsContent>
 
+                    {/* Aba Técnicos */}
                     <TabsContent value="tech" className="focus-visible:outline-none">
                         {techs.length === 0 ? (
-                            <div className="text-center py-12 bg-card rounded-2xl border border-dashed">
-                                <p className="text-muted-foreground text-sm">Nenhum técnico encontrado.</p>
-                            </div>
+                            <EmptyState icon={Syringe} title="Nenhum técnico encontrado" description="Cadastre técnicos para começar." />
                         ) : (
                             <div className="space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {paginatedTechs.map(prof => <ProfessionalCard key={prof.id} prof={prof} />)}
                                 </div>
                                 {paginatedTechs.length < techs.length && (
