@@ -206,6 +206,7 @@ export type Database = {
       }
       professional_users: {
         Row: {
+          avatar_url: string | null
           category: string
           created_at: string
           email: string
@@ -218,6 +219,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           category?: string
           created_at?: string
           email: string
@@ -230,6 +232,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           category?: string
           created_at?: string
           email?: string
@@ -398,6 +401,7 @@ export type Database = {
           _team_id: string
         }
         Returns: {
+          avatar_url: string | null
           category: string
           created_at: string
           email: string
