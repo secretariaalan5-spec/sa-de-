@@ -193,6 +193,7 @@ export default function ServiceProfessionalsPage() {
     const catText = isNurse ? 'cat-text-nurse' : 'cat-text-tech';
     const catLabel = isNurse ? 'Enfermeiro' : 'Técnico';
     const Icon = isNurse ? Stethoscope : Syringe;
+    const avatarUrl = avatarMap[prof.id];
 
     return (
       <div
@@ -201,9 +202,17 @@ export default function ServiceProfessionalsPage() {
       >
         <div className={`h-1 -mx-5 -mt-5 mb-4 ${catBar}`} />
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${catIcon}`}>
-            <Icon className="w-4 h-4" />
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={prof.name}
+              className="w-11 h-11 rounded-xl object-cover shrink-0 border-2 border-border"
+            />
+          ) : (
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${catIcon}`}>
+              <Icon className="w-4 h-4" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm text-foreground truncate">{prof.name}</h3>
