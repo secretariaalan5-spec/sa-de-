@@ -32,7 +32,7 @@ export default function Registration() {
   const [pendingUsers, setPendingUsers] = useState<ProfessionalUserRecord[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ProfessionalUserRecord[]>([]);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
-  const [activeTab, setActiveTab] = useState<'pending' | 'team'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'enfermeiros' | 'tecnicos' | 'emult'>('pending');
 
   const portalLink = teamId
     ? `${window.location.origin}/portal?team=${teamId}`
