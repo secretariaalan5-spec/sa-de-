@@ -3,7 +3,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2, Mail, Shield,
+  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2, Mail, Shield, User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -104,150 +104,154 @@ export default function ProfilePage() {
     .toUpperCase();
 
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto space-y-6 pb-10">
-      {/* ── Hero Card ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-card border border-border shadow-sm">
-        {/* Banner decorativo */}
-        <div className="h-32 sm:h-36 bg-gradient-to-br from-primary via-primary/80 to-primary/50 relative">
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: 'radial-gradient(circle at 20% 50%, hsl(var(--primary-foreground)) 1px, transparent 1px), radial-gradient(circle at 80% 20%, hsl(var(--primary-foreground)) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }} />
-        </div>
+    <div className="animate-fade-in max-w-2xl mx-auto pb-10 pt-2">
+      {/* ── Cabeçalho da página ── */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground">Meu Perfil</h1>
+        <p className="text-sm text-muted-foreground mt-1">Gerencie suas informações pessoais</p>
+      </div>
 
-        {/* Conteúdo sobre o banner */}
-        <div className="px-6 sm:px-8 pb-8 -mt-16 relative">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
-            {/* Avatar */}
-            <div className="relative group shrink-0">
-              <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-card shadow-lg bg-card">
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <span className="text-4xl font-bold text-primary">{initials}</span>
-                  </div>
-                )}
-
-                {/* Overlay hover */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="absolute inset-0 rounded-2xl bg-foreground/0 group-hover:bg-foreground/40 transition-all duration-200 flex items-center justify-center cursor-pointer"
-                  aria-label="Alterar foto"
-                >
-                  <Camera className="w-6 h-6 text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
-                </button>
-
-                {uploading && (
-                  <div className="absolute inset-0 rounded-2xl bg-foreground/50 flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 text-primary-foreground animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarUpload}
-              />
-            </div>
-
-            {/* Info ao lado do avatar */}
-            <div className="flex-1 min-w-0 sm:pb-1">
-              {/* Nome editável */}
-              {editingName ? (
-                <div className="flex gap-2 max-w-sm">
-                  <Input
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    placeholder="Seu nome"
-                    onKeyDown={e => e.key === 'Enter' && handleSaveName()}
-                    autoFocus
-                    className="text-lg font-semibold h-11"
-                  />
-                  <Button size="icon" variant="default" className="shrink-0 h-11 w-11" onClick={handleSaveName}>
-                    <Check className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="shrink-0 h-11 w-11" onClick={() => setEditingName(false)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
+      {/* ── Card de Perfil ── */}
+      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
+        {/* Avatar centralizado com fundo sutil */}
+        <div className="flex flex-col items-center pt-10 pb-6 px-6 bg-gradient-to-b from-muted/40 to-card">
+          {/* Avatar redondo */}
+          <div className="relative group mb-4">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-[3px] border-card shadow-xl ring-4 ring-primary/10 bg-card">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
-                    {profile?.display_name || 'Sem nome'}
-                  </h1>
-                  <button
-                    onClick={() => {
-                      setEditName(profile?.display_name || '');
-                      setEditingName(true);
-                    }}
-                    className="shrink-0 p-1.5 rounded-lg hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                <div className="w-full h-full bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-primary select-none">{initials}</span>
                 </div>
               )}
 
-              {/* Meta info */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
-                {adminEmail && (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Mail className="w-3.5 h-3.5" />
-                    <span className="truncate">{adminEmail}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Administrador</span>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute inset-0 rounded-full bg-foreground/0 group-hover:bg-foreground/40 transition-all duration-200 flex items-center justify-center cursor-pointer"
+                aria-label="Alterar foto"
+              >
+                <Camera className="w-5 h-5 text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+              </button>
+
+              {uploading && (
+                <div className="absolute inset-0 rounded-full bg-foreground/50 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-primary-foreground animate-spin" />
                 </div>
-                {profile?.created_at && (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Desde {format(new Date(profile.created_at), "MMM yyyy", { locale: ptBR })}</span>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
           </div>
 
-          {/* Ações de foto */}
-          <div className="flex gap-2 mt-5 ml-0 sm:ml-[152px]">
+          {/* Botões de foto */}
+          <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 text-xs rounded-xl"
+              className="gap-1.5 text-xs rounded-full h-8 px-4"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
-              <Camera className="w-3.5 h-3.5" />
-              {profile?.avatar_url ? 'Trocar foto' : 'Adicionar foto'}
+              <Camera className="w-3 h-3" />
+              {profile?.avatar_url ? 'Trocar' : 'Adicionar foto'}
             </Button>
             {profile?.avatar_url && (
               <Button
                 size="sm"
                 variant="ghost"
-                className="gap-1.5 text-xs text-destructive hover:text-destructive rounded-xl"
+                className="gap-1.5 text-xs text-destructive hover:text-destructive rounded-full h-8 px-4"
                 onClick={handleRemoveAvatar}
                 disabled={uploading}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" />
                 Remover
               </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Informações do perfil */}
+        <div className="px-6 pb-6 space-y-4">
+          {/* Nome */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <User className="w-3 h-3" />
+              Nome de exibição
+            </label>
+            {editingName ? (
+              <div className="flex gap-2">
+                <Input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Seu nome"
+                  onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+                  autoFocus
+                  className="font-medium"
+                />
+                <Button size="icon" variant="default" className="shrink-0" onClick={handleSaveName}>
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingName(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditName(profile?.display_name || '');
+                  setEditingName(true);
+                }}
+                className="w-full flex items-center justify-between rounded-xl bg-muted/30 border border-border px-4 py-3 text-left hover:bg-muted/50 transition-colors group"
+              >
+                <span className="font-semibold text-foreground">
+                  {profile?.display_name || 'Sem nome'}
+                </span>
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <Mail className="w-3 h-3" />
+              E-mail
+            </label>
+            <div className="rounded-xl bg-muted/30 border border-border px-4 py-3">
+              <span className="text-sm text-foreground">{adminEmail || '—'}</span>
+            </div>
+          </div>
+
+          {/* Linha de meta dados */}
+          <div className="flex items-center gap-4 pt-2">
+            <div className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 rounded-full px-3 py-1.5">
+              <Shield className="w-3 h-3" />
+              Administrador
+            </div>
+            {profile?.created_at && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                Desde {format(new Date(profile.created_at), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* ── Histórico de Ações ── */}
-      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden mt-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="font-semibold text-foreground flex items-center gap-2 text-sm">
             <Activity className="w-4 h-4 text-primary" />
@@ -271,9 +275,9 @@ export default function ProfilePage() {
               {activityLog.map(log => (
                 <div
                   key={log.id}
-                  className="flex gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors text-sm group"
+                  className="flex gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors text-sm"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
                     {(log.profile?.display_name || '?')[0].toUpperCase()}
                   </div>
 
