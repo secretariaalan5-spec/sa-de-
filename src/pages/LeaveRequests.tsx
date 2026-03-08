@@ -172,8 +172,12 @@ export default function LeaveRequestsPage() {
                         {pendingPortalLeaves.map(leave => {
                             const prof = professionals.find(p => p.id === leave.professional_id);
                             const avatarUrl = avatarMap[leave.professional_id];
+                            const startDate = new Date(leave.start_date + 'T00:00:00');
+                            const today = new Date(); today.setHours(0, 0, 0, 0);
+                            const daysUntil = differenceInCalendarDays(startDate, today);
+                            const isShortNotice = daysUntil < 10;
                             return (
-                                <div key={leave.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+                                <div key={leave.id} className={cn("bg-card rounded-2xl border p-5 shadow-sm hover:shadow-md transition-shadow", isShortNotice ? "border-warning/50" : "border-border")}>
                                     <div className="flex items-center gap-4">
                                         <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20 overflow-hidden">
                                             {avatarUrl && loadedAvatars.has(leave.professional_id) ? (
