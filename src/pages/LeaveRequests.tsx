@@ -31,7 +31,7 @@ interface ProfLeaveRequest {
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
-    const { requests, deleteRequest, addRequest } = useLeaveRequests();
+    const { requests, deleteRequest, addRequest, getConflictingDates } = useLeaveRequests();
     const { profile, logActivity } = useProfile();
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
