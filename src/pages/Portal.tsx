@@ -1005,7 +1005,7 @@ export default function Portal() {
                         <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
                           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                           <p className="text-xs text-amber-700 dark:text-amber-300">
-                            <span className="font-bold">Atenção:</span> pedidos devem ser feitos com pelo menos 10 dias de antecedência. Seu pedido será enviado, mas a aprovação pode ser impactada.
+                            <span className="font-bold">Prazo inferior ao recomendado.</span> Sua solicitação será enviada normalmente, mas por estar fora do prazo mínimo de 10 dias, passará por uma análise especial da coordenação.
                           </p>
                         </div>
                       )}
