@@ -39,6 +39,11 @@ import {
   XCircle,
   HourglassIcon,
   Camera,
+  CreditCard,
+  CalendarOff,
+  Settings,
+  ChevronDown,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +80,8 @@ interface PortalData {
   };
 }
 
+type PortalTab = 'schedule' | 'credits' | 'leaves' | 'profile';
+
 // ─────────────────────────────────────────
 // Google Login Screen
 // ─────────────────────────────────────────
@@ -90,87 +97,77 @@ function GoogleLoginScreen({
   showInstall: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/20 blur-[120px] rounded-full animate-pulse" />
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[50vh] bg-gradient-to-b from-primary/8 to-transparent" />
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-10 space-y-4">
+      <div className="w-full max-w-sm relative z-10">
+        <div className="text-center mb-8 space-y-3">
           <div className="relative inline-block">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-2xl mx-auto transform hover:scale-105 transition-transform duration-300">
+            <div className="w-20 h-20 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-xl shadow-primary/25 mx-auto">
               <img
                 src="/logo-saude-plus.png"
                 alt="Saúde+"
-                className="h-14 w-auto brightness-0 invert"
+                className="h-12 w-auto brightness-0 invert"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
-              <Stethoscope className="h-12 w-12 text-white absolute inset-0 m-auto opacity-20" />
-            </div>
-            <div className="absolute -bottom-2 -right-2 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-              <User className="h-4 w-4 text-primary" />
+              <Stethoscope className="h-10 w-10 text-primary-foreground absolute inset-0 m-auto opacity-15" />
             </div>
           </div>
           <div>
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
-              Meu <span className="text-primary italic">Portal</span>
+            <h1 className="text-3xl font-black tracking-tight text-foreground">
+              Portal <span className="text-primary">Saúde+</span>
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-tight">Portal do Profissional de Saúde</p>
+            <p className="text-muted-foreground text-sm mt-1">Acesso do profissional de saúde</p>
           </div>
         </div>
 
-        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden rounded-[2.5rem]">
-          <CardContent className="pt-10 pb-10 px-8">
-            <div className="space-y-6">
-              <div className="space-y-2 text-center">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Bem-vindo(a)</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Entre com sua conta Google para acessar suas escalas, créditos e solicitar folgas.
-                </p>
-              </div>
-
-              <Button
-                onClick={onLogin}
-                disabled={loading}
-                className="w-full h-16 text-lg font-bold rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg hover:shadow-primary/25 gap-3"
-              >
-                {loading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Chrome className="h-5 w-5" />
-                )}
-                Entrar com Google
-              </Button>
-
-              {showInstall && (
-                <Button
-                  variant="outline"
-                  onClick={onInstall}
-                  className="w-full h-14 rounded-2xl border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold gap-2 transition-all"
-                >
-                  <Download className="h-5 w-5" />
-                  Instalar Aplicativo (PWA)
-                </Button>
-              )}
-
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
-                <p className="text-xs font-medium text-slate-400">
-                  Acesso exclusivo para profissionais da Secretaria de Saúde.
-                </p>
-              </div>
+        <div className="bg-card rounded-3xl shadow-xl border border-border/50 overflow-hidden">
+          <div className="p-8 space-y-5">
+            <div className="text-center space-y-1">
+              <h2 className="text-lg font-bold text-foreground">Bem-vindo(a)</h2>
+              <p className="text-xs text-muted-foreground">
+                Acesse suas escalas, créditos e solicite folgas
+              </p>
             </div>
-          </CardContent>
-        </Card>
 
-        <p className="text-center text-[10px] text-slate-400 mt-10 uppercase tracking-[0.2em] font-bold">
-          &copy; 2025 Secretaria Municipal de Saúde
-        </p>
+            <Button
+              onClick={onLogin}
+              disabled={loading}
+              className="w-full h-14 text-base font-bold rounded-2xl gap-3 shadow-lg shadow-primary/15"
+            >
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Chrome className="h-5 w-5" />
+              )}
+              Entrar com Google
+            </Button>
+
+            {showInstall && (
+              <Button
+                variant="outline"
+                onClick={onInstall}
+                className="w-full h-12 rounded-2xl font-semibold gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Instalar App
+              </Button>
+            )}
+          </div>
+
+          <div className="bg-muted/30 px-8 py-4 border-t border-border/30">
+            <p className="text-[10px] text-center text-muted-foreground">
+              Acesso exclusivo para profissionais da Secretaria de Saúde
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────
-// Registration Screen - choose category
+// Registration Screen
 // ─────────────────────────────────────────
 function RegistrationScreen({
   onRegister,
@@ -188,13 +185,15 @@ function RegistrationScreen({
 
   if (!teamId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
-        <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-sm w-full rounded-3xl border shadow-xl">
           <CardContent className="p-8 text-center space-y-4">
-            <AlertCircle className="h-12 w-12 mx-auto text-amber-500" />
-            <h2 className="text-xl font-bold">Link inválido</h2>
+            <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+              <AlertCircle className="h-7 w-7 text-destructive" />
+            </div>
+            <h2 className="text-lg font-bold">Link inválido</h2>
             <p className="text-sm text-muted-foreground">
-              Para acessar o portal, use o link fornecido pelo seu administrador.
+              Use o link fornecido pelo seu administrador para acessar o portal.
             </p>
           </CardContent>
         </Card>
@@ -203,71 +202,69 @@ function RegistrationScreen({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
-      <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
-        <CardContent className="p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-              <User className="h-8 w-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-sm">
+        <Card className="rounded-3xl border shadow-xl">
+          <CardContent className="p-8 space-y-5">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                <User className="h-7 w-7 text-primary" />
+              </div>
+              <h2 className="text-lg font-bold">Solicitar Acesso</h2>
+              <p className="text-xs text-muted-foreground">
+                Complete seu cadastro para acessar o portal
+              </p>
             </div>
-            <h2 className="text-xl font-bold">Solicitar Acesso</h2>
-            <p className="text-sm text-muted-foreground">
-              Complete seu cadastro para acessar o portal.
+
+            <div className="bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
+              <p>Logado como <span className="font-medium text-foreground">{userEmail}</span></p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Nome completo</Label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Nome Sobrenome"
+                className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Categoria profissional</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue placeholder="Selecione sua categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nurse">
+                    <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
+                  </SelectItem>
+                  <SelectItem value="tech">
+                    <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
+                  </SelectItem>
+                  <SelectItem value="emult">
+                    <span className="flex items-center gap-2"><Users className="w-4 h-4" /> eMult</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={() => onRegister(teamId, category, fullName.trim())}
+              disabled={!category || !fullName.trim()}
+              className="w-full h-12 rounded-xl font-bold"
+            >
+              Enviar Solicitação
+            </Button>
+
+            <p className="text-[10px] text-center text-muted-foreground">
+              O administrador precisará aprovar seu acesso.
             </p>
-          </div>
-
-          <div className="space-y-1 bg-muted/50 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground">Logado como</p>
-            <p className="text-xs text-muted-foreground">{userEmail}</p>
-          </div>
-
-          {/* Nome */}
-          <div className="space-y-2">
-            <Label htmlFor="reg-name">Seu nome completo</Label>
-            <input
-              id="reg-name"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Nome Sobrenome"
-              className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-
-          {/* Categoria */}
-          <div className="space-y-2">
-            <Label>Sua categoria profissional</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-12 rounded-xl">
-                <SelectValue placeholder="Selecione sua categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="nurse">
-                  <span className="flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Enfermeiro(a)</span>
-                </SelectItem>
-                <SelectItem value="tech">
-                  <span className="flex items-center gap-2"><Syringe className="w-4 h-4" /> Técnico(a)</span>
-                </SelectItem>
-                <SelectItem value="emult">
-                  <span className="flex items-center gap-2"><Users className="w-4 h-4" /> eMult</span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button
-            onClick={() => onRegister(teamId, category, fullName.trim())}
-            disabled={!category || !fullName.trim()}
-            className="w-full h-12 rounded-xl font-bold"
-          >
-            Enviar Solicitação
-          </Button>
-
-          <p className="text-[11px] text-center text-muted-foreground">
-            Após enviar, o administrador precisará aprovar seu acesso.
-          </p>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -279,32 +276,79 @@ function PendingScreen({ onLogout, status }: { onLogout: () => void; status: str
   const isPending = status === 'pending';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a] p-4">
-      <Card className="max-w-md w-full rounded-[2rem] border-0 shadow-xl">
-        <CardContent className="p-8 text-center space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="max-w-sm w-full rounded-3xl border shadow-xl">
+        <CardContent className="p-8 text-center space-y-5">
           {isPending ? (
             <>
-              <HourglassIcon className="h-16 w-16 mx-auto text-amber-500 animate-pulse" />
-              <h2 className="text-xl font-bold">Aguardando Aprovação</h2>
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
+                <HourglassIcon className="h-8 w-8 text-amber-500 animate-pulse" />
+              </div>
+              <h2 className="text-lg font-bold">Aguardando Aprovação</h2>
               <p className="text-sm text-muted-foreground">
-                Sua solicitação foi enviada ao administrador. Você receberá acesso assim que for aprovado(a).
+                Sua solicitação foi enviada. Você receberá acesso após a aprovação do administrador.
               </p>
             </>
           ) : (
             <>
-              <XCircle className="h-16 w-16 mx-auto text-destructive" />
-              <h2 className="text-xl font-bold">Acesso Negado</h2>
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+                <XCircle className="h-8 w-8 text-destructive" />
+              </div>
+              <h2 className="text-lg font-bold">Acesso Negado</h2>
               <p className="text-sm text-muted-foreground">
-                Sua solicitação foi rejeitada pelo administrador. Entre em contato com a Secretaria de Saúde.
+                Sua solicitação foi rejeitada. Entre em contato com a coordenação.
               </p>
             </>
           )}
-          <Button variant="outline" onClick={onLogout} className="gap-2">
+          <Button variant="outline" onClick={onLogout} className="gap-2 rounded-xl">
             <LogOut className="h-4 w-4" /> Sair
           </Button>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// Bottom Navigation Bar
+// ─────────────────────────────────────────
+function PortalBottomNav({ activeTab, onTabChange }: { activeTab: PortalTab; onTabChange: (tab: PortalTab) => void }) {
+  const tabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
+    { id: 'schedule', icon: Calendar, label: 'Escala' },
+    { id: 'credits', icon: CreditCard, label: 'Créditos' },
+    { id: 'leaves', icon: CalendarOff, label: 'Folgas' },
+    { id: 'profile', icon: User, label: 'Perfil' },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+      <div className="flex items-stretch max-w-lg mx-auto">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-all duration-200 relative",
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground active:scale-95"
+              )}
+            >
+              {isActive && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-primary rounded-b-full" />
+              )}
+              <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+              <span className={cn("text-[10px] font-semibold", isActive && "font-bold")}>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Safe area spacer for iPhones */}
+      <div className="h-[env(safe-area-inset-bottom)]" />
+    </nav>
   );
 }
 
@@ -328,10 +372,7 @@ export default function Portal() {
   interface BeforeInstallPromptEvent extends Event {
     readonly platforms?: string[];
     prompt: () => Promise<void>;
-    userChoice: Promise<{
-      outcome: "accepted" | "dismissed";
-      platform: string;
-    }>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
   }
 
   const [portalData, setPortalData] = useState<PortalData | null>(null);
@@ -340,6 +381,7 @@ export default function Portal() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<PortalTab>('schedule');
   const [leaveForm, setLeaveForm] = useState({
     leaveType: '' as LeaveType | '',
     startDate: '',
@@ -356,7 +398,6 @@ export default function Portal() {
 
   const teamIdFromUrl = getTeamId();
 
-  // Save team to localStorage when detected
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
@@ -364,12 +405,9 @@ export default function Portal() {
     if (t) localStorage.setItem('portal_team_id', t);
   }, []);
 
-  // Garantir que usuários antigos sem team_id sejam vinculados ao time do link atual
-  // Also re-link if professional is on wrong team
   useEffect(() => {
     const ensureTeamForProfessional = async () => {
       if (!professionalUser || !teamIdFromUrl) return;
-      // If no team or team differs from URL, re-link via RPC
       if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
         try {
           await supabase.rpc('register_professional_via_portal' as any, {
@@ -384,7 +422,6 @@ export default function Portal() {
         }
       }
     };
-
     ensureTeamForProfessional();
   }, [professionalUser, teamIdFromUrl, refreshProfile]);
 
@@ -405,16 +442,12 @@ export default function Portal() {
     if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
-  // Fetch portal data using team_id from professional_user or URL
   const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;
 
   const fetchPortalData = useCallback(async () => {
     if (!effectiveTeamId) return;
-
     setLoadingPortal(true);
     try {
-      // Busca sempre a última publicação vinculada ao time atual,
-      // usando o teamId salvo dentro de emult_data.
       const { data, error } = await supabase
         .from('portal_schedules' as any)
         .select('*')
@@ -424,7 +457,6 @@ export default function Portal() {
         .maybeSingle() as any;
 
       if (error) throw error;
-
       if (data) {
         setPortalData({
           publishedAt: data.published_at,
@@ -443,7 +475,7 @@ export default function Portal() {
     if (professionalUser?.status === 'approved') fetchPortalData();
   }, [professionalUser, fetchPortalData]);
 
-  // Computed data for the professional
+  // Computed data
   const myProfessional = useMemo(() => {
     if (!portalData || !professionalUser?.professional_id) return null;
     return portalData.service.professionals.find(p => p.id === professionalUser.professional_id) || null;
@@ -464,54 +496,32 @@ export default function Portal() {
       .filter(r => r.professionalId === professionalUser.professional_id);
   }, [portalData, professionalUser]);
 
-  // All team entries for team view
-  const allTeamEntries = useMemo(() => {
-    if (!portalData) return [];
-    return [
-      ...(portalData.service.nurseEntries || []),
-      ...(portalData.service.techEntries || []),
-    ];
-  }, [portalData]);
-
-  const allProfessionals = useMemo(() => portalData?.service?.professionals || [], [portalData]);
-
-  // Stats - mesma regra do Controle Individual (base admin),
-  // mas separando resumo do mês e geral (histórico).
   const myStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // ── Geral (histórico até hoje) ──
     const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
     const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
-
-    // Usa o mesmo marcador de final de semana que o admin (campo isWeekend),
-    // para não ter divergência de contagem (evita considerar segunda como FDS, etc.).
     const overallWeekendEntries = pastEntries.filter(e => e.isWeekend);
     const overallWeekendDates = new Set(overallWeekendEntries.map(e => e.date));
     const overallWeekendDays = overallWeekendDates.size;
     const overallCreditsGenerated = overallWeekendDays * 2;
-
     const overallCreditsUsed = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
       .reduce((sum, r) => sum + r.daysRequested, 0);
     const overallCreditsBalance = overallCreditsGenerated - overallCreditsUsed;
 
-    // ── Resumo do mês atual ──
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-
     const monthEntries = myEntries.filter(e => {
       const d = new Date(e.date);
       return d >= monthStart && d <= monthEnd && d <= today;
     });
     const monthWorkedDays = new Set(monthEntries.map(e => e.date)).size;
-
     const monthWeekendEntries = monthEntries.filter(e => e.isWeekend);
     const monthWeekendDates = new Set(monthWeekendEntries.map(e => e.date));
     const monthWeekendDays = monthWeekendDates.size;
     const monthCreditsGenerated = monthWeekendDays * 2;
-
     const monthCreditsUsed = myLeaveRequestsFromAdmin
       .filter(r => r.leaveType === 'folga_credito' && r.status === 'approved')
       .reduce((sum, r) => {
@@ -540,7 +550,7 @@ export default function Portal() {
     };
   }, [myEntries, myLeaveRequestsFromAdmin, currentMonth]);
 
-  // Leave form
+  // Leave form helpers
   const daysRequested = useMemo(() => {
     if (!leaveForm.startDate || !leaveForm.endDate) return 0;
     const start = new Date(leaveForm.startDate + 'T00:00:00');
@@ -565,7 +575,6 @@ export default function Portal() {
       toast.error(`Saldo insuficiente. Disponível: ${myStats.overall.creditsBalance} dias`);
       return;
     }
-
     const success = await submitLeaveRequest({
       leave_type: leaveForm.leaveType,
       start_date: leaveForm.startDate,
@@ -573,24 +582,53 @@ export default function Portal() {
       days_requested: daysRequested,
       observations: leaveForm.observations || undefined,
     });
-
     if (success) {
       setLeaveForm({ leaveType: '', startDate: '', endDate: '', observations: '' });
       setLeaveDialogOpen(false);
     }
   };
 
-  // ─── Render States ───
+  const handleAvatarUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file || !session?.user) return;
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('A imagem deve ter no máximo 2 MB');
+        return;
+      }
+      setAvatarUploading(true);
+      try {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const filePath = `${session.user.id}/avatar.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { upsert: true });
+        if (uploadErr) throw uploadErr;
+        const avatarUrl = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
+        await (supabase.from('professional_users' as any).update({ avatar_url: avatarUrl } as any).eq('user_id', session.user.id) as any);
+        await refreshProfile();
+        toast.success('Foto atualizada!');
+      } catch (err: any) {
+        toast.error('Erro ao enviar foto: ' + (err.message || ''));
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+    input.click();
+  };
 
+  // ─── Render States ───
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Not logged in
   if (!session) {
     return (
       <GoogleLoginScreen
@@ -602,7 +640,6 @@ export default function Portal() {
     );
   }
 
-  // No professional record → registration
   if (!professionalUser) {
     return (
       <RegistrationScreen
@@ -614,346 +651,270 @@ export default function Portal() {
     );
   }
 
-  // Not approved
   if (professionalUser.status !== 'approved') {
     return <PendingScreen onLogout={logout} status={professionalUser.status} />;
   }
 
-  // ─── Approved: Main Portal ───
-
+  // ─── Helper funcs ───
   const goToPreviousMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
   const goToNextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
 
   const updatedLabel = portalData
-    ? `Atualizado em ${format(parseISO(portalData.publishedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-    : 'Sem dados publicados';
+    ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR })
+    : 'Sem dados';
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'approved': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />Aprovado</Badge>;
-      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
-      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200"><HourglassIcon className="w-3 h-3 mr-1" />Pendente</Badge>;
+      case 'approved': return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />Aprovado</Badge>;
+      case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
+      default: return <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]"><HourglassIcon className="w-3 h-3 mr-1" />Pendente</Badge>;
     }
   };
 
   const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
+  const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
 
+  // ─── APPROVED MAIN PORTAL ───
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] pb-24 md:pb-12 transition-colors duration-500">
-      {/* Header */}
-      <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="container mx-auto px-4 h-20 md:h-24 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 md:gap-5">
-            {/* Avatar do profissional */}
-            <div className="relative group shrink-0">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-black/5 overflow-hidden border border-slate-100 dark:border-slate-700">
-                {professionalUser.avatar_url ? (
-                  <img
-                    src={professionalUser.avatar_url}
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <User className="h-6 w-6 md:h-8 md:w-8 text-slate-400" />
-                )}
-              </div>
-              <button
-                onClick={async () => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/*';
-                  input.onchange = async (e) => {
-                    const file = (e.target as HTMLInputElement).files?.[0];
-                    if (!file || !session?.user) return;
-                    if (file.size > 2 * 1024 * 1024) {
-                      toast.error('A imagem deve ter no máximo 2 MB');
-                      return;
-                    }
-                    setAvatarUploading(true);
-                    try {
-                      const ext = file.name.split('.').pop() || 'jpg';
-                      const filePath = `${session.user.id}/avatar.${ext}`;
-                      const { error: uploadErr } = await supabase.storage
-                        .from('avatars')
-                        .upload(filePath, file, { upsert: true });
-                      if (uploadErr) throw uploadErr;
-                      const avatarUrl = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${filePath}?t=${Date.now()}`;
-                      await (supabase.from('professional_users' as any).update({ avatar_url: avatarUrl } as any).eq('user_id', session.user.id) as any);
-                      await refreshProfile();
-                      toast.success('Foto atualizada!');
-                    } catch (err: any) {
-                      toast.error('Erro ao enviar foto: ' + (err.message || ''));
-                    } finally {
-                      setAvatarUploading(false);
-                    }
-                  };
-                  input.click();
-                }}
-                disabled={avatarUploading}
-                className="absolute inset-0 rounded-2xl md:rounded-3xl bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center cursor-pointer"
-                aria-label="Alterar foto"
-              >
-                {avatarUploading ? (
-                  <Loader2 className="w-5 h-5 text-white animate-spin opacity-0 group-hover:opacity-100 transition-opacity" />
-                ) : (
-                  <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                )}
-              </button>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Compact Header */}
+      <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-xl border-b border-border/50">
+        <div className="px-4 h-14 flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 ring-2 ring-primary/20">
+              {professionalUser.avatar_url ? (
+                <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-4 h-4 text-primary" />
+              )}
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                Olá, <span className="text-primary">{myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0]}</span>
-              </h1>
-              <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate">{professionalUser.email}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-wider">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  {categoryLabel}
-                </div>
-              </div>
+              <p className="text-sm font-bold text-foreground truncate">Olá, {firstName}</p>
+              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Atualizado {updatedLabel}
+              </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <div className="hidden lg:block text-right">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Última Atualização</p>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{updatedLabel}</p>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={logout}
-              className="rounded-xl md:rounded-2xl border-slate-200 dark:border-slate-700 hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-all h-10 w-10 md:h-12 md:w-12 shadow-sm"
-              title="Sair"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+            disabled={loadingPortal}
+            className="rounded-full h-9 w-9"
+          >
+            <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
+          </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 md:py-10">
+      {/* Tab Content */}
+      <main className="max-w-2xl mx-auto px-4 py-5">
         {loadingPortal ? (
-          <div className="space-y-4 w-full max-w-2xl mx-auto">
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
         ) : (
           <>
-            {/* Mobile info bar */}
-            <div className="md:hidden flex items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
-                  <Clock className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Atualizado em</span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{updatedLabel}</span>
-                </div>
-              </div>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-10 w-10 rounded-xl text-primary bg-primary/10 hover:bg-primary/20"
-                onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
-                disabled={loadingPortal}
-              >
-                <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
-              </Button>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.1fr)] md:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)]">
-              {/* Calendário + estatísticas */}
-              <div className="space-y-6 max-w-4xl mx-auto w-full">
-                {/* Month Navigator */}
+            {/* ═══ SCHEDULE TAB ═══ */}
+            {activeTab === 'schedule' && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                {/* Month navigator */}
                 <div className="flex items-center justify-between">
-                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-xl">
+                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="rounded-full h-9 w-9">
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
-                  <h2 className="text-lg md:text-xl font-black capitalize text-slate-800 dark:text-white">
+                  <h2 className="text-base font-black capitalize text-foreground">
                     {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
                   </h2>
-                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-xl">
+                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="rounded-full h-9 w-9">
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
 
                 {/* Calendar */}
-                <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="grid grid-cols-7 text-center bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                        <div key={d} className="py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{d}</div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7">
-                      {(() => {
-                        const monthStart = startOfMonth(currentMonth);
-                        const monthEnd = endOfMonth(currentMonth);
-                        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-                        const startDayOfWeek = getDay(monthStart);
-                        const blanks = Array.from({ length: startDayOfWeek }, (_, i) => (
-                          <div key={`blank-${i}`} className="aspect-square" />
-                        ));
+                <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-7 text-center bg-muted/40 border-b border-border/50">
+                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                      <div key={i} className="py-2.5 text-[10px] font-bold text-muted-foreground uppercase">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {(() => {
+                      const mStart = startOfMonth(currentMonth);
+                      const mEnd = endOfMonth(currentMonth);
+                      const days = eachDayOfInterval({ start: mStart, end: mEnd });
+                      const startDow = getDay(mStart);
+                      const blanks = Array.from({ length: startDow }, (_, i) => (
+                        <div key={`b-${i}`} className="aspect-square" />
+                      ));
 
-                        const dayCells = days.map(day => {
-                          const dateStr = format(day, 'yyyy-MM-dd');
-                          const hasWork = myEntries.some(e => e.date === dateStr);
-                          const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                          const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                      const dayCells = days.map(day => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const hasWork = myEntries.some(e => e.date === dateStr);
+                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
-                          return (
-                            <div
-                              key={dateStr}
-                              className={cn(
-                                "aspect-square flex flex-col items-center justify-center border-b border-r border-slate-100 dark:border-slate-800 transition-colors relative",
-                                isToday && "bg-primary/5",
-                                hasWork && !isWeekend && "bg-emerald-50 dark:bg-emerald-900/20",
-                                hasWork && isWeekend && "bg-amber-50 dark:bg-amber-900/20",
-                              )}
-                            >
-                              <span className={cn(
-                                "text-sm md:text-base font-bold",
-                                isToday && "text-primary",
-                                isWeekend && "text-slate-400",
-                                !isToday && !isWeekend && "text-slate-700 dark:text-slate-200"
-                              )}>
-                                {format(day, 'd')}
-                              </span>
-                              {hasWork && (
-                                <div className={cn(
-                                  "w-2 h-2 rounded-full mt-0.5",
-                                  isWeekend ? "bg-amber-400" : "bg-emerald-400"
-                                )} />
-                              )}
-                            </div>
-                          );
-                        });
+                        return (
+                          <div
+                            key={dateStr}
+                            className={cn(
+                              "aspect-square flex flex-col items-center justify-center relative transition-colors",
+                              isToday && "bg-primary/8",
+                            )}
+                          >
+                            <span className={cn(
+                              "text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full",
+                              isToday && "bg-primary text-primary-foreground font-bold",
+                              !isToday && isWeekend && "text-muted-foreground",
+                              !isToday && !isWeekend && "text-foreground"
+                            )}>
+                              {format(day, 'd')}
+                            </span>
+                            {hasWork && (
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full mt-0.5 absolute bottom-1",
+                                isWeekend ? "bg-amber-400" : "bg-emerald-500"
+                              )} />
+                            )}
+                          </div>
+                        );
+                      });
 
-                        return [...blanks, ...dayCells];
-                      })()}
-                    </div>
-                  </CardContent>
-                </Card>
+                      return [...blanks, ...dayCells];
+                    })()}
+                  </div>
+                </div>
 
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                    <span>Dia útil</span>
+                <div className="flex items-center justify-center gap-5 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" />Dia útil</span>
+                  <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" />Fim de semana</span>
+                  <span className="flex items-center gap-1.5"><div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[8px] font-bold">H</div>Hoje</span>
+                </div>
+
+                {/* Quick stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-card rounded-2xl border border-border/50 p-4 text-center">
+                    <p className="text-2xl font-black text-primary">{myStats.month.workedDays}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase mt-0.5">Dias no mês</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-400" />
-                    <span>Final de semana</span>
+                  <div className="bg-card rounded-2xl border border-border/50 p-4 text-center">
+                    <p className="text-2xl font-black text-amber-500">{myStats.month.weekendDays}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase mt-0.5">Fins de semana</p>
                   </div>
                 </div>
 
-                {/* Stats Cards - dados gerais do sistema */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Card className="border-0 shadow-md rounded-2xl">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-primary">{myStats.overall.workedDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Dias escalados (geral)</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-0 shadow-md rounded-2xl">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-2xl font-black text-amber-500">{myStats.overall.weekendDays}</p>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Fins de semana (geral)</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-0 shadow-md rounded-2xl">
-                    <CardContent className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <TrendingUp className="w-4 h-4 text-emerald-500" />
-                        <p className="text-2xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos gerados (geral)</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-0 shadow-md rounded-2xl">
-                    <CardContent className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <TrendingDown className="w-4 h-4 text-red-500" />
-                        <p className="text-2xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase">Créditos usados (geral)</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Resumo do mês (compacto) */}
-                <div className="mt-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-300 flex flex-wrap gap-3 justify-between">
-                  <span className="font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Resumo do mês
-                  </span>
-                  <span>Dias: <strong>{myStats.month.workedDays}</strong></span>
-                  <span>Fins de semana: <strong>{myStats.month.weekendDays}</strong></span>
-                  <span>Créditos: <strong>{myStats.month.creditsGenerated - myStats.month.creditsUsed}</strong> saldo</span>
-                </div>
-              </div>
-
-              {/* Créditos */}
-              <div className="space-y-6 max-w-2xl mx-auto w-full">
-                <Card className="border-0 shadow-lg rounded-[2rem] overflow-hidden">
-                  <CardContent className="p-8 text-center space-y-6">
+                {/* Overall summary */}
+                <div className="bg-muted/30 rounded-2xl border border-border/50 p-4">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wide mb-2">Resumo Geral</p>
+                  <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saldo Atual de Créditos (Geral)</p>
-                      <p className={cn(
-                        "text-6xl font-black",
-                        myStats.overall.creditsBalance > 0 ? "text-emerald-600" : myStats.overall.creditsBalance < 0 ? "text-destructive" : "text-slate-400"
-                      )}>
-                        {myStats.overall.creditsBalance}
-                      </p>
-                      <p className="text-sm text-slate-500 mt-2">dias disponíveis para folga</p>
+                      <p className="text-lg font-black text-foreground">{myStats.overall.workedDays}</p>
+                      <p className="text-[9px] text-muted-foreground">Dias totais</p>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20">
-                        <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-                        <p className="text-2xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
-                        <p className="text-[10px] font-bold text-emerald-500 uppercase">Gerados</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/20">
-                        <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-1" />
-                        <p className="text-2xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
-                        <p className="text-[10px] font-bold text-red-500 uppercase">Utilizados</p>
-                      </div>
+                    <div>
+                      <p className="text-lg font-black text-amber-500">{myStats.overall.weekendDays}</p>
+                      <p className="text-[9px] text-muted-foreground">FDS totais</p>
                     </div>
-
-                      <p className="text-xs text-slate-400">
-                        Créditos são gerados automaticamente: 2 dias por cada final de semana trabalhado.
-                      </p>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <p className={cn("text-lg font-black", myStats.overall.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>{myStats.overall.creditsBalance}</p>
+                      <p className="text-[9px] text-muted-foreground">Saldo créditos</p>
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Folgas */}
-              <div className="space-y-6 max-w-2xl mx-auto w-full">
+            {/* ═══ CREDITS TAB ═══ */}
+            {activeTab === 'credits' && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                {/* Main balance */}
+                <div className="bg-card rounded-3xl border border-border/50 shadow-sm p-8 text-center">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Saldo de Créditos</p>
+                  <p className={cn(
+                    "text-6xl font-black leading-none",
+                    myStats.overall.creditsBalance > 0 ? "text-emerald-600" : myStats.overall.creditsBalance < 0 ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {myStats.overall.creditsBalance}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">dias disponíveis</p>
+                </div>
+
+                {/* Generated vs Used */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/30 p-5 text-center">
+                    <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-3xl font-black text-emerald-600">{myStats.overall.creditsGenerated}</p>
+                    <p className="text-[10px] font-bold text-emerald-600/70 uppercase mt-1">Gerados</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200/50 dark:border-red-700/30 p-5 text-center">
+                    <TrendingDown className="w-5 h-5 text-red-500 mx-auto mb-2" />
+                    <p className="text-3xl font-black text-red-600">{myStats.overall.creditsUsed}</p>
+                    <p className="text-[10px] font-bold text-red-600/70 uppercase mt-1">Utilizados</p>
+                  </div>
+                </div>
+
+                {/* Month stats */}
+                <div className="bg-card rounded-2xl border border-border/50 p-5">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wide mb-3">
+                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Créditos gerados</span>
+                      <span className="text-sm font-bold text-emerald-600">+{myStats.month.creditsGenerated}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Créditos utilizados</span>
+                      <span className="text-sm font-bold text-red-500">-{myStats.month.creditsUsed}</span>
+                    </div>
+                    <div className="border-t border-border/50 pt-2 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">Saldo do mês</span>
+                      <span className={cn("text-sm font-black", myStats.month.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>
+                        {myStats.month.creditsBalance}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Créditos são gerados automaticamente: <strong>2 dias</strong> por cada final de semana trabalhado.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ LEAVES TAB ═══ */}
+            {activeTab === 'leaves' && (
+              <div className="space-y-4 animate-in fade-in duration-300">
                 <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full h-14 rounded-2xl font-bold shadow-lg shadow-primary/20 gap-2 text-base">
-                      <Plus className="h-5 w-5" /> Solicitar Folga
+                    <Button className="w-full h-12 rounded-2xl font-bold shadow-sm gap-2">
+                      <Plus className="h-4 w-4" /> Solicitar Folga
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="rounded-[2rem]">
+                  <DialogContent className="rounded-3xl max-w-sm mx-auto">
                     <DialogHeader>
-                      <DialogTitle className="text-xl font-black">Nova Solicitação de Folga</DialogTitle>
+                      <DialogTitle className="text-lg font-black">Nova Solicitação</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 pt-2">
-                      <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40">
-                        <AlertCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
-                        <p className="text-xs text-blue-700 dark:text-blue-300">
-                          As solicitações devem ser realizadas com no mínimo <span className="font-bold">10 dias de antecedência</span>. Em casos excepcionais ou imprevistos, é possível enviar a solicitação com prazo inferior, porém estará sujeita à análise e aprovação da coordenação.
+                    <div className="space-y-4 pt-1">
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                        <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-foreground/70">
+                          Solicite com no mínimo <span className="font-bold">10 dias de antecedência</span>. Imprevistos serão analisados pela coordenação.
                         </p>
                       </div>
+
                       <div>
-                        <Label className="text-xs font-bold uppercase text-slate-400">Tipo de Afastamento</Label>
+                        <Label className="text-xs font-semibold text-muted-foreground">Tipo</Label>
                         <Select
                           value={leaveForm.leaveType}
                           onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
                         >
-                          <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                           <SelectContent>
                             {Object.entries(LEAVE_TYPE_LABELS).map(([key, label]) => (
                               <SelectItem key={key} value={key}>{label}</SelectItem>
@@ -961,57 +922,62 @@ export default function Portal() {
                           </SelectContent>
                         </Select>
                         {leaveForm.leaveType === 'folga_credito' && (
-                          <p className="text-xs text-emerald-600 mt-1 font-medium">
+                          <p className="text-[11px] text-emerald-600 mt-1 font-medium">
                             Saldo disponível: {myStats.overall.creditsBalance} dias
                           </p>
                         )}
                       </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs font-bold uppercase text-slate-400">Data Início</Label>
+                          <Label className="text-xs font-semibold text-muted-foreground">Início</Label>
                           <input
                             type="date"
                             value={leaveForm.startDate}
                             onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                            className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                            className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
                           />
                         </div>
                         <div>
-                          <Label className="text-xs font-bold uppercase text-slate-400">Data Fim</Label>
+                          <Label className="text-xs font-semibold text-muted-foreground">Fim</Label>
                           <input
                             type="date"
                             value={leaveForm.endDate}
                             onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                            className="flex h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                            className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
                           />
                         </div>
                       </div>
+
                       {daysRequested > 0 && (
                         <p className="text-center text-sm font-bold text-primary">
-                          {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'} solicitado(s)
+                          {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}
                         </p>
                       )}
+
                       <div>
-                        <Label className="text-xs font-bold uppercase text-slate-400">Observações (opcional)</Label>
+                        <Label className="text-xs font-semibold text-muted-foreground">Observações (opcional)</Label>
                         <Textarea
                           value={leaveForm.observations}
                           onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
                           placeholder="Motivo ou detalhes..."
                           className="rounded-xl resize-none"
-                          rows={3}
+                          rows={2}
                         />
                       </div>
+
                       {isShortNotice && leaveForm.startDate && (
                         <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
                           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                          <p className="text-xs text-amber-700 dark:text-amber-300">
-                            <span className="font-bold">Prazo inferior ao recomendado.</span> Sua solicitação será enviada normalmente, mas por estar fora do prazo mínimo de 10 dias, passará por uma análise especial da coordenação.
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                            <span className="font-bold">Prazo inferior ao recomendado.</span> Sua solicitação passará por análise especial da coordenação.
                           </p>
                         </div>
                       )}
+
                       <Button
                         onClick={handleSubmitLeave}
-                        className="w-full h-12 rounded-xl font-bold"
+                        className="w-full h-11 rounded-xl font-bold"
                         disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1}
                       >
                         {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicitação'}
@@ -1021,46 +987,147 @@ export default function Portal() {
                 </Dialog>
 
                 {leaveRequests.length === 0 ? (
-                  <Card className="border-0 shadow-md rounded-2xl">
-                    <CardContent className="p-8 text-center text-slate-400">
-                      <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium">Nenhuma solicitação enviada</p>
-                      <p className="text-xs mt-1">Use o botão acima para solicitar folgas.</p>
-                    </CardContent>
-                  </Card>
+                  <div className="bg-card rounded-2xl border border-border/50 p-10 text-center">
+                    <CalendarOff className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+                    <p className="font-semibold text-sm text-muted-foreground">Nenhuma solicitação</p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">Use o botão acima para pedir folgas</p>
+                  </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {leaveRequests.map(req => (
-                      <Card key={req.id} className="border-0 shadow-md rounded-2xl overflow-hidden">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <p className="font-bold text-sm text-slate-800 dark:text-white">
-                                {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
-                                {req.end_date !== req.start_date && (
-                                  <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
-                                )}
-                                <span className="ml-2 font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</span>
-                              </p>
-                            </div>
-                            {statusBadge(req.status)}
+                      <div key={req.id} className="bg-card rounded-2xl border border-border/50 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-foreground truncate">
+                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM/yyyy')}
+                              {req.end_date !== req.start_date && (
+                                <> → {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM/yyyy')}</>
+                              )}
+                              <span className="ml-1.5 font-bold text-primary">{req.days_requested}d</span>
+                            </p>
                           </div>
-                          {req.observations && (
-                            <p className="text-xs text-slate-400 italic">"{req.observations}"</p>
-                          )}
-                        </CardContent>
-                      </Card>
+                          {statusBadge(req.status)}
+                        </div>
+                        {req.observations && (
+                          <p className="text-[11px] text-muted-foreground/70 italic mt-2 border-t border-border/30 pt-2">"{req.observations}"</p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
+            )}
+
+            {/* ═══ PROFILE TAB ═══ */}
+            {activeTab === 'profile' && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                {/* Avatar + Name */}
+                <div className="bg-card rounded-3xl border border-border/50 shadow-sm p-6 flex flex-col items-center text-center">
+                  <div className="relative group mb-4">
+                    <div className="w-24 h-24 rounded-full overflow-hidden bg-muted flex items-center justify-center ring-4 ring-primary/10">
+                      {professionalUser.avatar_url ? (
+                        <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-10 h-10 text-muted-foreground" />
+                      )}
+                    </div>
+                    <button
+                      onClick={handleAvatarUpload}
+                      disabled={avatarUploading}
+                      className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                    >
+                      {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <h2 className="text-xl font-black text-foreground">
+                    {myProfessional?.name || professionalUser.full_name}
+                  </h2>
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    {professionalUser.category === 'nurse' ? <Stethoscope className="w-3.5 h-3.5" /> : professionalUser.category === 'tech' ? <Syringe className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                    {categoryLabel}
+                  </div>
+                </div>
+
+                {/* Info items */}
+                <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">E-mail</p>
+                      <p className="text-sm text-foreground truncate">{professionalUser.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <Shield className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Status</p>
+                      <p className="text-sm text-emerald-600 font-semibold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Aprovado
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Última atualização</p>
+                      <p className="text-sm text-foreground">{updatedLabel}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                      <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">Saldo de Créditos</p>
+                      <p className={cn("text-sm font-bold", myStats.overall.creditsBalance >= 0 ? "text-emerald-600" : "text-destructive")}>
+                        {myStats.overall.creditsBalance} dias
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2.5">
+                  {deferredPrompt && (
+                    <Button
+                      variant="outline"
+                      onClick={handleInstall}
+                      className="w-full h-12 rounded-2xl font-semibold gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Instalar Aplicativo
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={logout}
+                    className="w-full h-12 rounded-2xl font-semibold gap-2 text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/20"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair da Conta
+                  </Button>
+                </div>
+
+                <p className="text-center text-[10px] text-muted-foreground/50 uppercase tracking-widest font-bold pt-4">
+                  © 2025 Secretaria Municipal de Saúde
+                </p>
+              </div>
+            )}
           </>
         )}
       </main>
+
+      {/* Bottom Navigation */}
+      <PortalBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }
