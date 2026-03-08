@@ -252,33 +252,6 @@ export function Sidebar() {
             </Button>
           </div>
 
-          <div className="h-px bg-border/50 my-4 mx-2" />
-
-          {/* Configurações */}
-          <NavLink
-            to="/configuracoes"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) => cn(
-              "nav-item text-sm font-medium",
-              isActive && "active"
-            )}
-          >
-            <Settings size={18} />
-            <span>Configurações</span>
-          </NavLink>
-
-          {/* Links & Aprovações - below settings */}
-          <NavLink
-            to="/aprovacoes"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) => cn(
-              "nav-item text-sm font-medium",
-              isActive && "active"
-            )}
-          >
-            <UserPlus size={18} />
-            <span>Links & Aprovações</span>
-          </NavLink>
         </nav>
       </aside>
     </>
