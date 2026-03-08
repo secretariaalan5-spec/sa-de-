@@ -81,7 +81,7 @@ const App = () => (
                 <Route path="/escalas-servicos/controle" element={<IndividualControlPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
-                <Route path="/escalas-servicos/profissionais" element={<ServiceScheduleNurses />} />
+                <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
                 <Route path="/aprovacoes" element={<ProfessionalApprovals />} />
                 <Route path="/emult/profissionais" element={<EmultProfessionals />} />
                 <Route path="/configuracoes" element={<Settings />} />
