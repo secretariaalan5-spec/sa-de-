@@ -47,26 +47,29 @@ export default function ServiceProfessionalsPage() {
   const [nursePage, setNursePage] = useState(1);
   const [techPage, setTechPage] = useState(1);
   const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+  const [emailMap, setEmailMap] = useState<Record<string, string>>({});
 
-  // Fetch avatar URLs from professional_users
-  const fetchAvatars = useCallback(async () => {
+  // Fetch avatar URLs and emails from professional_users
+  const fetchProfessionalData = useCallback(async () => {
     const { data } = await (supabase
       .from('professional_users' as any)
-      .select('professional_id, avatar_url')
-      .not('avatar_url', 'is', null)
+      .select('professional_id, avatar_url, email')
       .not('professional_id', 'is', null) as any);
     if (data) {
-      const map: Record<string, string> = {};
+      const avatars: Record<string, string> = {};
+      const emails: Record<string, string> = {};
       (data as any[]).forEach(row => {
-        if (row.professional_id && row.avatar_url) {
-          map[row.professional_id] = row.avatar_url;
+        if (row.professional_id) {
+          if (row.avatar_url) avatars[row.professional_id] = row.avatar_url;
+          if (row.email) emails[row.professional_id] = row.email;
         }
       });
-      setAvatarMap(map);
+      setAvatarMap(avatars);
+      setEmailMap(emails);
     }
   }, []);
 
-  useEffect(() => { fetchAvatars(); }, [fetchAvatars]);
+  useEffect(() => { fetchProfessionalData(); }, [fetchProfessionalData]);
 
   const filtered = useMemo(() => {
     if (!searchTerm.trim()) return professionals;
@@ -218,6 +221,7 @@ export default function ServiceProfessionalsPage() {
               <h3 className="font-bold text-sm text-foreground truncate">{prof.name}</h3>
               {isOnLeave && <span className="flex h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" title="De Folga Hoje" />}
             </div>
+            {emailMap[prof.id] && <p className="text-[11px] text-muted-foreground truncate">{emailMap[prof.id]}</p>}
             <p className="text-xs text-muted-foreground">{prof.monthlyHours}h mensal</p>
             <div className="flex flex-wrap gap-1 mt-1">
               <Badge variant="secondary" className={`text-[10px] ${catText}`}>{catLabel}</Badge>
@@ -292,6 +296,7 @@ export default function ServiceProfessionalsPage() {
             )}
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold truncate">{prof.name}</h2>
+              {emailMap[prof.id] && <p className="text-sm text-muted-foreground truncate">{emailMap[prof.id]}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <Badge variant="secondary" className={isNurse ? 'cat-text-nurse' : 'cat-text-tech'}>
                   {isNurse ? 'Enfermeiro(a)' : 'Técnico(a)'}
