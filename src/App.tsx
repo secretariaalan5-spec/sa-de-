@@ -17,6 +17,7 @@ import Export from "./pages/Export";
 import Settings from "./pages/Settings";
 import ProfilePage from "./pages/Profile";
 import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
+import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import IndividualControlPage from "./pages/IndividualControl";
