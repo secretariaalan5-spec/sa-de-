@@ -1,33 +1,48 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ * DESIGN SYSTEM — Saúde+ Gestão de Escalas
+ * ─────────────────────────────────────────────────────────────────────────
+ * Todas as cores são definidas como tokens HSL semânticos.
+ * Componentes NUNCA devem usar cores hardcoded (ex: bg-white, text-slate-400).
+ * Em vez disso, use os tokens (ex: bg-card, text-muted-foreground).
+ *
+ * Tipografia: Inter como fonte primária.
+ * Border-radius: 0.5rem (rounded-lg padrão) para cards/seções.
+ * Espaçamento: gap-4/gap-6 entre cards, p-5/p-6 interno.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Tokens de Cor (Light Mode) ──────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 210 15% 95%;
-    /* Cinza bem clarinho e suave */
-    --foreground: 210 25% 15%;
+    /* Superfícies */
+    --background: 210 15% 95%;        /* Cinza azulado claro — fundo geral */
+    --foreground: 210 25% 15%;        /* Texto principal */
 
-    --card: 0 0% 100%;
-    --card-foreground: 210 25% 15%;
+    --card: 0 0% 100%;                /* Fundo dos cards */
+    --card-foreground: 210 25% 15%;   /* Texto dentro de cards */
 
     --popover: 0 0% 100%;
     --popover-foreground: 210 25% 15%;
 
-    --primary: 210 100% 48%;
+    /* Cores de Marca */
+    --primary: 210 100% 48%;          /* Azul SUS — ações principais */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 25% 90%;
+    --secondary: 210 25% 90%;         /* Fundo de elementos secundários */
     --secondary-foreground: 210 25% 25%;
 
-    --muted: 210 12% 92%;
-    --muted-foreground: 210 15% 45%;
+    --muted: 210 12% 92%;             /* Fundo sutil, placeholders */
+    --muted-foreground: 210 15% 45%;  /* Texto secundário */
 
-    --accent: 152 60% 40%;
+    --accent: 152 60% 40%;            /* Verde — sucesso e destaques */
     --accent-foreground: 0 0% 100%;
 
+    /* Status */
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
@@ -37,12 +52,15 @@
     --warning: 45 95% 50%;
     --warning-foreground: 210 25% 15%;
 
+    /* Bordas e Inputs */
     --border: 210 15% 88%;
     --input: 210 15% 88%;
     --ring: 210 100% 48%;
 
-    --radius: 0.25rem;
+    /* Raio padrão — 0.5rem para visual arredondado */
+    --radius: 0.5rem;
 
+    /* ── Sidebar ── */
     --sidebar-background: 210 100% 35%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 45 95% 55%;
@@ -52,16 +70,28 @@
     --sidebar-border: 210 80% 42%;
     --sidebar-ring: 45 95% 55%;
 
+    /* ── Tabelas ── */
     --table-header: 210 100% 48%;
     --table-header-foreground: 0 0% 100%;
     --table-row-even: 210 15% 94%;
     --table-row-odd: 0 0% 100%;
+
+    /* ── Cores de Categoria (Enfermeiro / Técnico / eMult) ── */
+    --cat-nurse: 210 80% 50%;
+    --cat-nurse-light: 210 80% 96%;
+    --cat-tech: 152 55% 45%;
+    --cat-tech-light: 152 55% 96%;
+    --cat-emult: 270 55% 55%;
+    --cat-emult-light: 270 55% 96%;
   }
+
+  /* Dark mode — herda valores padrão por enquanto */
   .dark {
-    --radius: 0.25rem;
+    --radius: 0.5rem;
   }
 }
 
+/* ─── Reset & Base ────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
@@ -71,9 +101,43 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
+
+  /* Hierarquia tipográfica padrão */
+  h1 { @apply text-2xl font-bold text-foreground tracking-tight; }
+  h2 { @apply text-lg font-semibold text-foreground; }
+  h3 { @apply text-base font-semibold text-foreground; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CLASSES UTILITÁRIAS REUTILIZÁVEIS
+ * ─────────────────────────────────────────────────────────────────────────
+ * Use estas classes para garantir consistência visual em todo o app.
+ * ═══════════════════════════════════════════════════════════════════════════ */
 @layer components {
+
+  /* ── Cards & Seções ──
+   * .page-card    → Card padrão com sombra leve (para conteúdo geral)
+   * .stat-card    → Card de estatística (Dashboard)
+   * .form-section → Seção de formulário / tabelas
+   */
+  .page-card {
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
+  }
+
+  .stat-card {
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
+  }
+
+  .form-section {
+    @apply bg-card rounded-xl p-6 border border-border shadow-sm;
+  }
+
+  /* ── Estado vazio (sem dados) ── */
+  .empty-state {
+    @apply text-center py-12 bg-card rounded-xl border border-dashed border-border;
+  }
+
+  /* ── Tabelas ── */
   .schedule-table {
     @apply w-full border-collapse;
   }
@@ -98,6 +162,7 @@
     @apply border-l border-border/60;
   }
 
+  /* ── Navegação Sidebar ── */
   .nav-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors;
   }
@@ -106,14 +171,7 @@
     @apply bg-sidebar-accent text-sidebar-foreground font-medium;
   }
 
-  .stat-card {
-    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
-  }
-
-  .form-section {
-    @apply bg-card rounded-xl p-6 border border-border shadow-sm;
-  }
-
+  /* ── Badges de Status ── */
   .badge-active {
     @apply bg-success/15 text-success px-2.5 py-1 rounded-full text-xs font-medium;
   }
@@ -122,6 +180,7 @@
     @apply bg-destructive/15 text-destructive px-2.5 py-1 rounded-full text-xs font-medium;
   }
 
+  /* ── Botões de Toggle (Visualização) ── */
   .view-toggle-btn {
     @apply px-4 py-2 rounded-lg text-sm font-medium transition-all;
   }
@@ -133,12 +192,59 @@
   .view-toggle-btn:not(.active) {
     @apply bg-muted text-muted-foreground hover:bg-secondary;
   }
+
+  /* ── Labels de formulário ── */
+  .field-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  /* ── Card de profissional com cor de categoria ── */
+  .prof-card {
+    @apply flex flex-col p-4 border rounded-xl transition-all hover:shadow-md bg-card;
+  }
+
+  .prof-card--nurse {
+    @apply bg-[hsl(var(--cat-nurse-light))] border-[hsl(var(--cat-nurse)/0.2)];
+  }
+
+  .prof-card--tech {
+    @apply bg-[hsl(var(--cat-tech-light))] border-[hsl(var(--cat-tech)/0.2)];
+  }
+
+  .prof-card--emult {
+    @apply bg-[hsl(var(--cat-emult-light))] border-[hsl(var(--cat-emult)/0.2)];
+  }
+
+  .prof-card--inactive {
+    @apply bg-muted/40 border-dashed;
+  }
+
+  .prof-card--on-leave {
+    @apply bg-warning/5 border-warning/30;
+  }
+
+  /* ── Cor do texto por categoria ── */
+  .cat-text-nurse  { color: hsl(var(--cat-nurse)); }
+  .cat-text-tech   { color: hsl(var(--cat-tech)); }
+  .cat-text-emult  { color: hsl(var(--cat-emult)); }
+
+  /* ── Ícone de categoria (fundo arredondado) ── */
+  .cat-icon-nurse  { @apply text-[hsl(var(--cat-nurse))] bg-[hsl(var(--cat-nurse-light))]; }
+  .cat-icon-tech   { @apply text-[hsl(var(--cat-tech))] bg-[hsl(var(--cat-tech-light))]; }
+  .cat-icon-emult  { @apply text-[hsl(var(--cat-emult))] bg-[hsl(var(--cat-emult-light))]; }
+
+  /* ── Barra de cor no topo do card ── */
+  .cat-bar-nurse  { background-color: hsl(var(--cat-nurse)); }
+  .cat-bar-tech   { background-color: hsl(var(--cat-tech)); }
+  .cat-bar-emult  { background-color: hsl(var(--cat-emult)); }
 }
 
+/* ─── Safe Area (Mobile) ──────────────────────────────────────────────── */
 .safe-area-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem);
 }
 
+/* ─── Impressão ───────────────────────────────────────────────────────── */
 @media print {
   .no-print {
     display: none !important;

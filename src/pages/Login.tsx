@@ -1,3 +1,10 @@
+/**
+ * Login — Página de autenticação do administrador.
+ *
+ * Suporta login com e-mail/senha e OAuth (Google).
+ * Todas as cores usam design tokens semânticos (sem hardcode).
+ */
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,32 +32,24 @@ export default function Login() {
 
         try {
             if (mode === 'login') {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
                 toast.success('Bem-vindo de volta!');
             } else {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: {
-                        data: {
-                            full_name: fullName,
-                        },
-                    },
+                    options: { data: { full_name: fullName } },
                 });
                 if (error) throw error;
 
-                // Se o Supabase retornar uma sessão imediatamente (confirmação automática ligada)
                 if (data?.session) {
                     toast.success('Conta criada e logada com sucesso!');
                     navigate('/');
                     return;
                 }
 
-                toast.success('Conta criada! Verifique seu e-mail para confirmar (se necessário) e faça login.');
+                toast.success('Conta criada! Verifique seu e-mail para confirmar e faça login.');
                 setMode('login');
                 setLoading(false);
                 return;
@@ -60,19 +59,15 @@ export default function Login() {
         } catch (error: any) {
             console.error('Erro na autenticação:', error);
 
-            let errorMessage = 'Erro na autenticação. Verifique seus dados.';
+            const errorMessages: Record<string, string> = {
+                'User already registered': 'Este e-mail já está cadastrado.',
+                'Email not confirmed': 'E-mail ainda não confirmado. Verifique sua caixa de entrada.',
+                'Invalid login credentials': 'E-mail ou senha incorretos.',
+            };
 
-            if (error.message === 'User already registered') {
-                errorMessage = 'Este e-mail já está cadastrado.';
-            } else if (error.message === 'Email not confirmed') {
-                errorMessage = 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
-            } else if (error.message === 'Invalid login credentials') {
-                errorMessage = 'E-mail ou senha incorretos.';
-            } else if (error.message.includes('Email rate limit exceeded')) {
-                errorMessage = 'Muitas tentativas de cadastro seguidas. Por favor, aguarde alguns minutos ou desative a confirmação de e-mail no Supabase.';
-            } else {
-                errorMessage = error.message || errorMessage;
-            }
+            const errorMessage = error.message?.includes('Email rate limit exceeded')
+                ? 'Muitas tentativas seguidas. Aguarde alguns minutos.'
+                : errorMessages[error.message] || error.message || 'Erro na autenticação.';
 
             toast.error(errorMessage);
         } finally {
@@ -80,14 +75,13 @@ export default function Login() {
         }
     };
 
+    /** Login com Google OAuth */
     const handleGoogleLogin = async () => {
         setGoogleLoading(true);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    redirectTo: window.location.origin,
-                },
+                options: { redirectTo: window.location.origin },
             });
             if (error) throw error;
         } catch (error: any) {
@@ -97,30 +91,33 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <div className="max-w-md w-full animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-                    {/* Header */}
+
+                {/* ── Card principal ── */}
+                <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
+
+                    {/* Header com cor primária */}
                     <div className="bg-primary p-8 text-center">
-                        <div className="flex justify-center mb-4">
-                            <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                                <LogIn className="w-8 h-8 text-white" />
-                            </div>
+                        <div className="bg-primary-foreground/20 p-3 rounded-xl backdrop-blur-sm inline-flex mb-4">
+                            <LogIn className="w-8 h-8 text-primary-foreground" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-1">
+                        <h1 className="text-2xl font-bold text-primary-foreground mb-1">
                             {mode === 'login' ? 'Área Administrativa' : 'Criar Nova Conta'}
                         </h1>
-                        <p className="text-white/80 text-sm">Escala eMulti & Serviços</p>
+                        <p className="text-primary-foreground/80 text-sm">Escala eMulti & Serviços</p>
                     </div>
 
-                    {/* Form */}
+                    {/* ── Formulário ── */}
                     <form onSubmit={handleAuth} className="p-8 space-y-5">
                         <div className="space-y-4">
+
+                            {/* Campo Nome (apenas no cadastro) */}
                             {mode === 'signup' && (
                                 <div className="space-y-2">
                                     <Label htmlFor="fullName">Nome Completo</Label>
                                     <div className="relative">
-                                        <LogIn className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <LogIn className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                         <Input
                                             id="fullName"
                                             type="text"
@@ -134,10 +131,11 @@ export default function Login() {
                                 </div>
                             )}
 
+                            {/* Campo E-mail */}
                             <div className="space-y-2">
                                 <Label htmlFor="email">E-mail</Label>
                                 <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
                                         id="email"
                                         type="email"
@@ -150,10 +148,11 @@ export default function Login() {
                                 </div>
                             </div>
 
+                            {/* Campo Senha */}
                             <div className="space-y-2">
                                 <Label htmlFor="password">Senha</Label>
                                 <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                     <Input
                                         id="password"
                                         type={showPassword ? 'text' : 'password'}
@@ -166,7 +165,7 @@ export default function Login() {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
@@ -174,9 +173,10 @@ export default function Login() {
                             </div>
                         </div>
 
+                        {/* Botão principal */}
                         <Button
                             type="submit"
-                            className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shadow-primary/20"
+                            className="w-full h-11 font-semibold shadow-lg shadow-primary/20"
                             disabled={loading}
                         >
                             {loading ? (
@@ -189,12 +189,14 @@ export default function Login() {
                             )}
                         </Button>
 
+                        {/* Separador */}
                         <div className="flex items-center gap-3">
                             <Separator className="flex-1" />
                             <span className="text-xs text-muted-foreground">ou</span>
                             <Separator className="flex-1" />
                         </div>
 
+                        {/* Login Google */}
                         <Button
                             type="button"
                             variant="outline"
@@ -210,6 +212,7 @@ export default function Login() {
                             Entrar com Google
                         </Button>
 
+                        {/* Link para trocar modo */}
                         <div className="text-center pt-2">
                             <button
                                 type="button"
@@ -222,18 +225,19 @@ export default function Login() {
                             </button>
                         </div>
 
-                        <div className="pt-2 text-center border-t border-slate-100 italic">
-                            <p className="text-[10px] text-slate-400">
+                        {/* Rodapé do card */}
+                        <div className="pt-2 text-center border-t border-border italic">
+                            <p className="text-[10px] text-muted-foreground">
                                 Acesso restrito a administradores autorizados.
                             </p>
                         </div>
                     </form>
                 </div>
 
-                {/* Brand Footer */}
+                {/* ── Brand Footer ── */}
                 <div className="mt-8 text-center flex flex-col items-center">
                     <img src="/logo-saude-plus.png" alt="Saúde+" className="h-8 mb-2 opacity-50 grayscale" />
-                    <p className="text-slate-400 text-xs">© 2025 Saúde+ Gestão de Escalas</p>
+                    <p className="text-muted-foreground text-xs">© 2025 Saúde+ Gestão de Escalas</p>
                 </div>
             </div>
         </div>

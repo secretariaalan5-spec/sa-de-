@@ -69,6 +69,14 @@ export default {
   			table: {
   				header: 'hsl(var(--table-header))',
   				'header-foreground': 'hsl(var(--table-header-foreground))'
+  			},
+  			cat: {
+  				nurse: 'hsl(var(--cat-nurse))',
+  				'nurse-light': 'hsl(var(--cat-nurse-light))',
+  				tech: 'hsl(var(--cat-tech))',
+  				'tech-light': 'hsl(var(--cat-tech-light))',
+  				emult: 'hsl(var(--cat-emult))',
+  				'emult-light': 'hsl(var(--cat-emult-light))'
   			}
   		},
   		borderRadius: {
