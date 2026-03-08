@@ -46,6 +46,27 @@ export default function ServiceProfessionalsPage() {
   const [activeTab, setActiveTab] = useState<'nurse' | 'tech'>('nurse');
   const [nursePage, setNursePage] = useState(1);
   const [techPage, setTechPage] = useState(1);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+
+  // Fetch avatar URLs from professional_users
+  const fetchAvatars = useCallback(async () => {
+    const { data } = await (supabase
+      .from('professional_users' as any)
+      .select('professional_id, avatar_url')
+      .not('avatar_url', 'is', null)
+      .not('professional_id', 'is', null) as any);
+    if (data) {
+      const map: Record<string, string> = {};
+      (data as any[]).forEach(row => {
+        if (row.professional_id && row.avatar_url) {
+          map[row.professional_id] = row.avatar_url;
+        }
+      });
+      setAvatarMap(map);
+    }
+  }, []);
+
+  useEffect(() => { fetchAvatars(); }, [fetchAvatars]);
 
   const filtered = useMemo(() => {
     if (!searchTerm.trim()) return professionals;
