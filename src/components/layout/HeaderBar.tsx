@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-    User, Settings, LogOut, UserPlus,
+    User, Settings, LogOut, UserPlus, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,8 +21,6 @@ export function HeaderBar() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
                     setAdminEmail(user.email || '');
-
-                    // Buscar dados do perfil na tabela profiles (avatar e nome atualizados)
                     const { data: profile } = await supabase
                         .from('profiles')
                         .select('display_name, avatar_url')
@@ -43,7 +41,6 @@ export function HeaderBar() {
         };
         loadProfile();
 
-        // Escutar mudanças em tempo real na tabela profiles
         const channel = supabase
             .channel('header-profile-changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
@@ -51,7 +48,6 @@ export function HeaderBar() {
             })
             .subscribe();
 
-        // Clique fora para fechar o dropdown
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setDropdownOpen(false);
@@ -76,61 +72,66 @@ export function HeaderBar() {
 
     return (
         <header className="sticky top-0 z-30 flex items-center justify-end h-16 px-4 lg:px-10 bg-transparent no-print pointer-events-none">
-            {/* O cabeçalho é transparente para não interferir visualmente no corpo da página */}
             <div className="flex-1" />
 
-            {/* Avatar / Botão de Perfil Redondo no Canto Superior Direito */}
-            <div className="relative translate-y-4 pointer-events-auto" ref={dropdownRef}>
+            <div className="relative pointer-events-auto" ref={dropdownRef}>
                 <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className={cn(
-                        "relative w-11 h-11 rounded-full overflow-hidden border-2 transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 shadow-lg",
+                        "flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1 transition-all duration-200 hover:bg-card/80 active:scale-[0.97] focus:outline-none border",
                         dropdownOpen
-                            ? "border-primary"
-                            : "border-white/80 hover:border-primary/50"
+                            ? "bg-card border-border shadow-md"
+                            : "bg-card/60 border-transparent hover:border-border/50 hover:shadow-sm"
                     )}
                     aria-label="Menu do perfil"
                 >
-                    {avatarUrl ? (
-                        <img
-                            src={avatarUrl}
-                            alt="Avatar"
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                            <span className="text-sm font-bold text-white select-none">{adminInitials}</span>
-                        </div>
-                    )}
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 ring-2 ring-primary/15">
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+                                <span className="text-xs font-bold text-primary-foreground select-none">{adminInitials}</span>
+                            </div>
+                        )}
+                    </div>
 
-                    {/* Indicador de Status */}
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-background" />
+                    {/* Name + chevron (hidden on small screens) */}
+                    <div className="hidden sm:flex items-center gap-1">
+                        <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
+                            {adminName?.split(' ')[0] || 'Admin'}
+                        </span>
+                        <ChevronDown className={cn(
+                            "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
+                            dropdownOpen && "rotate-180"
+                        )} />
+                    </div>
                 </button>
 
                 {/* Dropdown Menu */}
                 {dropdownOpen && (
                     <div className="absolute right-0 top-full mt-2 w-72 bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                         {/* Info Section */}
-                        <div className="p-5 border-b border-border/30 bg-muted/20">
+                        <div className="p-4 border-b border-border/30 bg-muted/20">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shrink-0">
+                                <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-primary/15 shrink-0">
                                     {avatarUrl ? (
                                         <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                                            <span className="text-lg font-bold text-primary">{adminInitials}</span>
+                                        <div className="w-full h-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+                                            <span className="text-base font-bold text-primary-foreground">{adminInitials}</span>
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                    <h4 className="font-bold text-foreground text-sm truncate">{adminName || 'Administrador'}</h4>
+                                    <h4 className="font-semibold text-foreground text-sm truncate">{adminName || 'Administrador'}</h4>
                                     <p className="text-xs text-muted-foreground truncate">{adminEmail}</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Menu Items */}
-                        <div className="p-2 space-y-1">
+                        <div className="p-1.5 space-y-0.5">
                             <button
                                 onClick={() => { setDropdownOpen(false); navigate('/perfil'); }}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
@@ -154,11 +155,11 @@ export function HeaderBar() {
                             </button>
                         </div>
 
-                        {/* Logout Section */}
-                        <div className="border-t border-border/30 p-2">
+                        {/* Logout */}
+                        <div className="border-t border-border/30 p-1.5">
                             <button
                                 onClick={handleLogout}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                             >
                                 <LogOut className="w-4 h-4" />
                                 Sair do Sistema
