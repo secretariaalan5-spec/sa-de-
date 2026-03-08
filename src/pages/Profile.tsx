@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2,
+  Camera, Pencil, Check, X, Clock, Activity, RefreshCw, Trash2, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -33,7 +33,15 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [editingName, setEditingName] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Buscar email do auth
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setAdminEmail(user.email);
+    });
+  }, []);
 
   if (loading) {
     return (
@@ -234,6 +242,14 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
+
+            {/* Email */}
+            {adminEmail && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="w-4 h-4" />
+                <span>{adminEmail}</span>
+              </div>
+            )}
 
             {/* Membro desde */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
