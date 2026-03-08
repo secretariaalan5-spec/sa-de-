@@ -109,10 +109,12 @@ export default function LeaveRequestsPage() {
         const { error } = await (supabase
             .from('professional_leave_requests' as any)
             .update({ status: 'rejected' } as any)
-            .eq('id', leave.id) as any);
+            .eq('id', leave.id)
+            .select() as any);
 
         if (error) {
-            toast.error('Erro ao rejeitar folga');
+            console.error('Erro ao rejeitar folga:', error);
+            toast.error('Erro ao rejeitar folga: ' + error.message);
             return;
         }
 
