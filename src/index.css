@@ -239,6 +239,69 @@
   .cat-bar-emult  { background-color: hsl(var(--cat-emult)); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PORTAL — Native App Layer
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Disable text selection & context menu for native feel on portal */
+.portal-native {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: contain;
+}
+
+/* iOS-style large title that shrinks on scroll */
+.portal-native .portal-title-large {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* Glass header */
+.portal-glass {
+  background: hsl(var(--card) / 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Haptic-style press feedback */
+.portal-press {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+.portal-press:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+/* iOS-style inset grouped card */
+.portal-card-inset {
+  @apply bg-card rounded-2xl border border-border/40;
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04), 0 0 0 0.5px hsl(var(--border) / 0.5);
+}
+
+/* Pill tab indicator animation */
+.portal-tab-indicator {
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth page transitions */
+.portal-page-enter {
+  animation: portalSlideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes portalSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress ring for credits */
+.portal-ring {
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ─── Safe Area (Mobile) ──────────────────────────────────────────────── */
 .safe-area-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem);
