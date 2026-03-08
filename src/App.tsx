@@ -25,6 +25,7 @@ import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
+import EmultProfessionals from "./pages/EmultProfessionals";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
