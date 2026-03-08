@@ -221,6 +221,7 @@ export default function ServiceProfessionalsPage() {
               <h3 className="font-bold text-sm text-foreground truncate">{prof.name}</h3>
               {isOnLeave && <span className="flex h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" title="De Folga Hoje" />}
             </div>
+            {emailMap[prof.id] && <p className="text-[11px] text-muted-foreground truncate">{emailMap[prof.id]}</p>}
             <p className="text-xs text-muted-foreground">{prof.monthlyHours}h mensal</p>
             <div className="flex flex-wrap gap-1 mt-1">
               <Badge variant="secondary" className={`text-[10px] ${catText}`}>{catLabel}</Badge>
