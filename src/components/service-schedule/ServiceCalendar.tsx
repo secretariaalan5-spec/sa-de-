@@ -171,26 +171,9 @@ export function ServiceCalendar({
                                     </Button>
                                 </div>
 
-                                <div className="space-y-1">
-                                    {/* Exibir Afastamentos/Folgas primeiro */}
-                                    {leaveRequests
-                                        .filter(r => r.status === 'approved' && r.leaveDates.includes(dateStr))
-                                        .map(request => {
-                                            const professional = professionals.find(p => p.id === request.professionalId);
-                                            // Only show if it matches the current category search/filter if we had one, 
-                                            // but ServiceCalendar is already scoped to 'nurse' or 'tech' via props
-                                            if (request.category !== type) return null;
-
-                                            return (
-                                                <div
-                                                    key={request.id}
-                                                    className="text-[10px] bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200 rounded px-1.5 py-0.5 font-bold border border-rose-200 dark:border-rose-800"
-                                                    title={LEAVE_TYPE_LABELS[request.leaveType] || 'Afastado'}
-                                                >
-                                                    {professional?.name?.split(' ')[0]} ({LEAVE_TYPE_LABELS[request.leaveType]?.split(' ')[0] || 'Af.'})
-                                                </div>
-                                            );
-                                        })}
+                <div className="space-y-1">
+                                    {/* Afastamentos aprovados não são exibidos no calendário,
+                                       mas o bloqueio de escala continua ativo (ver handleAddProfessional) */}
 
                                     {visibleEntries.map(entry => {
                                         const professional = professionals.find(p => p.id === entry.professionalId);
