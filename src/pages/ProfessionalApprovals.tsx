@@ -45,8 +45,8 @@ interface ProfLeaveRequest {
 
 export default function ProfessionalApprovals() {
   const { profile, logActivity } = useProfile();
-  const { data: emultData, teamId, addProfessional: addEmultProfessional, deleteFunction: deleteEmultFunction } = useAppData();
-  const { professionals, addProfessional, deleteProfessional } = useServiceProfessionals();
+  const { data: emultData, teamId, addProfessional: addEmultProfessional } = useAppData();
+  const { professionals, addProfessional: addServiceProfessional, deleteProfessional } = useServiceProfessionals();
   const { addRequest } = useLeaveRequests();
   const [pendingUsers, setPendingUsers] = useState<ProfessionalUserRecord[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ProfessionalUserRecord[]>([]);
