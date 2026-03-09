@@ -460,7 +460,12 @@ export default function Portal() {
     try {
       const { data, error } = await supabase.from('portal_schedules' as any).select('*').eq('emult_data->>teamId', effectiveTeamId).order('published_at', { ascending: false }).limit(1).maybeSingle() as any;
       if (error) throw error;
-      if (data) setPortalData({ publishedAt: data.published_at, adminName: data.admin_name || undefined, service: data.service_data as unknown as PortalData['service'] });
+      if (data) setPortalData({
+        publishedAt: data.published_at,
+        adminName: data.admin_name || undefined,
+        service: data.service_data as unknown as PortalData['service'],
+        emult: data.emult_data as unknown as EmultData | undefined,
+      });
     } catch (err) { console.error(err); } finally { setLoadingPortal(false); }
   }, [effectiveTeamId]);
 
