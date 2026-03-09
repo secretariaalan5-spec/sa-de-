@@ -153,13 +153,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                     if (teamRecord?.id) {
                         currentTeamId = teamRecord.id;
-                        // Garante que o perfil existe e aponta para esta equipe
                         await (supabase
                             .from('profiles' as any)
                             .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
                     } else {
-                        // Trigger handle_new_user deveria ter criado, mas pode não ter rodado.
-                        // Aguarda um pouco e tenta novamente
                         await new Promise(r => setTimeout(r, 1000));
                         const { data: retryProfile } = await (supabase
                             .from('profiles' as any)
@@ -169,7 +166,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                         if (retryProfile?.team_id) {
                             currentTeamId = retryProfile.team_id;
                         } else {
-                            // Como fallback final, cria automaticamente uma equipe padrão
                             const { data: newTeam, error: teamError } = await (supabase
                                 .from('teams' as any)
                                 .insert({
@@ -196,44 +192,77 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                 setTeamId(currentTeamId);
 
-                if (stateData) {
-                    // Restaura dados eMult com fallback para arrays vazios se campos estiverem faltando
-                    if (stateData.emult_state) {
-                        const loadedEmult = stateData.emult_state as any;
-                        setData({
-                            professionals: loadedEmult.professionals || [],
-                            units: loadedEmult.units || [],
-                            functions: loadedEmult.functions || DEFAULT_FUNCTIONS,
-                            schedule: loadedEmult.schedule || [],
-                            restrictions: loadedEmult.restrictions || [],
-                        });
-                    }
+                // 3. Sincroniza profissionais eMult aprovados do portal para Escala Base
+                const approvedEmultRows = currentTeamId
+                    ? (((await (supabase
+                        .from('professional_users' as any)
+                        .select('full_name, function_name, professional_id')
+                        .eq('team_id', currentTeamId)
+                        .eq('category', 'emult')
+                        .eq('status', 'approved') as any)).data) || [])
+                    : [];
 
+                const loadedEmult = (stateData?.emult_state as any) || {};
+                const mergedFunctions = [...((loadedEmult.functions && loadedEmult.functions.length > 0) ? loadedEmult.functions : DEFAULT_FUNCTIONS)];
+                const mergedProfessionals = [...(loadedEmult.professionals || [])];
 
-                    // Restaura códigos existentes ou gera novos exclusivos
-                    if (stateData.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
-                        setPortalCodes(stateData.portal_codes as PortalCodes);
-                    } else {
-                        // Usuário existente sem códigos salvos → gera e persiste
-                        const newCodes = generatePortalCodes();
-                        setPortalCodes(newCodes);
-                        await (supabase
-                            .from('admin_states' as any)
-                            .upsert({
-                                user_id: userId,
-                                portal_codes: newCodes as any,
-                                updated_at: new Date().toISOString(),
-                            }) as any);
-                    }
+                const functionPalette = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+                const ensureFunctionId = (functionName?: string | null) => {
+                    if (!functionName) return mergedFunctions[0]?.id || '1';
+                    const normalized = functionName.toLowerCase().trim();
+                    const existing = mergedFunctions.find((f: any) => f.name.toLowerCase().trim() === normalized);
+                    if (existing) return existing.id;
+
+                    const newFunction = {
+                        id: generateId(),
+                        name: functionName,
+                        color: functionPalette[mergedFunctions.length % functionPalette.length],
+                    };
+                    mergedFunctions.push(newFunction);
+                    return newFunction.id;
+                };
+
+                for (const row of approvedEmultRows as any[]) {
+                    const fullName = (row.full_name || '').trim();
+                    if (!fullName) continue;
+
+                    const alreadyExists = mergedProfessionals.some((p: any) =>
+                        (row.professional_id && p.id === row.professional_id) ||
+                        p.name.toLowerCase().trim() === fullName.toLowerCase()
+                    );
+                    if (alreadyExists) continue;
+
+                    mergedProfessionals.push({
+                        id: row.professional_id || generateId(),
+                        name: fullName,
+                        functionId: ensureFunctionId(row.function_name),
+                        team: '',
+                        weeklyHours: 40,
+                        active: true,
+                    });
+                }
+
+                const mergedData: AppData = {
+                    professionals: mergedProfessionals,
+                    units: loadedEmult.units || [],
+                    functions: mergedFunctions,
+                    schedule: loadedEmult.schedule || [],
+                    restrictions: loadedEmult.restrictions || [],
+                };
+
+                setData(mergedData);
+
+                // 4. Restaura códigos existentes ou gera novos exclusivos
+                if (stateData?.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
+                    setPortalCodes(stateData.portal_codes as PortalCodes);
                 } else {
-                    // Novo usuário → inicializa com dados padrão e gera códigos exclusivos
-                    setData(INITIAL_DATA);
                     const newCodes = generatePortalCodes();
                     setPortalCodes(newCodes);
                     await (supabase
                         .from('admin_states' as any)
                         .upsert({
                             user_id: userId,
+                            emult_state: mergedData as any,
                             portal_codes: newCodes as any,
                             updated_at: new Date().toISOString(),
                         }) as any);
