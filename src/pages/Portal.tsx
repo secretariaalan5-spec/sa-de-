@@ -594,15 +594,24 @@ export default function Portal() {
 
   // eMult schedule data (must be before guards to respect hooks rules)
   const emultData = portalData?.emult;
-  const isEmultUser = professionalUser?.category === 'emult';
 
   const myEmultProfessional = useMemo(() => {
-    if (!isEmultUser || !emultData?.professionals || !professionalUser) return null;
-    const name = professionalUser.full_name.toLowerCase().trim();
-    return emultData.professionals.find(p =>
-      p.name.toLowerCase().trim() === name
-    ) || null;
-  }, [isEmultUser, emultData, professionalUser]);
+    if (!emultData?.professionals || !professionalUser) return null;
+
+    if (professionalUser.professional_id) {
+      const byId = emultData.professionals.find(p => p.id === professionalUser.professional_id);
+      if (byId) return byId;
+    }
+
+    if (professionalUser.category === 'emult') {
+      const normalizedName = professionalUser.full_name.toLowerCase().trim();
+      return emultData.professionals.find(p => p.name.toLowerCase().trim() === normalizedName) || null;
+    }
+
+    return null;
+  }, [emultData, professionalUser]);
+
+  const isEmultUser = professionalUser?.category === 'emult' || !!myEmultProfessional;
 
   const myEmultSchedule = useMemo(() => {
     if (!myEmultProfessional || !emultData?.schedule) return [];
