@@ -148,7 +148,10 @@ export default function Registration() {
     fetchApprovals();
   };
 
-  const categoryLabel = (cat: string) => cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  const categoryLabel = (cat: string, fn?: string | null) => {
+    if (cat === 'emult' && fn) return fn;
+    return cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  };
   const categoryColor = (cat: string) => cat === 'nurse' ? 'text-accent' : 'text-primary';
   const categoryBg = (cat: string) => cat === 'nurse' ? 'bg-accent/10' : 'bg-primary/10';
 
