@@ -65,14 +65,29 @@ export function useProfessionalPortal() {
 
     setLoading(true);
     try {
-      const { data, error } = await (supabase
-        .from('professional_users' as any)
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle() as any);
+      const [{ data, error }, { data: profileData }] = await Promise.all([
+        (supabase
+          .from('professional_users' as any)
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle() as any),
+        (supabase
+          .from('profiles' as any)
+          .select('avatar_url')
+          .eq('user_id', session.user.id)
+          .maybeSingle() as any),
+      ]);
 
       if (error && error.code !== 'PGRST116') throw error;
-      setProfessionalUser(data as ProfessionalUser | null);
+
+      if (!data) {
+        setProfessionalUser(null);
+      } else {
+        setProfessionalUser({
+          ...(data as ProfessionalUser),
+          avatar_url: (data as ProfessionalUser).avatar_url || profileData?.avatar_url || null,
+        });
+      }
     } catch (err) {
       console.error('Error fetching professional user:', err);
     } finally {
