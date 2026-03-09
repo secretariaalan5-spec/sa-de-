@@ -240,7 +240,12 @@ export default function Schedule() {
                       const limit = prof.weeklyHours;
                       return (
                         <tr key={prof.id}>
-                          <td className="font-semibold align-top">{prof.name.toUpperCase()}</td>
+                          <td
+                            className="font-semibold align-top cursor-pointer hover:text-primary hover:underline transition-colors"
+                            onClick={() => setSelectedProfessional(prof)}
+                          >
+                            {prof.name.toUpperCase()}
+                          </td>
                           <td className="text-center align-top text-xs">
                             <span
                               className={
