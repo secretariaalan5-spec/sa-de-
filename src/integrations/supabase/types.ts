@@ -246,6 +246,7 @@ export type Database = {
           full_name: string
           function_name: string | null
           id: string
+          onesignal_player_id: string | null
           professional_id: string | null
           status: string
           team_id: string | null
@@ -260,6 +261,7 @@ export type Database = {
           full_name?: string
           function_name?: string | null
           id?: string
+          onesignal_player_id?: string | null
           professional_id?: string | null
           status?: string
           team_id?: string | null
@@ -274,6 +276,7 @@ export type Database = {
           full_name?: string
           function_name?: string | null
           id?: string
+          onesignal_player_id?: string | null
           professional_id?: string | null
           status?: string
           team_id?: string | null
@@ -525,6 +528,7 @@ export type Database = {
               full_name: string
               function_name: string | null
               id: string
+              onesignal_player_id: string | null
               professional_id: string | null
               status: string
               team_id: string | null
@@ -554,6 +558,7 @@ export type Database = {
               full_name: string
               function_name: string | null
               id: string
+              onesignal_player_id: string | null
               professional_id: string | null
               status: string
               team_id: string | null

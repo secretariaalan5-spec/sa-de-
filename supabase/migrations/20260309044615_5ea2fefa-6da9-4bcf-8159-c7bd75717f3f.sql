@@ -1,0 +1,1 @@
+ALTER TABLE public.professional_users ADD COLUMN IF NOT EXISTS onesignal_player_id text DEFAULT NULL;
