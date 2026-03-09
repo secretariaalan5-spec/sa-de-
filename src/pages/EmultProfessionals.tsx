@@ -52,7 +52,14 @@ export default function EmultProfessionals() {
       .eq('status', 'approved')
       .order('full_name', { ascending: true }) as any);
 
-    if (!error && data) setUsers(data as EmultUser[]);
+    if (!error && data) {
+      setUsers(data as EmultUser[]);
+      const avatars: Record<string, string> = {};
+      (data as any[]).forEach(row => {
+        if (row.avatar_url) avatars[row.id] = row.avatar_url;
+      });
+      setAvatarMap(avatars);
+    }
     setLoading(false);
   }, [profile?.team_id]);
 
