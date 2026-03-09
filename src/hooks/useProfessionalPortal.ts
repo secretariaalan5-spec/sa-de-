@@ -13,6 +13,7 @@ export interface ProfessionalUser {
   category: string;
   status: string;
   avatar_url: string | null;
+  function_name: string | null;
   created_at: string;
 }
 
