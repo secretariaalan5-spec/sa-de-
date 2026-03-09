@@ -114,17 +114,21 @@ export default function ProfessionalApprovals() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
+  const withActionLoading = (id: string, fn: () => Promise<void>) => async () => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try { await fn(); } finally { setActionLoading(prev => ({ ...prev, [id]: false })); }
+  };
+
   const handleApprove = async (user: ProfessionalUserRecord) => {
     let professionalId: string;
 
     if (user.category === 'emult') {
-      // eMult → add to AppDataContext (escala base)
-      // Find matching function by name
       let funcId = emultData.functions.find(f =>
         f.name.toLowerCase().trim() === (user.function_name || '').toLowerCase().trim()
       )?.id;
 
-      // Partial match fallback
       if (!funcId && user.function_name) {
         const fnLower = user.function_name.toLowerCase();
         funcId = emultData.functions.find(f =>
@@ -143,7 +147,6 @@ export default function ProfessionalApprovals() {
       });
       professionalId = newProf.id;
     } else {
-      // Nurse/Tech → service professionals
       const newProf = addServiceProfessional({
         name: user.full_name,
         category: user.category as 'nurse' | 'tech',
