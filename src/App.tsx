@@ -25,6 +25,7 @@ import ServiceReportsPage from "./pages/ServiceReports";
 import Registration from "./pages/Registration";
 import Portal from "./pages/Portal";
 import Login from "./pages/Login";
+import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
 import NotFound from "./pages/NotFound";
@@ -37,22 +38,48 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsPassword, setNeedsPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        checkNeedsPassword(session);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        checkNeedsPassword(session);
+      }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkNeedsPassword = (session: Session) => {
+    const passwordStatus = localStorage.getItem('password_set');
+    if (passwordStatus === 'true' || passwordStatus === 'skipped') {
+      setNeedsPassword(false);
+      return;
+    }
+
+    // Check if user only has Google provider (no email/password identity)
+    const providers = session.user.app_metadata?.providers as string[] | undefined;
+    const hasEmailProvider = session.user.identities?.some(
+      id => id.provider === 'email'
+    );
+    
+    // If logged in via Google and never set a password
+    const isGoogleOnly = providers?.includes('google') && !hasEmailProvider;
+    setNeedsPassword(!!isGoogleOnly);
+  };
+
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  if (needsPassword) return <Navigate to="/definir-senha" replace />;
 
   return <>{children}</>;
 };
@@ -67,6 +94,7 @@ const App = () => (
           <ServiceStateProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/definir-senha" element={<SetPassword />} />
 
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
