@@ -252,7 +252,7 @@ export function Sidebar() {
           {/* Group Items */}
           {isEscalasOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
