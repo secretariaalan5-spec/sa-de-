@@ -65,9 +65,29 @@ interface ServiceProfessionalPortal {
 interface ServiceScheduleEntry {
   id: string; professionalId: string; date: string; type: 'nurse' | 'tech'; isWeekend?: boolean;
 }
+interface EmultScheduleEntry {
+  id: string; professionalId: string; unitId: string; dayOfWeek: string; period: string;
+}
+interface EmultUnit {
+  id: string; name: string; type?: string; active: boolean;
+}
+interface EmultProfessional {
+  id: string; name: string; functionId: string; team: string; weeklyHours: number; active: boolean;
+}
+interface EmultFunction {
+  id: string; name: string; color: string;
+}
+interface EmultData {
+  professionals: EmultProfessional[];
+  units: EmultUnit[];
+  functions: EmultFunction[];
+  schedule: EmultScheduleEntry[];
+  teamId: string | null;
+}
 interface PortalData {
   publishedAt: string; adminName?: string;
   service: { professionals: ServiceProfessionalPortal[]; nurseEntries: ServiceScheduleEntry[]; techEntries: ServiceScheduleEntry[]; leaveRequests?: LeaveRequest[]; };
+  emult?: EmultData;
 }
 type PortalTab = 'schedule' | 'credits' | 'leaves' | 'profile';
 
