@@ -118,26 +118,18 @@ export default function ProfessionalApprovals() {
     let professionalId: string;
 
     if (user.category === 'emult') {
-      // eMult professionals go to AppDataContext (escala base)
-      // Find or create the matching function
-      let funcId = emultData.functions.find(f => 
-        f.name.toLowerCase() === (user.function_name || '').toLowerCase()
+      // eMult → add to AppDataContext (escala base)
+      // Find matching function by name
+      let funcId = emultData.functions.find(f =>
+        f.name.toLowerCase().trim() === (user.function_name || '').toLowerCase().trim()
       )?.id;
-      
+
+      // Partial match fallback
       if (!funcId && user.function_name) {
-        // Create new function with a default color
-        const colors = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
-        const colorIdx = emultData.functions.length % colors.length;
-        const newFunc = addEmultProfessional({ name: '', functionId: '', team: '', weeklyHours: 40, active: true }); // placeholder
-        // Actually we need to use addFunction - let me use the context properly
-        funcId = emultData.functions[0]?.id || '1';
-        // Try to find best match
-        for (const f of emultData.functions) {
-          if (f.name.toLowerCase().includes((user.function_name || '').toLowerCase().substring(0, 5))) {
-            funcId = f.id;
-            break;
-          }
-        }
+        const fnLower = user.function_name.toLowerCase();
+        funcId = emultData.functions.find(f =>
+          f.name.toLowerCase().includes(fnLower.substring(0, 5)) || fnLower.includes(f.name.toLowerCase().substring(0, 5))
+        )?.id;
       }
 
       if (!funcId) funcId = emultData.functions[0]?.id || '1';
@@ -151,8 +143,8 @@ export default function ProfessionalApprovals() {
       });
       professionalId = newProf.id;
     } else {
-      // Nurse/Tech go to service professionals
-      const newProf = addProfessional({
+      // Nurse/Tech → service professionals
+      const newProf = addServiceProfessional({
         name: user.full_name,
         category: user.category as 'nurse' | 'tech',
         monthlyHours: 200,
