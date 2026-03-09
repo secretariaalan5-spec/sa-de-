@@ -211,6 +211,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          function_name: string | null
           id: string
           professional_id: string | null
           status: string
@@ -224,6 +225,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string
+          function_name?: string | null
           id?: string
           professional_id?: string | null
           status?: string
@@ -237,6 +239,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
+          function_name?: string | null
           id?: string
           professional_id?: string | null
           status?: string
@@ -431,33 +434,64 @@ export type Database = {
     }
     Functions: {
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
-      register_professional_via_portal: {
-        Args: {
-          _category: string
-          _email: string
-          _full_name: string
-          _team_id: string
-        }
-        Returns: {
-          avatar_url: string | null
-          category: string
-          created_at: string
-          email: string
-          full_name: string
-          id: string
-          professional_id: string | null
-          status: string
-          team_id: string | null
-          updated_at: string
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "professional_users"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      register_professional_via_portal:
+        | {
+            Args: {
+              _category: string
+              _email: string
+              _full_name: string
+              _team_id: string
+            }
+            Returns: {
+              avatar_url: string | null
+              category: string
+              created_at: string
+              email: string
+              full_name: string
+              function_name: string | null
+              id: string
+              professional_id: string | null
+              status: string
+              team_id: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "professional_users"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              _category: string
+              _email: string
+              _full_name: string
+              _function_name?: string
+              _team_id: string
+            }
+            Returns: {
+              avatar_url: string | null
+              category: string
+              created_at: string
+              email: string
+              full_name: string
+              function_name: string | null
+              id: string
+              professional_id: string | null
+              status: string
+              team_id: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "professional_users"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
     }
     Enums: {
       [_ in never]: never
