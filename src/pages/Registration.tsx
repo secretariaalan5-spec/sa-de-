@@ -20,6 +20,7 @@ interface ProfessionalUserRecord {
   team_id: string | null;
   category: string;
   status: string;
+  function_name: string | null;
   created_at: string;
 }
 
@@ -147,7 +148,10 @@ export default function Registration() {
     fetchApprovals();
   };
 
-  const categoryLabel = (cat: string) => cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  const categoryLabel = (cat: string, fn?: string | null) => {
+    if (cat === 'emult' && fn) return fn;
+    return cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  };
   const categoryColor = (cat: string) => cat === 'nurse' ? 'text-accent' : 'text-primary';
   const categoryBg = (cat: string) => cat === 'nurse' ? 'bg-accent/10' : 'bg-primary/10';
 
@@ -267,7 +271,7 @@ export default function Registration() {
                     <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     <span className={`text-[11px] font-medium ${categoryColor(user.category)}`}>
-                      {categoryLabel(user.category)}
+                      {categoryLabel(user.category, user.function_name)}
                     </span>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
@@ -310,7 +314,7 @@ export default function Registration() {
                       <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       <span className={`text-[11px] font-medium ${categoryColor(user.category)}`}>
-                        {categoryLabel(user.category)}
+                        {categoryLabel(user.category, user.function_name)}
                       </span>
                     </div>
                     <Button

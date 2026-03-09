@@ -23,6 +23,7 @@ interface ProfessionalUserRecord {
   team_id: string | null;
   category: string;
   status: string;
+  function_name: string | null;
   created_at: string;
 }
 
@@ -227,7 +228,10 @@ export default function ProfessionalApprovals() {
     fetchData();
   };
 
-  const categoryLabel = (cat: string) => cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  const categoryLabel = (cat: string, fn?: string | null) => {
+    if (cat === 'emult' && fn) return fn;
+    return cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  };
   const categoryIcon = (cat: string) => cat === 'nurse' ? <Stethoscope className="w-4 h-4" /> : cat === 'tech' ? <Syringe className="w-4 h-4" /> : <Users className="w-4 h-4" />;
   const categoryColorClass = (cat: string) => cat === 'nurse' ? 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30' : cat === 'tech' ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/30' : 'text-violet-600 bg-violet-100 dark:bg-violet-900/30';
   const categoryBarColor = (cat: string) => cat === 'nurse' ? 'bg-emerald-400' : cat === 'tech' ? 'bg-blue-400' : 'bg-violet-400';
@@ -315,7 +319,7 @@ export default function ProfessionalApprovals() {
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {categoryIcon(user.category)}
-                          <span className="text-xs text-muted-foreground">{categoryLabel(user.category)}</span>
+                          <span className="text-xs text-muted-foreground">{categoryLabel(user.category, user.function_name)}</span>
                         </div>
                       </div>
                       <Badge variant="outline" className="text-amber-600 border-amber-300">
@@ -324,7 +328,7 @@ export default function ProfessionalApprovals() {
                     </div>
 
                     <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
-                      Ao aprovar, o profissional será cadastrado como <strong>{categoryLabel(user.category)}</strong> e aparecerá na área correspondente.
+                      Ao aprovar, o profissional será cadastrado como <strong>{categoryLabel(user.category, user.function_name)}</strong> e aparecerá na área correspondente.
                     </div>
 
                     <div className="flex gap-2">
@@ -490,7 +494,7 @@ export default function ProfessionalApprovals() {
 function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categoryColorClass, categoryTextColor, onRemove }: {
   user: ProfessionalUserRecord;
   categoryIcon: (cat: string) => React.ReactNode;
-  categoryLabel: (cat: string) => string;
+  categoryLabel: (cat: string, fn?: string | null) => string;
   categoryBarColor: (cat: string) => string;
   categoryColorClass: (cat: string) => string;
   categoryTextColor: (cat: string) => string;
@@ -508,7 +512,7 @@ function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categor
             <h3 className="font-bold text-sm text-foreground truncate">{user.full_name}</h3>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             <span className={`text-[11px] font-bold ${categoryTextColor(user.category)}`}>
-              {categoryLabel(user.category)}
+              {categoryLabel(user.category, user.function_name)}
             </span>
           </div>
           <Button

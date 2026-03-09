@@ -206,9 +206,15 @@ function GoogleLoginScreen({ onLogin, loading, onInstall, showInstall }: { onLog
 }
 
 // ─── Registration Screen ───
-function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onRegister: (t: string, c: string, n: string) => void; teamId: string | null; userEmail: string; userName: string; }) {
+function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onRegister: (t: string, c: string, n: string, fn?: string) => void; teamId: string | null; userEmail: string; userName: string; }) {
   const [fullName, setFullName] = useState(userName || '');
   const [category, setCategory] = useState('');
+  const [functionName, setFunctionName] = useState('');
+
+  const emultFunctions = [
+    'Psicólogo(a)', 'Fisioterapeuta', 'Nutricionista', 'Assistente Social',
+    'Educador(a) Físico', 'Fonoaudiólogo(a)', 'Terapeuta Ocupacional', 'Farmacêutico(a)',
+  ];
 
   if (!teamId) {
     return (
@@ -227,6 +233,9 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
     { value: 'tech', label: 'Técnico(a)', icon: Syringe, desc: 'Escala técnica', gradient: 'from-accent/10 to-accent/5' },
     { value: 'emult', label: 'eMult', icon: Users, desc: 'Equipe multiprofissional', gradient: 'from-warning/10 to-warning/5' },
   ];
+
+  const isEmult = category === 'emult';
+  const canSubmit = category && fullName.trim() && (!isEmult || functionName);
 
   return (
     <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
@@ -254,7 +263,7 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
             <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sua categoria</Label>
             <div className="grid gap-2.5">
               {categories.map(cat => (
-                <button key={cat.value} onClick={() => setCategory(cat.value)}
+                <button key={cat.value} onClick={() => { setCategory(cat.value); if (cat.value !== 'emult') setFunctionName(''); }}
                   className={cn(
                     "portal-press flex items-center gap-3.5 p-3.5 rounded-2xl border-2 transition-all text-left",
                     category === cat.value
@@ -281,7 +290,27 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
             </div>
           </div>
 
-          <ActionButton onClick={() => onRegister(teamId, category, fullName.trim())} disabled={!category || !fullName.trim()}>
+          {/* Seleção de função/profissão para eMult */}
+          {isEmult && (
+            <div className="space-y-2.5">
+              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sua profissão</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {emultFunctions.map(fn => (
+                  <button key={fn} onClick={() => setFunctionName(fn)}
+                    className={cn(
+                      "portal-press px-3 py-2.5 rounded-xl border-2 text-[12px] font-semibold transition-all text-left",
+                      functionName === fn
+                        ? "border-primary bg-primary/8 text-primary shadow-sm"
+                        : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground"
+                    )}>
+                    {fn}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <ActionButton onClick={() => onRegister(teamId, category, fullName.trim(), isEmult ? functionName : undefined)} disabled={!canSubmit}>
             Solicitar Acesso
           </ActionButton>
         </GlassCard>

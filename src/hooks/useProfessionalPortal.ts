@@ -84,7 +84,7 @@ export function useProfessionalPortal() {
   }, [fetchProfessionalUser]);
 
   // Register as professional using server-side RPC
-  const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
+  const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string, functionName?: string) => {
     if (!session?.user) return false;
 
     const nameToUse = fullName?.trim() || session.user.user_metadata?.full_name || session.user.email || '';
@@ -95,6 +95,7 @@ export function useProfessionalPortal() {
         _category: category,
         _full_name: nameToUse,
         _email: session.user.email || '',
+        _function_name: functionName || null,
       } as any);
 
       if (error) throw error;
