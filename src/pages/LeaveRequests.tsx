@@ -60,7 +60,7 @@ export default function LeaveRequestsPage() {
             });
             setAvatarMap(map);
         }
-    }, [profile?.team_id, markAvatarLoaded]);
+    }, [profile?.team_id]);
 
     useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
