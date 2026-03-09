@@ -526,29 +526,12 @@ export default function Portal() {
     input.click();
   };
 
-  // ─── Guards ───
-  if (loading) return <div className="portal-native min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
-  if (!session) return <GoogleLoginScreen onLogin={loginWithGoogle} loading={false} onInstall={handleInstall} showInstall={!!deferredPrompt} />;
-  if (!professionalUser) return <RegistrationScreen onRegister={registerProfessional} teamId={teamIdFromUrl} userEmail={session.user.email || ''} userName={session.user.user_metadata?.full_name || ''} />;
-  if (professionalUser.status !== 'approved') return <PendingScreen onLogout={logout} status={professionalUser.status} />;
-
-  const prevMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
-  const greeting = getGreeting();
-  const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
-  const isEmultUser = professionalUser.category === 'emult';
-  const categoryLabel = isEmultUser ? (professionalUser as any).function_name || 'eMult' : professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)';
-  const CategoryIcon = professionalUser.category === 'nurse' ? Stethoscope : professionalUser.category === 'tech' ? Syringe : Users;
-  const updatedLabel = portalData ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR }) : '';
-
-  // eMult schedule data
+  // eMult schedule data (must be before guards to respect hooks rules)
   const emultData = portalData?.emult;
-  const DAYS_LABELS: Record<string, string> = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' };
-  const PERIOD_LABELS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' };
+  const isEmultUser = professionalUser?.category === 'emult';
 
-  // Find eMult professional by name match
   const myEmultProfessional = useMemo(() => {
-    if (!isEmultUser || !emultData?.professionals) return null;
+    if (!isEmultUser || !emultData?.professionals || !professionalUser) return null;
     const name = professionalUser.full_name.toLowerCase().trim();
     return emultData.professionals.find(p =>
       p.name.toLowerCase().trim() === name
@@ -562,6 +545,24 @@ export default function Portal() {
 
   const getEmultUnit = (unitId: string) => emultData?.units?.find(u => u.id === unitId);
   const getEmultFunction = (funcId: string) => emultData?.functions?.find(f => f.id === funcId);
+
+  const DAYS_LABELS: Record<string, string> = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' };
+  const PERIOD_LABELS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' };
+  const DAYS_ORDER = ['segunda', 'terca', 'quarta', 'quinta', 'sexta'];
+
+  // ─── Guards ───
+  if (loading) return <div className="portal-native min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
+  if (!session) return <GoogleLoginScreen onLogin={loginWithGoogle} loading={false} onInstall={handleInstall} showInstall={!!deferredPrompt} />;
+  if (!professionalUser) return <RegistrationScreen onRegister={registerProfessional} teamId={teamIdFromUrl} userEmail={session.user.email || ''} userName={session.user.user_metadata?.full_name || ''} />;
+  if (professionalUser.status !== 'approved') return <PendingScreen onLogout={logout} status={professionalUser.status} />;
+
+  const prevMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
+  const greeting = getGreeting();
+  const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
+  const categoryLabel = isEmultUser ? (professionalUser as any).function_name || 'eMult' : professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)';
+  const CategoryIcon = professionalUser.category === 'nurse' ? Stethoscope : professionalUser.category === 'tech' ? Syringe : Users;
+  const updatedLabel = portalData ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR }) : '';
 
   const statusBadge = (status: string) => {
     if (status === 'approved') return (
