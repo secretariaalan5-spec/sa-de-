@@ -65,9 +65,29 @@ interface ServiceProfessionalPortal {
 interface ServiceScheduleEntry {
   id: string; professionalId: string; date: string; type: 'nurse' | 'tech'; isWeekend?: boolean;
 }
+interface EmultScheduleEntry {
+  id: string; professionalId: string; unitId: string; dayOfWeek: string; period: string;
+}
+interface EmultUnit {
+  id: string; name: string; type?: string; active: boolean;
+}
+interface EmultProfessional {
+  id: string; name: string; functionId: string; team: string; weeklyHours: number; active: boolean;
+}
+interface EmultFunction {
+  id: string; name: string; color: string;
+}
+interface EmultData {
+  professionals: EmultProfessional[];
+  units: EmultUnit[];
+  functions: EmultFunction[];
+  schedule: EmultScheduleEntry[];
+  teamId: string | null;
+}
 interface PortalData {
   publishedAt: string; adminName?: string;
   service: { professionals: ServiceProfessionalPortal[]; nurseEntries: ServiceScheduleEntry[]; techEntries: ServiceScheduleEntry[]; leaveRequests?: LeaveRequest[]; };
+  emult?: EmultData;
 }
 type PortalTab = 'schedule' | 'credits' | 'leaves' | 'profile';
 
@@ -354,18 +374,22 @@ function PendingScreen({ onLogout, status }: { onLogout: () => void; status: str
 }
 
 // ─── Bottom Nav ───
-function BottomNav({ active, onChange, leaveCount }: { active: PortalTab; onChange: (t: PortalTab) => void; leaveCount: number }) {
-  const tabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
+function BottomNav({ active, onChange, leaveCount, isEmult }: { active: PortalTab; onChange: (t: PortalTab) => void; leaveCount: number; isEmult?: boolean }) {
+  const allTabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
     { id: 'schedule', icon: CalendarDays, label: 'Escala' },
     { id: 'credits', icon: Zap, label: 'Créditos' },
     { id: 'leaves', icon: FileText, label: 'Folgas' },
     { id: 'profile', icon: User, label: 'Perfil' },
   ];
 
+  // eMult only sees Schedule + Profile
+  const tabs = isEmult ? allTabs.filter(t => t.id === 'schedule' || t.id === 'profile') : allTabs;
+  const cols = tabs.length;
+
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border/20 safe-area-bottom"
       style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'saturate(180%) blur(24px)', WebkitBackdropFilter: 'saturate(180%) blur(24px)' }}>
-      <div className="grid grid-cols-4 max-w-lg mx-auto h-[60px]">
+      <div className={`grid max-w-lg mx-auto h-[60px]`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = active === tab.id;
@@ -440,7 +464,12 @@ export default function Portal() {
     try {
       const { data, error } = await supabase.from('portal_schedules' as any).select('*').eq('emult_data->>teamId', effectiveTeamId).order('published_at', { ascending: false }).limit(1).maybeSingle() as any;
       if (error) throw error;
-      if (data) setPortalData({ publishedAt: data.published_at, adminName: data.admin_name || undefined, service: data.service_data as unknown as PortalData['service'] });
+      if (data) setPortalData({
+        publishedAt: data.published_at,
+        adminName: data.admin_name || undefined,
+        service: data.service_data as unknown as PortalData['service'],
+        emult: data.emult_data as unknown as EmultData | undefined,
+      });
     } catch (err) { console.error(err); } finally { setLoadingPortal(false); }
   }, [effectiveTeamId]);
 
@@ -497,6 +526,30 @@ export default function Portal() {
     input.click();
   };
 
+  // eMult schedule data (must be before guards to respect hooks rules)
+  const emultData = portalData?.emult;
+  const isEmultUser = professionalUser?.category === 'emult';
+
+  const myEmultProfessional = useMemo(() => {
+    if (!isEmultUser || !emultData?.professionals || !professionalUser) return null;
+    const name = professionalUser.full_name.toLowerCase().trim();
+    return emultData.professionals.find(p =>
+      p.name.toLowerCase().trim() === name
+    ) || null;
+  }, [isEmultUser, emultData, professionalUser]);
+
+  const myEmultSchedule = useMemo(() => {
+    if (!myEmultProfessional || !emultData?.schedule) return [];
+    return emultData.schedule.filter(s => s.professionalId === myEmultProfessional.id);
+  }, [myEmultProfessional, emultData]);
+
+  const getEmultUnit = (unitId: string) => emultData?.units?.find(u => u.id === unitId);
+  const getEmultFunction = (funcId: string) => emultData?.functions?.find(f => f.id === funcId);
+
+  const DAYS_LABELS: Record<string, string> = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' };
+  const PERIOD_LABELS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' };
+  const DAYS_ORDER = ['segunda', 'terca', 'quarta', 'quinta', 'sexta'];
+
   // ─── Guards ───
   if (loading) return <div className="portal-native min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
   if (!session) return <GoogleLoginScreen onLogin={loginWithGoogle} loading={false} onInstall={handleInstall} showInstall={!!deferredPrompt} />;
@@ -507,7 +560,7 @@ export default function Portal() {
   const nextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
   const greeting = getGreeting();
   const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
-  const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
+  const categoryLabel = isEmultUser ? (professionalUser as any).function_name || 'eMult' : professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)';
   const CategoryIcon = professionalUser.category === 'nurse' ? Stethoscope : professionalUser.category === 'tech' ? Syringe : Users;
   const updatedLabel = portalData ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR }) : '';
 
@@ -574,118 +627,208 @@ export default function Portal() {
               {/* ════════ SCHEDULE ════════ */}
               {activeTab === 'schedule' && (
                 <div className="space-y-5">
-                  {/* Hero stats card */}
-                  <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
-                    style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
-                    <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Activity className="w-4 h-4 text-primary-foreground/70" />
-                        <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
-                      </div>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
-                          <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
-                        </div>
-                        <div className="text-right space-y-2">
-                          <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                            <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
-                            <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
-                            <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
+                  {isEmultUser ? (
+                    /* ── eMult: Weekly Schedule ── */
+                    <>
+                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CalendarDays className="w-4 h-4 text-primary-foreground/70" />
+                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Escala Semanal</p>
                           </div>
-                          <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                            <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
-                            <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
-                            <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
-                          </div>
+                          <p className="text-primary-foreground text-[20px] font-black leading-tight">
+                            {myEmultProfessional?.name || professionalUser.full_name}
+                          </p>
+                          {myEmultProfessional && (
+                            <p className="text-primary-foreground/60 text-[12px] font-semibold mt-1">
+                              {getEmultFunction(myEmultProfessional.functionId)?.name || categoryLabel}
+                            </p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Month nav */}
-                  <div className="flex items-center justify-between px-1">
-                    <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
-                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                    </h2>
-                    <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
+                      {myEmultSchedule.length === 0 ? (
+                        <GlassCard className="py-14 px-6 text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
+                            <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
+                          </div>
+                          <p className="text-[15px] font-bold text-muted-foreground">Sem escala publicada</p>
+                          <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Aguarde o administrador publicar sua escala</p>
+                        </GlassCard>
+                      ) : (
+                        <div className="space-y-3">
+                          {DAYS_ORDER.map(dayKey => {
+                            const dayEntries = myEmultSchedule.filter(s => s.dayOfWeek === dayKey);
+                            if (dayEntries.length === 0) return null;
 
-                  {/* Calendar */}
-                  <GlassCard className="overflow-hidden">
-                    <div className="grid grid-cols-7 text-center border-b border-border/20">
-                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                        <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7 p-1.5 gap-0.5">
-                      {(() => {
-                        const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
-                        const days = eachDayOfInterval({ start: ms, end: me });
-                        const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
-                        const cells = days.map(day => {
-                          const ds = format(day, 'yyyy-MM-dd');
-                          const hasWork = myEntries.some(e => e.date === ds);
-                          const isWknd = getDay(day) === 0 || getDay(day) === 6;
-                          const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
-                          const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
-                          return (
-                            <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
-                              <span className={cn(
-                                "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
-                                isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
-                                hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
-                                hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
-                                hasLeave && !isToday && "bg-destructive/10 text-destructive",
-                                !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
-                                !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
-                              )}>
-                                {format(day, 'd')}
-                              </span>
-                              {hasWork && !isToday && (
-                                <div className={cn(
-                                  "absolute bottom-1 w-1 h-1 rounded-full",
-                                  isWknd ? "bg-warning" : "bg-accent"
-                                )} />
-                              )}
+                            return (
+                              <GlassCard key={dayKey} className="overflow-hidden">
+                                <div className="px-4 py-3 bg-primary/5 border-b border-border/20 flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                    <Calendar className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <span className="text-[14px] font-black text-foreground">{DAYS_LABELS[dayKey]}</span>
+                                </div>
+                                <div className="divide-y divide-border/15">
+                                  {dayEntries.map((entry, i) => {
+                                    const unit = getEmultUnit(entry.unitId);
+                                    return (
+                                      <div key={i} className="px-4 py-3.5 flex items-center gap-3.5">
+                                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                          <Heart className="w-4 h-4 text-accent" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[14px] font-bold text-foreground truncate">{unit?.name || 'Unidade'}</p>
+                                          <p className="text-[11px] text-muted-foreground font-medium">{PERIOD_LABELS[entry.period] || entry.period}</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </GlassCard>
+                            );
+                          })}
+
+                          {/* Days without schedule */}
+                          {(() => {
+                            const daysWithSchedule = new Set(myEmultSchedule.map(s => s.dayOfWeek));
+                            const daysOff = DAYS_ORDER.filter(d => !daysWithSchedule.has(d));
+                            if (daysOff.length === 0) return null;
+                            return (
+                              <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground/50 font-medium">
+                                <CalendarOff className="w-3.5 h-3.5" />
+                                Sem escala: {daysOff.map(d => DAYS_LABELS[d]).join(', ')}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {updatedLabel && (
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/40 font-medium">
+                          <Clock className="w-3 h-3" /> Atualizado em {updatedLabel}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* ── Nurse/Tech: Monthly Calendar ── */
+                    <>
+                      {/* Hero stats card */}
+                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Activity className="w-4 h-4 text-primary-foreground/70" />
+                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
+                          </div>
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
+                              <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
                             </div>
-                          );
-                        });
-                        return [...blanks, ...cells];
-                      })()}
-                    </div>
-                  </GlassCard>
-
-                  {/* Legend */}
-                  <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
-                  </div>
-
-                  {/* Month stats */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
-                      { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
-                      { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                    ].map((s, i) => (
-                      <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
-                          <s.icon className={cn("w-4 h-4", s.color)} />
+                            <div className="text-right space-y-2">
+                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
+                                <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
+                              </div>
+                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
+                                <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
+                      </div>
+
+                      {/* Month nav */}
+                      <div className="flex items-center justify-between px-1">
+                        <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
+                          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                        </h2>
+                        <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Calendar */}
+                      <GlassCard className="overflow-hidden">
+                        <div className="grid grid-cols-7 text-center border-b border-border/20">
+                          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                            <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7 p-1.5 gap-0.5">
+                          {(() => {
+                            const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
+                            const days = eachDayOfInterval({ start: ms, end: me });
+                            const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
+                            const cells = days.map(day => {
+                              const ds = format(day, 'yyyy-MM-dd');
+                              const hasWork = myEntries.some(e => e.date === ds);
+                              const isWknd = getDay(day) === 0 || getDay(day) === 6;
+                              const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
+                              const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
+                              return (
+                                <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
+                                  <span className={cn(
+                                    "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
+                                    isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
+                                    hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
+                                    hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
+                                    hasLeave && !isToday && "bg-destructive/10 text-destructive",
+                                    !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
+                                    !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
+                                  )}>
+                                    {format(day, 'd')}
+                                  </span>
+                                  {hasWork && !isToday && (
+                                    <div className={cn(
+                                      "absolute bottom-1 w-1 h-1 rounded-full",
+                                      isWknd ? "bg-warning" : "bg-accent"
+                                    )} />
+                                  )}
+                                </div>
+                              );
+                            });
+                            return [...blanks, ...cells];
+                          })()}
+                        </div>
                       </GlassCard>
-                    ))}
-                  </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
+                      </div>
+
+                      {/* Month stats */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
+                          { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
+                          { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
+                        ].map((s, i) => (
+                          <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
+                              <s.icon className={cn("w-4 h-4", s.color)} />
+                            </div>
+                            <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
+                            <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
+                          </GlassCard>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -877,22 +1020,24 @@ export default function Portal() {
                     </div>
                   </GlassCard>
 
-                  {/* Quick stats */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
-                      { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
-                      { value: myStats.overall.creditsBalance, label: 'Créditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                    ].map((s, i) => (
-                      <GlassCard key={i} className="p-3.5 text-center">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
-                          <s.icon className={cn("w-4 h-4", s.color)} />
-                        </div>
-                        <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
-                      </GlassCard>
-                    ))}
-                  </div>
+                  {/* Quick stats - hidden for eMult */}
+                  {!isEmultUser && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
+                        { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
+                        { value: myStats.overall.creditsBalance, label: 'Créditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
+                      ].map((s, i) => (
+                        <GlassCard key={i} className="p-3.5 text-center">
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
+                            <s.icon className={cn("w-4 h-4", s.color)} />
+                          </div>
+                          <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
+                        </GlassCard>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Info rows */}
                   <GlassCard className="divide-y divide-border/20">
@@ -935,7 +1080,7 @@ export default function Portal() {
         </div>
       </div>
 
-      <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} />
+      <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} isEmult={isEmultUser} />
     </div>
   );
 }
