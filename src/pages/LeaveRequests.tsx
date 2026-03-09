@@ -59,12 +59,6 @@ export default function LeaveRequestsPage() {
                 if (pu.professional_id && pu.avatar_url) map[pu.professional_id] = pu.avatar_url;
             });
             setAvatarMap(map);
-            // Preload images
-            Object.entries(map).forEach(([id, url]) => {
-                const img = new Image();
-                img.onload = () => markAvatarLoaded(id);
-                img.src = url;
-            });
         }
     }, [profile?.team_id, markAvatarLoaded]);
 
