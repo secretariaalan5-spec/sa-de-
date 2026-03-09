@@ -520,10 +520,18 @@ export default function Portal() {
         const fp = `${session.user.id}/avatar.${ext}`;
         const { error: ue } = await supabase.storage.from('avatars').upload(fp, file, { upsert: true });
         if (ue) throw ue;
+
         const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fp);
-        const url = `${publicUrlData.publicUrl}?t=${Date.now()}`;
-        const { error: updateErr } = await (supabase.from('professional_users' as any).update({ avatar_url: url } as any).eq('user_id', session.user.id) as any);
-        if (updateErr) throw updateErr;
+        const publicUrl = publicUrlData.publicUrl;
+
+        const [profUpdate, profileUpdate] = await Promise.all([
+          (supabase.from('professional_users' as any).update({ avatar_url: publicUrl } as any).eq('user_id', session.user.id) as any),
+          (supabase.from('profiles' as any).update({ avatar_url: publicUrl } as any).eq('user_id', session.user.id) as any),
+        ]);
+
+        if (profUpdate.error) console.warn('professional_users avatar update failed:', profUpdate.error);
+        if (profileUpdate.error) console.warn('profiles avatar update failed:', profileUpdate.error);
+
         await refreshProfile();
         toast.success('Foto atualizada!');
       } catch (err: any) {
