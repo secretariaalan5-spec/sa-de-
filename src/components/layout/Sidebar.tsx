@@ -270,20 +270,22 @@ export function Sidebar() {
           )}
 
           {/* Global Publish Button */}
-          <div className="px-2 pt-4">
-            <Button
-              onClick={handlePublish}
-              disabled={isPublishing}
-              className="w-full bg-primary hover:bg-primary/90 text-white shadow-md gap-2 h-10 transition-all active:scale-95"
-            >
-              {isPublishing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <CloudUpload className="w-4 h-4" />
-              )}
-              {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
-            </Button>
-          </div>
+          {can('publicar') && (
+            <div className="px-2 pt-4">
+              <Button
+                onClick={handlePublish}
+                disabled={isPublishing}
+                className="w-full bg-primary hover:bg-primary/90 text-white shadow-md gap-2 h-10 transition-all active:scale-95"
+              >
+                {isPublishing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4" />
+                )}
+                {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
+              </Button>
+            </div>
+          )}
 
         </nav>
       </aside>
