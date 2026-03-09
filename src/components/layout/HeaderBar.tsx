@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-    User, Settings, LogOut, UserPlus, ChevronDown, Bell,
+    User, Settings, LogOut, UserPlus, ChevronDown, Bell, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePendingLeaveCount } from '@/hooks/usePendingLeaveCount';
