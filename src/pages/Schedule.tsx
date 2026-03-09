@@ -23,6 +23,7 @@ export default function Schedule() {
   } = useAppData();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [form, setForm] = useState<{
     professionalId: string;
     dayOfWeek: DayOfWeek | '';
