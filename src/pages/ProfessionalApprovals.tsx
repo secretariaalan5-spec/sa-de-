@@ -319,7 +319,7 @@ export default function ProfessionalApprovals() {
                         <p className="text-sm text-muted-foreground">{user.email}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {categoryIcon(user.category)}
-                          <span className="text-xs text-muted-foreground">{categoryLabel(user.category)}</span>
+                          <span className="text-xs text-muted-foreground">{categoryLabel(user.category, user.function_name)}</span>
                         </div>
                       </div>
                       <Badge variant="outline" className="text-amber-600 border-amber-300">
