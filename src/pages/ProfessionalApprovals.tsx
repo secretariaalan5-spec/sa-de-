@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle, Trash2, Link2, Copy, RefreshCw } from 'lucide-react';
+import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle, Trash2, Link2, Copy, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
 import { useAppData } from '@/hooks/useAppData';

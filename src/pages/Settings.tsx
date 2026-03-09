@@ -173,9 +173,9 @@ export default function Settings() {
             Apaga permanentemente todos os dados (eMult + Escalas de Serviço) da nuvem e de todos os dispositivos.
             <strong className="text-destructive"> Esta ação é irreversível.</strong>
           </p>
-          <Button variant="destructive" onClick={handleReset}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Resetar Todos os Dados
+          <Button variant="destructive" onClick={handleReset} disabled={resetting}>
+            {resetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            {resetting ? 'Resetando...' : 'Resetar Todos os Dados'}
           </Button>
         </section>
 
