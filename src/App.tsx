@@ -115,6 +115,7 @@ const App = () => (
                 <Route path="/emult/profissionais" element={<EmultProfessionals />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
+                <Route path="/equipe" element={<TeamManagement />} />
               </Route>
 
               <Route path="/portal" element={<Portal />} />
