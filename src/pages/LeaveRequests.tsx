@@ -255,11 +255,9 @@ export default function LeaveRequestsPage() {
                                 >
                                     <div className="flex items-center gap-4">
                                         <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted overflow-hidden">
-                                            {avatarUrl && loadedAvatars.has(request.professionalId) ? (
-                                                <AvatarImage src={avatarUrl} alt={prof?.name || ''} className="animate-fade-in" />
-                                            ) : avatarUrl ? (
-                                                <div className="w-full h-full animate-pulse bg-muted rounded-full" />
-                                            ) : null}
+                                            {avatarUrl && (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || ''} />
+                                            )}
                                             <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
                                                 {(prof?.name || 'P').slice(0, 2).toUpperCase()}
                                             </AvatarFallback>
