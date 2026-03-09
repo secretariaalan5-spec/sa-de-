@@ -243,10 +243,16 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
   useEffect(() => {
     if (!teamId) { setTeamValid(false); return; }
     setCheckingTeam(true);
-    supabase.from('teams').select('id').eq('id', teamId).maybeSingle()
-      .then(({ data }) => { setTeamValid(!!data?.id); })
-      .catch(() => { setTeamValid(false); })
-      .finally(() => setCheckingTeam(false));
+    (async () => {
+      try {
+        const { data } = await supabase.from('teams').select('id').eq('id', teamId).maybeSingle();
+        setTeamValid(!!data?.id);
+      } catch {
+        setTeamValid(false);
+      } finally {
+        setCheckingTeam(false);
+      }
+    })();
   }, [teamId]);
 
   if (checkingTeam) {
