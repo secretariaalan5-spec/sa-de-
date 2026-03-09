@@ -366,11 +366,11 @@ export default function ProfessionalApprovals() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleApprove(user)} className="flex-1">
-                        <Check className="w-4 h-4 mr-1" /> Aprovar
+                      <Button size="sm" onClick={withActionLoading(`approve-${user.id}`, () => handleApprove(user))} disabled={!!actionLoading[`approve-${user.id}`]} className="flex-1">
+                        {actionLoading[`approve-${user.id}`] ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />} Aprovar
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleReject(user)} className="flex-1">
-                        <X className="w-4 h-4 mr-1" /> Rejeitar
+                      <Button size="sm" variant="destructive" onClick={withActionLoading(`reject-${user.id}`, () => handleReject(user))} disabled={!!actionLoading[`reject-${user.id}`]} className="flex-1">
+                        {actionLoading[`reject-${user.id}`] ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <X className="w-4 h-4 mr-1" />} Rejeitar
                       </Button>
                     </div>
                   </CardContent>
