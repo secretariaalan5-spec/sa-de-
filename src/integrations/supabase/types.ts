@@ -73,6 +73,78 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          data: Json | null
+          id: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      portal_invites: {
+        Row: {
+          access_level: string
+          admin_id: string
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          max_uses: number | null
+          uses_count: number
+        }
+        Insert: {
+          access_level?: string
+          admin_id: string
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          uses_count?: number
+        }
+        Update: {
+          access_level?: string
+          admin_id?: string
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          uses_count?: number
+        }
+        Relationships: []
+      }
       portal_schedules: {
         Row: {
           admin_name: string | null
@@ -167,11 +239,14 @@ export type Database = {
       }
       professional_users: {
         Row: {
+          avatar_url: string | null
           category: string
           created_at: string
           email: string
           full_name: string
+          function_name: string | null
           id: string
+          onesignal_player_id: string | null
           professional_id: string | null
           status: string
           team_id: string | null
@@ -179,11 +254,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           category?: string
           created_at?: string
           email: string
           full_name?: string
+          function_name?: string | null
           id?: string
+          onesignal_player_id?: string | null
           professional_id?: string | null
           status?: string
           team_id?: string | null
@@ -191,11 +269,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           category?: string
           created_at?: string
           email?: string
           full_name?: string
+          function_name?: string | null
           id?: string
+          onesignal_player_id?: string | null
           professional_id?: string | null
           status?: string
           team_id?: string | null
@@ -250,6 +331,33 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_invites: {
         Row: {
           code: string
@@ -299,8 +407,10 @@ export type Database = {
           member_email: string
           member_id: string | null
           owner_id: string
+          permissions: Json
           role: string | null
           status: string | null
+          team_id: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -309,8 +419,10 @@ export type Database = {
           member_email: string
           member_id?: string | null
           owner_id: string
+          permissions?: Json
           role?: string | null
           status?: string | null
+          team_id?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -319,10 +431,20 @@ export type Database = {
           member_email?: string
           member_id?: string | null
           owner_id?: string
+          permissions?: Json
           role?: string | null
           status?: string | null
+          team_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teams: {
         Row: {
@@ -345,12 +467,111 @@ export type Database = {
         }
         Relationships: []
       }
+      units: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          team_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          team_id: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          team_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      get_member_permissions: { Args: { _user_id: string }; Returns: Json }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
+      register_professional_via_portal:
+        | {
+            Args: {
+              _category: string
+              _email: string
+              _full_name: string
+              _team_id: string
+            }
+            Returns: {
+              avatar_url: string | null
+              category: string
+              created_at: string
+              email: string
+              full_name: string
+              function_name: string | null
+              id: string
+              onesignal_player_id: string | null
+              professional_id: string | null
+              status: string
+              team_id: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "professional_users"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              _category: string
+              _email: string
+              _full_name: string
+              _function_name?: string
+              _team_id: string
+            }
+            Returns: {
+              avatar_url: string | null
+              category: string
+              created_at: string
+              email: string
+              full_name: string
+              function_name: string | null
+              id: string
+              onesignal_player_id: string | null
+              professional_id: string | null
+              status: string
+              team_id: string | null
+              updated_at: string
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "professional_users"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
     }
     Enums: {
       [_ in never]: never

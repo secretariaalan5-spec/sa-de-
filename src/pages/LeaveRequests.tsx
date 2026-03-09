@@ -1,322 +1,319 @@
-import { useState, useMemo } from 'react';
-import { differenceInCalendarDays } from 'date-fns';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
-import { useServiceSchedule } from '@/hooks/useServiceSchedule';
-import { useServiceStats } from '@/hooks/useServiceStats';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Plus, Trash2, AlertCircle, Stethoscope, Syringe } from 'lucide-react';
-import { format } from 'date-fns';
+import { Trash2, AlertCircle, Stethoscope, Syringe, Users, Check, X, CalendarOff } from 'lucide-react';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+
+interface ProfLeaveRequest {
+    id: string;
+    user_id: string;
+    professional_id: string;
+    team_id: string;
+    category: string;
+    leave_type: string;
+    start_date: string;
+    end_date: string;
+    days_requested: number;
+    observations: string | null;
+    status: string;
+    admin_notes: string | null;
+    created_at: string;
+}
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
-    const { requests, addRequest, deleteRequest, getTotalCreditsUsedByProfessional } = useLeaveRequests();
-    const { logActivity } = useProfile();
-    const { allEntries } = useServiceSchedule('nurse');
+    const { requests, deleteRequest, addRequest, getConflictingDates } = useLeaveRequests();
+    const { profile, logActivity } = useProfile();
 
-    const { getAvailableCredits } = useServiceStats({
-        allEntries,
-        getTotalCreditsUsedByProfessional,
-    });
+    const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
+    const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
 
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [form, setForm] = useState({
-        professionalId: '',
-        leaveType: '' as LeaveType | '',
-        requestDate: format(new Date(), 'yyyy-MM-dd'),
-        leaveStartDate: '',
-        leaveEndDate: '',
-        observations: '',
-    });
+    const fetchPortalLeaves = useCallback(async () => {
+        if (!profile?.team_id) return;
+        const { data: leaves } = await (supabase
+            .from('professional_leave_requests' as any)
+            .select('*')
+            .eq('team_id', profile.team_id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false }) as any);
+        setPendingPortalLeaves((leaves || []) as ProfLeaveRequest[]);
 
-    const selectedProfessional = professionals.find(p => p.id === form.professionalId);
-    const availableCredits = form.professionalId ? getAvailableCredits(form.professionalId) : 0;
+        // Fetch avatars for professionals
+        const { data: profUsers } = await supabase
+            .from('professional_users')
+            .select('professional_id, avatar_url')
+            .eq('team_id', profile.team_id);
+        if (profUsers) {
+            const map: Record<string, string> = {};
+            profUsers.forEach((pu: any) => {
+                if (pu.professional_id && pu.avatar_url) map[pu.professional_id] = pu.avatar_url;
+            });
+            setAvatarMap(map);
+        }
+    }, [profile?.team_id]);
 
-    const daysRequested = useMemo(() => {
-        if (!form.leaveStartDate || !form.leaveEndDate) return 0;
-        const start = new Date(form.leaveStartDate + 'T00:00:00');
-        const end = new Date(form.leaveEndDate + 'T00:00:00');
-        if (end < start) return 0;
-        return differenceInCalendarDays(end, start) + 1;
-    }, [form.leaveStartDate, form.leaveEndDate]);
+    useEffect(() => { fetchPortalLeaves(); }, [fetchPortalLeaves]);
 
-    const handleSubmit = () => {
-        if (!form.professionalId || !form.leaveType || !form.leaveStartDate || !form.leaveEndDate || daysRequested < 1) {
-            toast.error('Preencha todos os campos obrigatórios');
+    const handleApprovePortalLeave = async (leave: ProfLeaveRequest) => {
+        // Build leave dates first to check conflicts
+        const startDate = new Date(leave.start_date + 'T00:00:00');
+        const leaveDates: string[] = [];
+        for (let i = 0; i < leave.days_requested; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            leaveDates.push(format(d, 'yyyy-MM-dd'));
+        }
+
+        // Check for conflicts before approving
+        const conflicts = getConflictingDates(leave.professional_id, leaveDates);
+        if (conflicts.length > 0) {
+            const formatted = conflicts.map(d => {
+                const [y, m, day] = d.split('-');
+                return `${day}/${m}`;
+            }).join(', ');
+            toast.error(`Conflito: já existe afastamento aprovado nas datas ${formatted}. Rejeite ou remova o afastamento existente primeiro.`);
             return;
         }
 
-        if (form.leaveType === 'folga_credito' && daysRequested > availableCredits) {
-            toast.error(`Saldo insuficiente. Disponível: ${availableCredits} dias`);
+        const { error } = await (supabase
+            .from('professional_leave_requests' as any)
+            .update({ status: 'approved' } as any)
+            .eq('id', leave.id)
+            .select() as any);
+
+        if (error) {
+            console.error('Erro ao aprovar folga:', error);
+            toast.error('Erro ao aprovar folga: ' + error.message);
             return;
         }
 
-        // Check for date conflicts with existing leave requests
-        const startDate = new Date(form.leaveStartDate + 'T00:00:00');
-        const newLeaveDates: string[] = [];
-        for (let i = 0; i < daysRequested; i++) {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + i);
-            newLeaveDates.push(format(date, 'yyyy-MM-dd'));
-        }
-
-        const existingDates = requests
-            .filter(r => r.professionalId === form.professionalId && r.status === 'approved')
-            .flatMap(r => r.leaveDates);
-
-        const conflictDate = newLeaveDates.find(d => existingDates.includes(d));
-        if (conflictDate) {
-            toast.error(`Já existe um afastamento registrado para ${format(new Date(conflictDate + 'T00:00:00'), 'dd/MM/yyyy')}`);
-            return;
-        }
-
-        // Check for conflicts with schedule entries
-        const scheduleConflict = newLeaveDates.find(d =>
-            allEntries.some(e => e.professionalId === form.professionalId && e.date === d)
-        );
-        if (scheduleConflict) {
-            toast.error(`Profissional está escalado em ${format(new Date(scheduleConflict + 'T00:00:00'), 'dd/MM/yyyy')}. Remova da escala antes.`);
-            return;
-        }
-
-        addRequest({
-            professionalId: form.professionalId,
-            category: selectedProfessional?.category || 'nurse',
-            leaveType: form.leaveType as LeaveType,
-            requestDate: form.requestDate,
-            leaveDates: newLeaveDates,
-            daysRequested,
-            observations: form.observations,
-        });
-
-        toast.success('Pedido de folga registrado com sucesso');
-        logActivity('leave_request_created', {
-            professionalName: selectedProfessional?.name,
-            leaveType: LEAVE_TYPE_LABELS[form.leaveType as LeaveType],
-            days: daysRequested,
-        });
-        setForm({
-            professionalId: '',
-            leaveType: '',
+        const result = addRequest({
+            professionalId: leave.professional_id,
+            category: leave.category as 'nurse' | 'tech',
+            leaveType: leave.leave_type as LeaveType,
             requestDate: format(new Date(), 'yyyy-MM-dd'),
-            leaveStartDate: '',
-            leaveEndDate: '',
-            observations: '',
+            leaveDates,
+            daysRequested: leave.days_requested,
+            observations: leave.observations || undefined,
+            portalLeaveId: leave.id,
         });
-        setDialogOpen(false);
+
+        if (result && 'error' in result) {
+            toast.error(result.error as string);
+            return;
+        }
+
+        const prof = professionals.find(p => p.id === leave.professional_id);
+        toast.success(`Folga aprovada para ${prof?.name || 'profissional'}!`);
+        logActivity('portal_leave_approved', {
+            professionalName: prof?.name,
+            leaveType: leave.leave_type,
+            days: leave.days_requested,
+        });
+        fetchPortalLeaves();
+    };
+
+    const handleRejectPortalLeave = async (leave: ProfLeaveRequest) => {
+        const { error } = await (supabase
+            .from('professional_leave_requests' as any)
+            .update({ status: 'rejected' } as any)
+            .eq('id', leave.id)
+            .select() as any);
+
+        if (error) {
+            console.error('Erro ao rejeitar folga:', error);
+            toast.error('Erro ao rejeitar folga: ' + error.message);
+            return;
+        }
+
+        toast.success('Pedido de folga rejeitado.');
+        fetchPortalLeaves();
     };
 
     return (
         <div className="animate-fade-in space-y-6">
             <PageHeader
                 title="Pedidos de Folga"
-                description="Registre pedidos de folga recebidos em papel e controle o saldo de créditos"
+                description="Aprove pedidos enviados pelo portal e gerencie afastamentos registrados"
             />
 
-            <div className="flex justify-end">
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Registrar Folga
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Registrar Pedido de Folga</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                            <div>
-                                <Label>Profissional</Label>
-                                <Select
-                                    value={form.professionalId}
-                                    onValueChange={(value) => setForm(prev => ({ ...prev, professionalId: value }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione o profissional" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {professionals.filter(p => p.active).map(prof => (
-                                            <SelectItem key={prof.id} value={prof.id}>
-                                                {prof.name} ({prof.category === 'nurse' ? 'Enfermeiro' : 'Técnico'})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {form.professionalId && form.leaveType === 'folga_credito' && (
-                                <div className="p-3 bg-muted rounded-lg">
-                                    <div className="flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4 text-primary" />
-                                        <span className="text-sm">
-                                            Saldo disponível: <strong className="text-primary">{availableCredits} dias</strong>
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <Label>Tipo de Afastamento</Label>
-                                <Select
-                                    value={form.leaveType}
-                                    onValueChange={(value) => setForm(prev => ({ ...prev, leaveType: value as LeaveType }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione o tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
-                                            <SelectItem key={value} value={value}>
-                                                {label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label>Data do Pedido</Label>
-                                <Input
-                                    type="date"
-                                    value={form.requestDate}
-                                    onChange={(e) => setForm(prev => ({ ...prev, requestDate: e.target.value }))}
-                                />
-                            </div>
-
-                            <div>
-                                <Label>Data Inicial da Folga</Label>
-                                <Input
-                                    type="date"
-                                    value={form.leaveStartDate}
-                                    onChange={(e) => setForm(prev => ({ ...prev, leaveStartDate: e.target.value }))}
-                                />
-                            </div>
-
-                            <div>
-                                <Label>Data Final da Folga</Label>
-                                <Input
-                                    type="date"
-                                    value={form.leaveEndDate}
-                                    min={form.leaveStartDate || undefined}
-                                    onChange={(e) => setForm(prev => ({ ...prev, leaveEndDate: e.target.value }))}
-                                />
-                            </div>
-
-                            {daysRequested > 0 && (
-                                <div className="p-3 bg-muted rounded-lg text-sm">
-                                    Quantidade de dias: <strong>{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
-                                </div>
-                            )}
-
-                            <div>
-                                <Label>Observações</Label>
-                                <Textarea
-                                    value={form.observations}
-                                    onChange={(e) => setForm(prev => ({ ...prev, observations: e.target.value }))}
-                                    placeholder="Ex: compensação, férias, licença..."
-                                />
-                            </div>
-
-                            <Button
-                                onClick={handleSubmit}
-                                className="w-full"
-                                disabled={daysRequested < 1 || (form.leaveType === 'folga_credito' && daysRequested > availableCredits)}
-                            >
-                                Registrar Folga
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            {requests.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
-                    Nenhum pedido de folga registrado.
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(request => {
-                        const prof = professionals.find(p => p.id === request.professionalId);
-                        const startDate = request.leaveDates[0];
-                        const endDate = request.leaveDates[request.leaveDates.length - 1];
-
-                        return (
-                            <div key={request.id} className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        {request.category === 'nurse' ? (
-                                            <Stethoscope className="w-4 h-4 text-primary" />
-                                        ) : (
-                                            <Syringe className="w-4 h-4 text-primary" />
-                                        )}
-                                        <span className="font-semibold text-sm">{prof?.name || 'Desconhecido'}</span>
-                                    </div>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={() => {
-                                            const profName = prof?.name || 'Desconhecido';
-                                            deleteRequest(request.id);
-                                            logActivity('leave_request_deleted', {
-                                                professionalName: profName,
-                                                leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
-                                            });
-                                        }}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                                    </Button>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                                        {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
-                                    </span>
-                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                                        {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="bg-muted/50 rounded-lg p-2">
-                                        <div className="text-xs text-muted-foreground">Período</div>
-                                        <div className="font-medium">
-                                            {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
-                                            {endDate && endDate !== startDate && (
-                                                <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
+            <div className="space-y-3">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Pedidos enviados pelo Portal
+                </h2>
+                {pendingPortalLeaves.length === 0 ? (
+                    <div className="text-sm text-muted-foreground bg-card rounded-xl border border-border p-4 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Nenhum pedido de folga pendente vindo do portal.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {pendingPortalLeaves.map(leave => {
+                            const prof = professionals.find(p => p.id === leave.professional_id);
+                            const avatarUrl = avatarMap[leave.professional_id];
+                            const startDate = new Date(leave.start_date + 'T00:00:00');
+                            const today = new Date(); today.setHours(0, 0, 0, 0);
+                            const daysUntil = differenceInCalendarDays(startDate, today);
+                            const isShortNotice = daysUntil < 10;
+                            return (
+                                <div key={leave.id} className={cn("bg-card rounded-2xl border p-5 shadow-sm hover:shadow-md transition-shadow", isShortNotice ? "border-warning/50" : "border-border")}>
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20 overflow-hidden">
+                                            {avatarUrl && (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || 'Profissional'} />
                                             )}
+                                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Profissional'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary">
+                                                    {leave.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[leave.leave_type as LeaveType] || leave.leave_type}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {format(new Date(leave.start_date + 'T00:00:00'), 'dd/MM')}
+                                                    {leave.end_date !== leave.start_date && (
+                                                        <> a {format(new Date(leave.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {leave.days_requested} {leave.days_requested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                                {isShortNotice && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-warning/50 text-warning bg-warning/10">
+                                                        ⚠ Menos de 10 dias
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            {leave.observations && (
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">"{leave.observations}"</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Enviado em {format(new Date(leave.created_at), 'dd/MM/yyyy HH:mm')}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5 shrink-0">
+                                            <Button size="sm" className="h-8 px-4 rounded-xl text-xs font-bold" onClick={() => handleApprovePortalLeave(leave)}>
+                                                <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="h-8 px-4 rounded-xl text-xs font-medium text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => handleRejectPortalLeave(leave)}>
+                                                <X className="w-3.5 h-3.5 mr-1" /> Rejeitar
+                                            </Button>
                                         </div>
                                     </div>
-                                    <div className="bg-muted/50 rounded-lg p-2">
-                                        <div className="text-xs text-muted-foreground">Duração</div>
-                                        <div className="font-bold text-primary">{request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            <div className="space-y-3">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <CalendarOff className="w-4 h-4" />
+                    Afastamentos Registrados
+                </h2>
+
+                {requests.length === 0 ? (
+                    <EmptyState
+                        icon={CalendarOff}
+                        title="Nenhum afastamento registrado"
+                        description="Os afastamentos aprovados pelo portal aparecerão aqui."
+                    />
+                ) : (
+                    <div className="space-y-3">
+                        {[...requests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((request) => {
+                            const prof = professionals.find(p => p.id === request.professionalId);
+                            const avatarUrl = avatarMap[request.professionalId];
+                            const startDate = request.leaveDates[0];
+                            const endDate = request.leaveDates[request.leaveDates.length - 1];
+
+                            return (
+                                <div
+                                    key={request.id}
+                                    className="bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-muted overflow-hidden">
+                                            {avatarUrl && (
+                                                <AvatarImage src={avatarUrl} alt={prof?.name || ''} />
+                                            )}
+                                            <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
+                                                {(prof?.name || 'P').slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Desconhecido'}</span>
+                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-muted-foreground/30">
+                                                    {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                                    {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType || '-'}
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {startDate && format(new Date(startDate + 'T00:00:00'), 'dd/MM')}
+                                                    {endDate && endDate !== startDate && (
+                                                        <> a {format(new Date(endDate + 'T00:00:00'), 'dd/MM')}</>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-bold text-primary">
+                                                    {request.daysRequested} {request.daysRequested === 1 ? 'dia' : 'dias'}
+                                                </span>
+                                            </div>
+                                            {request.observations && (
+                                                <p className="text-[11px] text-muted-foreground italic mt-1 truncate">{request.observations}</p>
+                                            )}
+                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                Registrado em {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
+                                            </p>
+                                        </div>
+
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 shrink-0 rounded-xl hover:bg-destructive/10"
+                                            onClick={() => {
+                                                const profName = prof?.name || 'Desconhecido';
+                                                deleteRequest(request.id);
+                                                logActivity('leave_request_deleted', {
+                                                    professionalName: profName,
+                                                    leaveType: LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType,
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4 text-destructive" />
+                                        </Button>
                                     </div>
                                 </div>
-
-                                {request.observations && (
-                                    <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
-                                        {request.observations}
-                                    </p>
-                                )}
-
-                                <div className="text-[11px] text-muted-foreground">
-                                    Registrado em {format(new Date(request.requestDate + 'T00:00:00'), 'dd/MM/yyyy')}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Professional, Unit, ProfessionalFunction, ScheduleEntry, Restriction, PERIODS } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -45,10 +45,6 @@ export interface PortalCodes {
 
 // ── Geração de códigos exclusivos ──────────────────────────────────────────
 
-/**
- * Gera um código de acesso único no formato PREFIX-XXXXXX.
- * Usa apenas caracteres sem ambiguidade (sem 0, 1, I, O).
- */
 export function generatePortalCode(prefix: string): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const code = Array.from({ length: 6 }, () =>
@@ -57,7 +53,6 @@ export function generatePortalCode(prefix: string): string {
     return `${prefix}-${code}`;
 }
 
-/** Gera um conjunto completo de códigos exclusivos para todos os grupos. */
 export function generatePortalCodes(): PortalCodes {
     return {
         emult: generatePortalCode('EMT'),
@@ -85,8 +80,9 @@ const INITIAL_DATA: AppData = {
     restrictions: [],
 };
 
-// Usado apenas como estado inicial enquanto os dados não são carregados
 const PLACEHOLDER_CODES: PortalCodes = { emult: '', nurse: '', tech: '' };
+
+const DEBOUNCE_MS = 1500;
 
 // ── Context ────────────────────────────────────────────────────────────────
 
@@ -101,7 +97,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const [portalCodes, setPortalCodes] = useState<PortalCodes>(PLACEHOLDER_CODES);
     const [loading, setLoading] = useState(true);
 
-    // Escuta mudanças de sessão
+    // Refs para debounce
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestDataRef = useRef<AppData>(INITIAL_DATA);
+    const latestCodesRef = useRef<PortalCodes>(PLACEHOLDER_CODES);
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUserId(session?.user?.id || null);
@@ -114,7 +114,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Carrega dados do Supabase e garante códigos exclusivos para cada admin
     useEffect(() => {
         if (!userId) {
             setData(INITIAL_DATA);
@@ -133,7 +132,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                 if (error) throw error;
 
-                // 2. Busca perfil e equipe
                 let currentTeamId = null;
                 const { data: profileRecord } = await (supabase
                     .from('profiles' as any)
@@ -144,7 +142,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                 if (profileRecord?.team_id) {
                     currentTeamId = profileRecord.team_id;
                 } else {
-                    // Se não tiver perfil com equipe, tenta ver se já existe uma equipe criada por ele
                     const { data: teamRecord } = await (supabase
                         .from('teams' as any)
                         .select('id')
@@ -153,62 +150,114 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                     if (teamRecord?.id) {
                         currentTeamId = teamRecord.id;
+                        await (supabase
+                            .from('profiles' as any)
+                            .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
                     } else {
-                        // Se não tem equipe nenhuma, cria uma
-                        const { data: newTeam } = await (supabase
-                            .from('teams' as any)
-                            .insert({ name: 'Minha Equipe', created_by: userId } as any)
-                            .select()
-                            .single() as any);
-                        currentTeamId = newTeam.id;
-                    }
+                        await new Promise(r => setTimeout(r, 1000));
+                        const { data: retryProfile } = await (supabase
+                            .from('profiles' as any)
+                            .select('team_id')
+                            .eq('user_id', userId)
+                            .maybeSingle() as any);
+                        if (retryProfile?.team_id) {
+                            currentTeamId = retryProfile.team_id;
+                        } else {
+                            const { data: newTeam, error: teamError } = await (supabase
+                                .from('teams' as any)
+                                .insert({ created_by: userId, name: 'Equipe Principal' } as any)
+                                .select('id')
+                                .maybeSingle() as any);
 
-                    // Agora garante que o perfil existe e aponta para esta equipe
-                    await (supabase
-                        .from('profiles' as any)
-                        .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
+                            if (teamError || !newTeam?.id) {
+                                console.error('Não foi possível criar equipe padrão para o usuário.', teamError);
+                                setLoading(false);
+                                return;
+                            }
+
+                            currentTeamId = newTeam.id;
+                            await (supabase
+                                .from('profiles' as any)
+                                .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
+                        }
+                    }
                 }
 
                 setTeamId(currentTeamId);
 
-                if (stateData) {
-                    // Restaura dados eMult com fallback para arrays vazios se campos estiverem faltando
-                    if (stateData.emult_state) {
-                        const loadedEmult = stateData.emult_state as any;
-                        setData({
-                            professionals: loadedEmult.professionals || [],
-                            units: loadedEmult.units || [],
-                            functions: loadedEmult.functions || DEFAULT_FUNCTIONS,
-                            schedule: loadedEmult.schedule || [],
-                            restrictions: loadedEmult.restrictions || [],
-                        });
-                    }
+                const approvedEmultRows = currentTeamId
+                    ? (((await (supabase
+                        .from('professional_users' as any)
+                        .select('full_name, function_name, professional_id')
+                        .eq('team_id', currentTeamId)
+                        .eq('category', 'emult')
+                        .eq('status', 'approved') as any)).data) || [])
+                    : [];
 
+                const loadedEmult = (stateData?.emult_state as any) || {};
+                const mergedFunctions = [...((loadedEmult.functions && loadedEmult.functions.length > 0) ? loadedEmult.functions : DEFAULT_FUNCTIONS)];
+                const mergedProfessionals = [...(loadedEmult.professionals || [])];
 
-                    // Restaura códigos existentes ou gera novos exclusivos
-                    if (stateData.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
-                        setPortalCodes(stateData.portal_codes as PortalCodes);
-                    } else {
-                        // Usuário existente sem códigos salvos → gera e persiste
-                        const newCodes = generatePortalCodes();
-                        setPortalCodes(newCodes);
-                        await (supabase
-                            .from('admin_states' as any)
-                            .upsert({
-                                user_id: userId,
-                                portal_codes: newCodes as any,
-                                updated_at: new Date().toISOString(),
-                            }) as any);
-                    }
+                const functionPalette = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+                const ensureFunctionId = (functionName?: string | null) => {
+                    if (!functionName) return mergedFunctions[0]?.id || '1';
+                    const normalized = functionName.toLowerCase().trim();
+                    const existing = mergedFunctions.find((f: any) => f.name.toLowerCase().trim() === normalized);
+                    if (existing) return existing.id;
+
+                    const newFunction = {
+                        id: generateId(),
+                        name: functionName,
+                        color: functionPalette[mergedFunctions.length % functionPalette.length],
+                    };
+                    mergedFunctions.push(newFunction);
+                    return newFunction.id;
+                };
+
+                for (const row of approvedEmultRows as any[]) {
+                    const fullName = (row.full_name || '').trim();
+                    if (!fullName) continue;
+
+                    const alreadyExists = mergedProfessionals.some((p: any) =>
+                        (row.professional_id && p.id === row.professional_id) ||
+                        p.name.toLowerCase().trim() === fullName.toLowerCase()
+                    );
+                    if (alreadyExists) continue;
+
+                    mergedProfessionals.push({
+                        id: row.professional_id || generateId(),
+                        name: fullName,
+                        functionId: ensureFunctionId(row.function_name),
+                        team: '',
+                        weeklyHours: 40,
+                        active: true,
+                    });
+                }
+
+                const mergedData: AppData = {
+                    professionals: mergedProfessionals,
+                    units: loadedEmult.units || [],
+                    functions: mergedFunctions,
+                    schedule: loadedEmult.schedule || [],
+                    restrictions: loadedEmult.restrictions || [],
+                };
+
+                setData(mergedData);
+                latestDataRef.current = mergedData;
+
+                if (stateData?.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
+                    const codes = stateData.portal_codes as PortalCodes;
+                    setPortalCodes(codes);
+                    latestCodesRef.current = codes;
                 } else {
-                    // Novo usuário → inicializa com dados padrão e gera códigos exclusivos
-                    setData(INITIAL_DATA);
                     const newCodes = generatePortalCodes();
                     setPortalCodes(newCodes);
+                    latestCodesRef.current = newCodes;
                     await (supabase
                         .from('admin_states' as any)
                         .upsert({
                             user_id: userId,
+                            emult_state: mergedData as any,
                             portal_codes: newCodes as any,
                             updated_at: new Date().toISOString(),
                         }) as any);
@@ -224,31 +273,66 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         fetchData();
     }, [userId]);
 
-    const saveToSupabase = async (newData: AppData, newCodes?: PortalCodes) => {
-        if (!userId) return;
+    const syncUnitsToTable = async (units: Unit[], currentTeamId: string | null) => {
+        if (!currentTeamId) return;
         try {
-            const { error } = await (supabase
-                .from('admin_states' as any)
-                .upsert({
-                    user_id: userId,
-                    emult_state: newData as any,
-                    portal_codes: (newCodes || portalCodes) as any,
-                    updated_at: new Date().toISOString(),
-                }) as any);
-            if (error) throw error;
+            await (supabase.from('units' as any).delete().eq('team_id', currentTeamId) as any);
+            if (units.length > 0) {
+                const rows = units.map(u => ({
+                    id: u.id,
+                    team_id: currentTeamId,
+                    name: u.name,
+                    type: u.type || '',
+                    active: u.active,
+                }));
+                await (supabase.from('units' as any).insert(rows as any) as any);
+            }
         } catch (err) {
-            console.error('Erro ao salvar dados no Supabase:', err);
-            toast.error('Erro ao sincronizar dados com a nuvem.');
+            console.error('Erro ao sincronizar unidades:', err);
         }
     };
+
+    /** Persiste no Supabase com debounce de 1.5s */
+    const debouncedSave = useCallback((newData: AppData, newCodes: PortalCodes) => {
+        latestDataRef.current = newData;
+        latestCodesRef.current = newCodes;
+
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = setTimeout(async () => {
+            if (!userId) return;
+            try {
+                const { error } = await (supabase
+                    .from('admin_states' as any)
+                    .upsert({
+                        user_id: userId,
+                        emult_state: latestDataRef.current as any,
+                        portal_codes: latestCodesRef.current as any,
+                        updated_at: new Date().toISOString(),
+                    }) as any);
+                if (error) throw error;
+                syncUnitsToTable(latestDataRef.current.units, teamId);
+            } catch (err) {
+                console.error('Erro ao salvar dados no Supabase:', err);
+                toast.error('Erro ao sincronizar dados com a nuvem.');
+            }
+        }, DEBOUNCE_MS);
+    }, [userId, teamId]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, []);
 
     const updateData = useCallback((updater: AppData | ((prev: AppData) => AppData)) => {
         setData(prev => {
             const next = typeof updater === 'function' ? updater(prev) : updater;
-            saveToSupabase(next);
+            debouncedSave(next, latestCodesRef.current);
             return next;
         });
-    }, [userId]);
+    }, [debouncedSave]);
 
     const addProfessional = useCallback((professional: Omit<Professional, 'id'>) => {
         const newProfessional = { ...professional, id: generateId() };
@@ -317,8 +401,41 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const addScheduleEntry = useCallback((entry: Omit<ScheduleEntry, 'id'>) => {
         const newEntry = { ...entry, id: generateId() };
         updateData(prev => ({ ...prev, schedule: [...prev.schedule, newEntry] }));
+
+        // Send push notification to eMult professional (fire-and-forget)
+        (async () => {
+            try {
+                const prof = data.professionals.find(p => p.id === entry.professionalId);
+                if (!prof) return;
+                const unit = data.units.find(u => u.id === entry.unitId);
+                const dayLabel = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' }[entry.dayOfWeek] || entry.dayOfWeek;
+                const periodLabel = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' }[entry.period] || entry.period;
+
+                const { data: profUser } = await (supabase
+                    .from('professional_users' as any)
+                    .select('onesignal_player_id')
+                    .eq('professional_id', entry.professionalId)
+                    .eq('status', 'approved')
+                    .maybeSingle() as any);
+
+                const playerId = profUser?.onesignal_player_id;
+                if (!playerId) return;
+
+                await supabase.functions.invoke('send-push-notification', {
+                    body: {
+                        player_ids: [playerId],
+                        title: '📋 Nova Escala eMult',
+                        message: `${dayLabel} - ${periodLabel}${unit ? ` em ${unit.name}` : ''}`,
+                        data: { type: 'emult_schedule_added', professionalId: entry.professionalId },
+                    },
+                });
+            } catch (err) {
+                console.error('eMult push notification failed:', err);
+            }
+        })();
+
         return newEntry;
-    }, [updateData]);
+    }, [updateData, data.professionals, data.units]);
 
     const updateScheduleEntry = useCallback((id: string, updates: Partial<ScheduleEntry>) => {
         updateData(prev => ({
@@ -420,8 +537,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const updatePortalCodes = useCallback((codes: PortalCodes) => {
         setPortalCodes(codes);
-        saveToSupabase(data, codes);
-    }, [userId, data]);
+        latestCodesRef.current = codes;
+        debouncedSave(latestDataRef.current, codes);
+    }, [debouncedSave]);
 
     const regeneratePortalCodes = useCallback(() => {
         const newCodes = generatePortalCodes();

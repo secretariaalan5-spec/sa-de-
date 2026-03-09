@@ -1,241 +1,183 @@
+/**
+ * Login — Google OAuth (principal) + e-mail/senha (opcional).
+ */
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Chrome } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Loader2, Chrome, Stethoscope, Mail, Lock } from 'lucide-react';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  email: z.string().email('E-mail inválido'),
+  password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
+});
 
 export default function Login() {
-    const [mode, setMode] = useState<'login' | 'signup'>('login');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const navigate = useNavigate();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-    /** Trata login e cadastro dependendo do modo ativo. */
-    const handleAuth = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error('Erro ao entrar com Google: ' + (error.message || 'Tente novamente.'));
+      setGoogleLoading(false);
+    }
+  };
 
-        try {
-            if (mode === 'login') {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-                if (error) throw error;
-                toast.success('Bem-vindo de volta!');
-            } else {
-                const { data, error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: {
-                            full_name: fullName,
-                        },
-                    },
-                });
-                if (error) throw error;
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
 
-                // Se o Supabase retornar uma sessão imediatamente (confirmação automática ligada)
-                if (data?.session) {
-                    toast.success('Conta criada e logada com sucesso!');
-                    navigate('/');
-                    return;
-                }
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
 
-                toast.success('Conta criada! Verifique seu e-mail para confirmar (se necessário) e faça login.');
-                setMode('login');
-                setLoading(false);
-                return;
-            }
+    setEmailLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: result.data.email,
+        password: result.data.password,
+      });
+      if (error) throw error;
+      localStorage.setItem('password_set', 'true');
+    } catch (error: any) {
+      toast.error('Erro no login: ' + (error.message || 'Verifique seus dados.'));
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
-            navigate('/');
-        } catch (error: any) {
-            console.error('Erro na autenticação:', error);
-
-            let errorMessage = 'Erro na autenticação. Verifique seus dados.';
-
-            if (error.message === 'User already registered') {
-                errorMessage = 'Este e-mail já está cadastrado.';
-            } else if (error.message === 'Email not confirmed') {
-                errorMessage = 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
-            } else if (error.message === 'Invalid login credentials') {
-                errorMessage = 'E-mail ou senha incorretos.';
-            } else if (error.message.includes('Email rate limit exceeded')) {
-                errorMessage = 'Muitas tentativas de cadastro seguidas. Por favor, aguarde alguns minutos ou desative a confirmação de e-mail no Supabase.';
-            } else {
-                errorMessage = error.message || errorMessage;
-            }
-
-            toast.error(errorMessage);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoogleLogin = async () => {
-        setGoogleLoading(true);
-        try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin,
-                },
-            });
-            if (error) throw error;
-        } catch (error: any) {
-            toast.error('Erro ao entrar com Google: ' + (error.message || 'Tente novamente.'));
-            setGoogleLoading(false);
-        }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-            <div className="max-w-md w-full animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-                    {/* Header */}
-                    <div className="bg-primary p-8 text-center">
-                        <div className="flex justify-center mb-4">
-                            <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                                <LogIn className="w-8 h-8 text-white" />
-                            </div>
-                        </div>
-                        <h1 className="text-2xl font-bold text-white mb-1">
-                            {mode === 'login' ? 'Área Administrativa' : 'Criar Nova Conta'}
-                        </h1>
-                        <p className="text-white/80 text-sm">Escala eMulti & Serviços</p>
-                    </div>
-
-                    {/* Form */}
-                    <form onSubmit={handleAuth} className="p-8 space-y-5">
-                        <div className="space-y-4">
-                            {mode === 'signup' && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="fullName">Nome Completo</Label>
-                                    <div className="relative">
-                                        <LogIn className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                        <Input
-                                            id="fullName"
-                                            type="text"
-                                            placeholder="Seu nome"
-                                            value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
-                                            className="pl-10"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="email">E-mail</Label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="admin@exemplo.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="pl-10"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Senha</Label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <Input
-                                        id="password"
-                                        type={showPassword ? 'text' : 'password'}
-                                        placeholder="••••••••"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="pl-10 pr-10"
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    >
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shadow-primary/20"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    {mode === 'login' ? 'Entrando...' : 'Criando Conta...'}
-                                </>
-                            ) : (
-                                mode === 'login' ? 'Entrar no Sistema' : 'Cadastrar Administrador'
-                            )}
-                        </Button>
-
-                        <div className="flex items-center gap-3">
-                            <Separator className="flex-1" />
-                            <span className="text-xs text-muted-foreground">ou</span>
-                            <Separator className="flex-1" />
-                        </div>
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full h-11"
-                            onClick={handleGoogleLogin}
-                            disabled={googleLoading || loading}
-                        >
-                            {googleLoading ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <Chrome className="w-4 h-4 mr-2" />
-                            )}
-                            Entrar com Google
-                        </Button>
-
-                        <div className="text-center pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                                className="text-sm font-medium text-primary hover:underline"
-                            >
-                                {mode === 'login'
-                                    ? 'Não tem uma conta? Clique aqui para criar'
-                                    : 'Já tem uma conta? Clique aqui para entrar'}
-                            </button>
-                        </div>
-
-                        <div className="pt-2 text-center border-t border-slate-100 italic">
-                            <p className="text-[10px] text-slate-400">
-                                Acesso restrito a administradores autorizados.
-                            </p>
-                        </div>
-                    </form>
-                </div>
-
-                {/* Brand Footer */}
-                <div className="mt-8 text-center flex flex-col items-center">
-                    <img src="/logo-saude-plus.png" alt="Saúde+" className="h-8 mb-2 opacity-50 grayscale" />
-                    <p className="text-slate-400 text-xs">© 2025 Saúde+ Gestão de Escalas</p>
-                </div>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="max-w-sm w-full animate-fade-in">
+        <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
+          {/* Header */}
+          <div className="bg-primary p-8 text-center">
+            <div className="bg-primary-foreground/20 p-3 rounded-xl backdrop-blur-sm inline-flex mb-4">
+              <Stethoscope className="w-8 h-8 text-primary-foreground" />
             </div>
+            <h1 className="text-2xl font-bold text-primary-foreground mb-1">Área Administrativa</h1>
+            <p className="text-primary-foreground/80 text-sm">Escala eMulti & Serviços</p>
+          </div>
+
+          {/* Login */}
+          <div className="p-8 space-y-5">
+            <p className="text-center text-sm text-muted-foreground">
+              Acesse com sua conta Google ou e-mail
+            </p>
+
+            <Button
+              onClick={handleGoogleLogin}
+              disabled={googleLoading || emailLoading}
+              className="w-full h-12 font-semibold text-[15px] gap-2.5 shadow-lg shadow-primary/20"
+            >
+              {googleLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Chrome className="w-5 h-5" />
+              )}
+              {googleLoading ? 'Conectando...' : 'Entrar com Google'}
+            </Button>
+
+            {!showEmailLogin ? (
+              <button
+                type="button"
+                onClick={() => setShowEmailLogin(true)}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+              >
+                Entrar com e-mail e senha
+              </button>
+            ) : (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleEmailLogin} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs">E-mail</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className="pl-10 h-10"
+                      />
+                    </div>
+                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-xs">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Sua senha"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className="pl-10 h-10"
+                      />
+                    </div>
+                    {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    disabled={emailLoading || googleLoading}
+                    className="w-full h-10 font-medium gap-2"
+                  >
+                    {emailLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    {emailLoading ? 'Entrando...' : 'Entrar com E-mail'}
+                  </Button>
+                </form>
+              </>
+            )}
+
+            <div className="pt-2 text-center border-t border-border italic">
+              <p className="text-[10px] text-muted-foreground">
+                Acesso restrito a administradores autorizados.
+              </p>
+            </div>
+          </div>
         </div>
-    );
+
+        {/* Brand Footer */}
+        <div className="mt-8 text-center flex flex-col items-center">
+          <img src="/logo-saude-plus.png" alt="Saúde+" className="h-8 mb-2 opacity-50 grayscale" />
+          <p className="text-muted-foreground text-xs">© 2025 Saúde+ Gestão de Escalas</p>
+        </div>
+      </div>
+    </div>
+  );
 }

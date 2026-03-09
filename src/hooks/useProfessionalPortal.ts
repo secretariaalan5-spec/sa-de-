@@ -12,6 +12,8 @@ export interface ProfessionalUser {
   team_id: string | null;
   category: string;
   status: string;
+  avatar_url: string | null;
+  function_name: string | null;
   created_at: string;
 }
 
@@ -63,14 +65,29 @@ export function useProfessionalPortal() {
 
     setLoading(true);
     try {
-      const { data, error } = await (supabase
-        .from('professional_users' as any)
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle() as any);
+      const [{ data, error }, { data: profileData }] = await Promise.all([
+        (supabase
+          .from('professional_users' as any)
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle() as any),
+        (supabase
+          .from('profiles' as any)
+          .select('avatar_url')
+          .eq('user_id', session.user.id)
+          .maybeSingle() as any),
+      ]);
 
       if (error && error.code !== 'PGRST116') throw error;
-      setProfessionalUser(data as ProfessionalUser | null);
+
+      if (!data) {
+        setProfessionalUser(null);
+      } else {
+        setProfessionalUser({
+          ...(data as ProfessionalUser),
+          avatar_url: (data as ProfessionalUser).avatar_url || profileData?.avatar_url || null,
+        });
+      }
     } catch (err) {
       console.error('Error fetching professional user:', err);
     } finally {
@@ -82,23 +99,20 @@ export function useProfessionalPortal() {
     fetchProfessionalUser();
   }, [fetchProfessionalUser]);
 
-  // Register as professional (first time)
-  const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string) => {
+  // Register as professional using server-side RPC
+  const registerProfessional = useCallback(async (teamId: string, category: string, fullName?: string, functionName?: string) => {
     if (!session?.user) return false;
 
     const nameToUse = fullName?.trim() || session.user.user_metadata?.full_name || session.user.email || '';
 
     try {
-      const { error } = await (supabase
-        .from('professional_users' as any)
-        .insert({
-          user_id: session.user.id,
-          email: session.user.email || '',
-          full_name: nameToUse,
-          team_id: teamId,
-          category,
-          status: 'pending',
-        } as any) as any);
+      const { error } = await supabase.rpc('register_professional_via_portal' as any, {
+        _team_id: teamId,
+        _category: category,
+        _full_name: nameToUse,
+        _email: session.user.email || '',
+        _function_name: functionName || null,
+      } as any);
 
       if (error) throw error;
 
@@ -171,12 +185,18 @@ export function useProfessionalPortal() {
     }
   }, [session, professionalUser, fetchLeaveRequests]);
 
-  // Google login
+  // Google login - preserve team param in redirect
   const loginWithGoogle = useCallback(async () => {
+    // Ensure team param is preserved after OAuth redirect
+    const teamId = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('portal_team_id');
+    const redirectUrl = teamId
+      ? `${window.location.origin}/portal?team=${teamId}`
+      : window.location.href;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href,
+        redirectTo: redirectUrl,
       },
     });
     if (error) toast.error('Erro ao entrar com Google: ' + error.message);

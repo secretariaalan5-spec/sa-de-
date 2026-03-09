@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Button } from '@/components/ui/button';
 import {
-  Download, Upload, Trash2, AlertTriangle, Database,
+  Download, Upload, Trash2, AlertTriangle, Database, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useServiceState } from '@/hooks/useServiceState';
@@ -94,14 +94,20 @@ export default function Settings() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ── Reset ──
+  const [resetting, setResetting] = useState(false);
+
   const handleReset = async () => {
     const c1 = confirm('ATENÇÃO: Isso apagará TODOS os dados (eMult + Escalas de Serviço) da NUVEM. Esta ação não pode ser desfeita. Continuar?');
     if (!c1) return;
     const c2 = confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos para sempre em todos os seus dispositivos.');
     if (!c2) return;
-    await resetAllCloudData();
-    setTimeout(() => window.location.reload(), 1000);
+    setResetting(true);
+    try {
+      await resetAllCloudData();
+      setTimeout(() => window.location.reload(), 1000);
+    } finally {
+      setResetting(false);
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -167,9 +173,9 @@ export default function Settings() {
             Apaga permanentemente todos os dados (eMult + Escalas de Serviço) da nuvem e de todos os dispositivos.
             <strong className="text-destructive"> Esta ação é irreversível.</strong>
           </p>
-          <Button variant="destructive" onClick={handleReset}>
-            <Trash2 className="w-4 h-4 mr-2" />
-            Resetar Todos os Dados
+          <Button variant="destructive" onClick={handleReset} disabled={resetting}>
+            {resetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            {resetting ? 'Resetando...' : 'Resetar Todos os Dados'}
           </Button>
         </section>
 

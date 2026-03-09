@@ -18,7 +18,7 @@ import {
   Syringe,
   UserPlus,
   CalendarOff,
-  BarChart3,
+  
   FileText,
   CloudUpload,
   RefreshCw,
@@ -29,13 +29,17 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAppData } from '@/hooks/useAppData';
+import { generatePortalCodes } from '@/contexts/AppDataContext';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useServiceSchedule } from '@/hooks/useServiceSchedule';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { Button } from '@/components/ui/button';
+import { usePendingLeaveCount } from '@/hooks/usePendingLeaveCount';
+import { useTeamPermissions } from '@/hooks/useTeamPermissions';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/emult/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/unidades', icon: Building2, label: 'Unidades' },
   { to: '/funcoes', icon: Briefcase, label: 'Funções' },
   { to: '/restricoes', icon: AlertTriangle, label: 'Restrições' },
@@ -45,13 +49,12 @@ const navItems = [
 ];
 
 const serviceItems = [
-  { to: '/escalas-servicos/cadastro', icon: UserPlus, label: 'Cadastro' },
+  { to: '/escalas-servicos/profissionais', icon: Users, label: 'Profissionais' },
   { to: '/escalas-servicos/enfermeiros', icon: Stethoscope, label: 'Enfermeiros' },
   { to: '/escalas-servicos/tecnicos', icon: Syringe, label: 'Técnicos' },
   { to: '/escalas-servicos/folgas', icon: CalendarOff, label: 'Pedidos de Folga' },
-  { to: '/escalas-servicos/controle', icon: BarChart3, label: 'Controle Individual' },
+  
   { to: '/escalas-servicos/relatorios', icon: FileText, label: 'Relatórios' },
-  { to: '/escalas-servicos/aprovacoes', icon: Users, label: 'Aprovações Portal' },
 ];
 
 export function Sidebar() {
@@ -61,13 +64,36 @@ export function Sidebar() {
   const [isPublishing, setIsPublishing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { can } = useTeamPermissions();
 
   // ── Dados necessários para montar o payload de publicação ──
-  const { data: emultData, portalCodes } = useAppData();
+  const { data: emultData, portalCodes, updatePortalCodes, teamId } = useAppData();
   const { professionals: serviceProfs } = useServiceProfessionals();
   const { allEntries: nurseEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
   const { requests: leaveRequests } = useLeaveRequests();
+  const pendingLeaves = usePendingLeaveCount();
+
+  // Filter nav items based on permissions
+  const filteredNavItems = navItems.filter(item => {
+    if (item.to === '/emult/profissionais') return can('profissionais');
+    if (item.to === '/unidades') return can('unidades');
+    if (item.to === '/funcoes') return can('escalas_emult');
+    if (item.to === '/restricoes') return can('escalas_emult');
+    if (item.to === '/escala') return can('escalas_emult');
+    if (item.to === '/visualizacao') return can('escalas_emult');
+    if (item.to === '/exportar') return can('escalas_emult');
+    return true;
+  });
+
+  const filteredServiceItems = serviceItems.filter(item => {
+    if (item.to === '/escalas-servicos/profissionais') return can('profissionais');
+    if (item.to === '/escalas-servicos/enfermeiros') return can('escalas_servicos');
+    if (item.to === '/escalas-servicos/tecnicos') return can('escalas_servicos');
+    if (item.to === '/escalas-servicos/folgas') return can('folgas');
+    if (item.to === '/escalas-servicos/relatorios') return can('relatorios');
+    return true;
+  });
 
   /** Publica todas as escalas (eMult + Serviços) no portal público. */
   const handlePublish = async () => {
@@ -81,10 +107,14 @@ export function Sidebar() {
         return;
       }
 
-      // Evita publicar códigos em branco se ainda estiverem carregando
+      // Garante que sempre existam códigos de acesso válidos antes de publicar.
+      let effectivePortalCodes = portalCodes;
+
       if (!portalCodes.emult || !portalCodes.nurse || !portalCodes.tech) {
-        toast.error('Aguarde o carregamento dos códigos de acesso antes de publicar.');
-        return;
+        // Gera novos códigos automaticamente caso ainda não tenham sido carregados do Supabase
+        effectivePortalCodes = generatePortalCodes();
+        updatePortalCodes(effectivePortalCodes);
+        toast.info('Novos códigos de acesso gerados automaticamente.');
       }
 
       // Payload higienizado para garantir serialização correta
@@ -96,6 +126,7 @@ export function Sidebar() {
           functions: emultData.functions,
           schedule: emultData.schedule,
           restrictions: emultData.restrictions, // Adicionado para persistência completa
+          teamId: teamId || null,
         },
         service_data: {
           professionals: serviceProfs,
@@ -103,7 +134,7 @@ export function Sidebar() {
           techEntries: techEntries,
           leaveRequests: leaveRequests,
         },
-        portal_codes: portalCodes,
+        portal_codes: effectivePortalCodes,
         published_at: new Date().toISOString()
       };
 
@@ -158,9 +189,6 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-
-          <div className="h-px bg-border/50 my-4 mx-2" />
-
           {/* Service Group Header - First */}
           <button
             onClick={() => setIsServicosOpen(!isServicosOpen)}
@@ -180,20 +208,28 @@ export function Sidebar() {
           {/* Service Group Items */}
           {isServicosOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {serviceItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => cn(
-                    "nav-item text-sm",
-                    isActive && "active"
-                  )}
-                >
-                  <item.icon size={18} />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
+              {filteredServiceItems.map((item) => {
+                const showBadge = item.to === '/escalas-servicos/folgas' && pendingLeaves > 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) => cn(
+                      "nav-item text-sm relative",
+                      isActive && "active"
+                    )}
+                  >
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                    {showBadge && (
+                      <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                        {pendingLeaves > 9 ? '9+' : pendingLeaves}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </div>
           )}
 
@@ -216,7 +252,7 @@ export function Sidebar() {
           {/* Group Items */}
           {isEscalasOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -234,20 +270,23 @@ export function Sidebar() {
           )}
 
           {/* Global Publish Button */}
-          <div className="px-2 pt-4">
-            <Button
-              onClick={handlePublish}
-              disabled={isPublishing}
-              className="w-full bg-primary hover:bg-primary/90 text-white shadow-md gap-2 h-10 transition-all active:scale-95"
-            >
-              {isPublishing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <CloudUpload className="w-4 h-4" />
-              )}
-              {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
-            </Button>
-          </div>
+          {can('publicar') && (
+            <div className="px-2 pt-4">
+              <Button
+                onClick={handlePublish}
+                disabled={isPublishing}
+                className="w-full bg-primary hover:bg-primary/90 text-white shadow-md gap-2 h-10 transition-all active:scale-95"
+              >
+                {isPublishing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4" />
+                )}
+                {isPublishing ? 'Publicando...' : 'Publicar no Portal'}
+              </Button>
+            </div>
+          )}
+
         </nav>
       </aside>
     </>

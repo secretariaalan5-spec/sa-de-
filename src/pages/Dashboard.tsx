@@ -1,7 +1,13 @@
+/**
+ * Dashboard — Visão geral do sistema de escalas.
+ *
+ * Exibe cards de estatísticas, distribuição por função/unidade e carga horária.
+ * Todos os cards usam a classe padronizada .stat-card e .page-card do design system.
+ */
+
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useAppData } from '@/hooks/useAppData';
 import { Users, Building2, Calendar, Briefcase, AlertTriangle, Clock } from 'lucide-react';
-import { DAYS_OF_WEEK, PERIODS } from '@/types';
 
 export default function Dashboard() {
   const { data, getWeeklyHoursUsed } = useAppData();
@@ -9,35 +15,27 @@ export default function Dashboard() {
   const activeProfessionals = data.professionals.filter(p => p.active);
   const activeUnits = data.units.filter(u => u.active);
 
-  // Stats by function
-  const statsByFunction = data.functions.map(func => {
-    const profs = activeProfessionals.filter(p => p.functionId === func.id);
-    return {
-      name: func.name,
-      color: func.color,
-      count: profs.length,
-    };
-  }).filter(s => s.count > 0);
+  /** Estatísticas por função */
+  const statsByFunction = data.functions.map(func => ({
+    name: func.name,
+    color: func.color,
+    count: activeProfessionals.filter(p => p.functionId === func.id).length,
+  })).filter(s => s.count > 0);
 
-  // Stats by unit
-  const statsByUnit = activeUnits.map(unit => {
-    const entries = data.schedule.filter(s => s.unitId === unit.id);
-    const uniqueProfessionals = new Set(entries.map(e => e.professionalId));
-    return {
-      name: unit.name,
-      count: uniqueProfessionals.size,
-    };
-  }).sort((a, b) => b.count - a.count).slice(0, 8);
+  /** Estatísticas por unidade (top 8) */
+  const statsByUnit = activeUnits.map(unit => ({
+    name: unit.name,
+    count: new Set(data.schedule.filter(s => s.unitId === unit.id).map(e => e.professionalId)).size,
+  })).sort((a, b) => b.count - a.count).slice(0, 8);
 
-  // Professionals with workload issues
+  /** Carga horária dos profissionais */
   const workloadIssues = activeProfessionals.map(prof => {
     const used = getWeeklyHoursUsed(prof.id);
-    const remaining = prof.weeklyHours - used;
     return {
       name: prof.name,
       used,
       total: prof.weeklyHours,
-      remaining,
+      remaining: prof.weeklyHours - used,
       percentage: Math.round((used / prof.weeklyHours) * 100),
     };
   }).filter(p => p.used > 0 || p.total > 0);
@@ -49,8 +47,9 @@ export default function Dashboard() {
         description="Visão geral do sistema de escalas"
       />
 
-      {/* Summary Cards */}
+      {/* ── Cards de resumo ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Profissionais */}
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -63,6 +62,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Unidades */}
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-accent/10">
@@ -75,6 +75,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Escalas */}
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-success/10">
@@ -87,6 +88,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Restrições */}
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-warning/10">
@@ -100,22 +102,21 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Detalhamento ── */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* By Function */}
-        <div className="form-section">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5" />
+
+        {/* Por Função */}
+        <div className="page-card">
+          <h2 className="mb-4 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-primary" />
             Profissionais por Função
-          </h3>
+          </h2>
           {statsByFunction.length > 0 ? (
             <div className="space-y-3">
               {statsByFunction.map((stat, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: stat.color }}
-                    />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stat.color }} />
                     <span className="text-sm">{stat.name}</span>
                   </div>
                   <span className="font-semibold">{stat.count}</span>
@@ -127,12 +128,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* By Unit */}
-        <div className="form-section">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5" />
+        {/* Por Unidade */}
+        <div className="page-card">
+          <h2 className="mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
             Profissionais por Unidade
-          </h3>
+          </h2>
           {statsByUnit.length > 0 ? (
             <div className="space-y-3">
               {statsByUnit.map((stat, i) => (
@@ -147,12 +148,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Workload */}
-        <div className="form-section lg:col-span-2">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
+        {/* Carga Horária */}
+        <div className="page-card lg:col-span-2">
+          <h2 className="mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary" />
             Carga Horária Semanal
-          </h3>
+          </h2>
           {workloadIssues.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {workloadIssues.slice(0, 9).map((prof, i) => (
