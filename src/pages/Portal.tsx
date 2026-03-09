@@ -510,49 +510,108 @@ export default function Portal() {
   };
 
   const handleAvatarUpload = () => {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]; if (!file || !session?.user) return;
-      if (file.size > 2 * 1024 * 1024) { toast.error('Máximo 2 MB'); return; }
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file || !session?.user) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Máximo 2 MB');
+        return;
+      }
+
       setAvatarUploading(true);
       try {
-        const ext = file.name.split('.').pop() || 'jpg';
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
         const fp = `${session.user.id}/avatar.${ext}`;
-        const { error: ue } = await supabase.storage.from('avatars').upload(fp, file, { upsert: true });
-        if (ue) throw ue;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fp, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+
+        if (uploadError) throw uploadError;
 
         const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fp);
-        const publicUrl = publicUrlData.publicUrl;
+        const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
 
-        const [profUpdate, profileUpdate] = await Promise.all([
-          (supabase.from('professional_users' as any).update({ avatar_url: publicUrl } as any).eq('user_id', session.user.id) as any),
-          (supabase.from('profiles' as any).update({ avatar_url: publicUrl } as any).eq('user_id', session.user.id) as any),
-        ]);
+        const { data: existingProfile, error: profileLookupError } = await (supabase
+          .from('profiles' as any)
+          .select('id')
+          .eq('user_id', session.user.id)
+          .maybeSingle() as any);
 
-        if (profUpdate.error) console.warn('professional_users avatar update failed:', profUpdate.error);
-        if (profileUpdate.error) console.warn('profiles avatar update failed:', profileUpdate.error);
+        if (profileLookupError && profileLookupError.code !== 'PGRST116') {
+          throw profileLookupError;
+        }
+
+        let profileWriteError: any = null;
+        if (existingProfile?.id) {
+          const { error } = await (supabase
+            .from('profiles' as any)
+            .update({ avatar_url: avatarUrl } as any)
+            .eq('user_id', session.user.id) as any);
+          profileWriteError = error;
+        } else {
+          const { error } = await (supabase
+            .from('profiles' as any)
+            .insert({
+              user_id: session.user.id,
+              team_id: professionalUser?.team_id || null,
+              display_name: professionalUser?.full_name || session.user.user_metadata?.full_name || session.user.email || '',
+              avatar_url: avatarUrl,
+            } as any) as any);
+          profileWriteError = error;
+        }
+
+        const { error: professionalUpdateError } = await (supabase
+          .from('professional_users' as any)
+          .update({ avatar_url: avatarUrl } as any)
+          .eq('user_id', session.user.id) as any);
+
+        if (profileWriteError && professionalUpdateError) {
+          throw profileWriteError;
+        }
+
+        if (professionalUpdateError) {
+          console.warn('professional_users avatar update failed:', professionalUpdateError);
+        }
 
         await refreshProfile();
         toast.success('Foto atualizada!');
       } catch (err: any) {
         console.error('Avatar upload error:', err);
         toast.error('Erro ao enviar foto: ' + (err.message || ''));
-      } finally { setAvatarUploading(false); }
+      } finally {
+        setAvatarUploading(false);
+      }
     };
+
     input.click();
   };
 
   // eMult schedule data (must be before guards to respect hooks rules)
   const emultData = portalData?.emult;
-  const isEmultUser = professionalUser?.category === 'emult';
 
   const myEmultProfessional = useMemo(() => {
-    if (!isEmultUser || !emultData?.professionals || !professionalUser) return null;
-    const name = professionalUser.full_name.toLowerCase().trim();
-    return emultData.professionals.find(p =>
-      p.name.toLowerCase().trim() === name
-    ) || null;
-  }, [isEmultUser, emultData, professionalUser]);
+    if (!emultData?.professionals || !professionalUser) return null;
+
+    if (professionalUser.professional_id) {
+      const byId = emultData.professionals.find(p => p.id === professionalUser.professional_id);
+      if (byId) return byId;
+    }
+
+    if (professionalUser.category === 'emult') {
+      const normalizedName = professionalUser.full_name.toLowerCase().trim();
+      return emultData.professionals.find(p => p.name.toLowerCase().trim() === normalizedName) || null;
+    }
+
+    return null;
+  }, [emultData, professionalUser]);
+
+  const isEmultUser = professionalUser?.category === 'emult' || !!myEmultProfessional;
 
   const myEmultSchedule = useMemo(() => {
     if (!myEmultProfessional || !emultData?.schedule) return [];
