@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Trash2, AlertCircle, User, Clock, MapPin, Briefcase } from 'lucide-react';
 import { DAYS_OF_WEEK, PERIODS, DayOfWeek, Period } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { ScheduleEntry } from '@/types';
+import type { ScheduleEntry, Professional } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 export default function Schedule() {
   const {
@@ -22,6 +23,7 @@ export default function Schedule() {
   } = useAppData();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [form, setForm] = useState<{
     professionalId: string;
     dayOfWeek: DayOfWeek | '';
@@ -238,7 +240,12 @@ export default function Schedule() {
                       const limit = prof.weeklyHours;
                       return (
                         <tr key={prof.id}>
-                          <td className="font-semibold align-top">{prof.name.toUpperCase()}</td>
+                          <td
+                            className="font-semibold align-top cursor-pointer hover:text-primary hover:underline transition-colors"
+                            onClick={() => setSelectedProfessional(prof)}
+                          >
+                            {prof.name.toUpperCase()}
+                          </td>
                           <td className="text-center align-top text-xs">
                             <span
                               className={
@@ -427,6 +434,129 @@ export default function Schedule() {
               <Button onClick={handleSave}>Salvar</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Professional Detail Dialog */}
+      <Dialog open={!!selectedProfessional} onOpenChange={(open) => !open && setSelectedProfessional(null)}>
+        <DialogContent className="bg-card max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Detalhes do Profissional
+            </DialogTitle>
+          </DialogHeader>
+          {selectedProfessional && (() => {
+            const func = getFunction(selectedProfessional.functionId);
+            const used = getWeeklyHoursUsed(selectedProfessional.id);
+            const limit = selectedProfessional.weeklyHours;
+            const profSchedule = data.schedule.filter(s => s.professionalId === selectedProfessional.id);
+            const profRestrictions = data.restrictions?.filter(r => r.professionalId === selectedProfessional.id) || [];
+
+            return (
+              <div className="space-y-5 mt-2">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-primary-foreground shrink-0"
+                    style={{ backgroundColor: func?.color || 'hsl(var(--muted))' }}
+                  >
+                    {selectedProfessional.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">{selectedProfessional.name}</h3>
+                    <Badge variant="outline" style={{ borderColor: func?.color, color: func?.color }}>
+                      {func?.name || 'Sem função'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5" />
+                      Carga Semanal
+                    </div>
+                    <p className="text-lg font-bold text-foreground">
+                      <span className={used > limit ? 'text-destructive' : used > limit * 0.8 ? 'text-warning' : ''}>
+                        {used}h
+                      </span>
+                      <span className="text-muted-foreground font-normal text-sm"> / {limit}h</span>
+                    </p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Briefcase className="w-3.5 h-3.5" />
+                      Status
+                    </div>
+                    <Badge variant={selectedProfessional.active ? 'default' : 'secondary'}>
+                      {selectedProfessional.active ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Escala Semanal
+                  </h4>
+                  {profSchedule.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">Nenhuma escala definida</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {DAYS_OF_WEEK.map(day => {
+                        const dayEntries = profSchedule.filter(s => s.dayOfWeek === day.key);
+                        if (dayEntries.length === 0) return null;
+                        return (
+                          <div key={day.key} className="flex items-start gap-2 text-sm">
+                            <span className="font-medium text-foreground w-20 shrink-0">{day.label}:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {dayEntries.map(entry => {
+                                const unit = getUnit(entry.unitId);
+                                const periodLabel = PERIODS.find(p => p.key === entry.period)?.label || entry.period;
+                                return (
+                                  <Badge key={entry.id} variant="secondary" className="text-xs">
+                                    <MapPin className="w-3 h-3 mr-1" />
+                                    {unit?.name} – {periodLabel}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {profRestrictions.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-destructive" />
+                      Restrições
+                    </h4>
+                    <div className="space-y-1">
+                      {profRestrictions.map(r => {
+                        const target = r.type === 'unit'
+                          ? getUnit(r.targetId)?.name
+                          : getProfessional(r.targetId)?.name;
+                        return (
+                          <div key={r.id} className="text-sm text-muted-foreground">
+                            {r.type === 'unit' ? '🏥' : '👤'} {target} {r.reason ? `– ${r.reason}` : ''}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button variant="outline" onClick={() => setSelectedProfessional(null)}>
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
