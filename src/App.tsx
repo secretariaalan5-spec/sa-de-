@@ -28,6 +28,7 @@ import Login from "./pages/Login";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { ServiceStateProvider } from "./contexts/ServiceStateContext";
@@ -90,6 +91,7 @@ const App = () => (
               </Route>
 
               <Route path="/portal" element={<Portal />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ServiceStateProvider>

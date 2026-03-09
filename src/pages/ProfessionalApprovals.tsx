@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle, Trash2, Link2, Copy, RefreshCw } from 'lucide-react';
+import { Check, X, UserCheck, Clock, Users, Stethoscope, Syringe, AlertCircle, Trash2, Link2, Copy, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
 import { useAppData } from '@/hooks/useAppData';
@@ -114,17 +114,21 @@ export default function ProfessionalApprovals() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
+  const withActionLoading = (id: string, fn: () => Promise<void>) => async () => {
+    setActionLoading(prev => ({ ...prev, [id]: true }));
+    try { await fn(); } finally { setActionLoading(prev => ({ ...prev, [id]: false })); }
+  };
+
   const handleApprove = async (user: ProfessionalUserRecord) => {
     let professionalId: string;
 
     if (user.category === 'emult') {
-      // eMult → add to AppDataContext (escala base)
-      // Find matching function by name
       let funcId = emultData.functions.find(f =>
         f.name.toLowerCase().trim() === (user.function_name || '').toLowerCase().trim()
       )?.id;
 
-      // Partial match fallback
       if (!funcId && user.function_name) {
         const fnLower = user.function_name.toLowerCase();
         funcId = emultData.functions.find(f =>
@@ -143,7 +147,6 @@ export default function ProfessionalApprovals() {
       });
       professionalId = newProf.id;
     } else {
-      // Nurse/Tech → service professionals
       const newProf = addServiceProfessional({
         name: user.full_name,
         category: user.category as 'nurse' | 'tech',
@@ -363,11 +366,11 @@ export default function ProfessionalApprovals() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleApprove(user)} className="flex-1">
-                        <Check className="w-4 h-4 mr-1" /> Aprovar
+                      <Button size="sm" onClick={withActionLoading(`approve-${user.id}`, () => handleApprove(user))} disabled={!!actionLoading[`approve-${user.id}`]} className="flex-1">
+                        {actionLoading[`approve-${user.id}`] ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />} Aprovar
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleReject(user)} className="flex-1">
-                        <X className="w-4 h-4 mr-1" /> Rejeitar
+                      <Button size="sm" variant="destructive" onClick={withActionLoading(`reject-${user.id}`, () => handleReject(user))} disabled={!!actionLoading[`reject-${user.id}`]} className="flex-1">
+                        {actionLoading[`reject-${user.id}`] ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <X className="w-4 h-4 mr-1" />} Rejeitar
                       </Button>
                     </div>
                   </CardContent>

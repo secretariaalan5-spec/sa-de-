@@ -230,19 +230,46 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
   const [fullName, setFullName] = useState(userName || '');
   const [category, setCategory] = useState('');
   const [functionName, setFunctionName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [teamValid, setTeamValid] = useState<boolean | null>(null);
+  const [checkingTeam, setCheckingTeam] = useState(false);
 
   const emultFunctions = [
     'Psicólogo(a)', 'Fisioterapeuta', 'Nutricionista', 'Assistente Social',
     'Educador(a) Físico', 'Fonoaudiólogo(a)', 'Terapeuta Ocupacional', 'Farmacêutico(a)',
   ];
 
-  if (!teamId) {
+  // Validar team_id no banco ao montar
+  useEffect(() => {
+    if (!teamId) { setTeamValid(false); return; }
+    setCheckingTeam(true);
+    (async () => {
+      try {
+        const { data } = await supabase.from('teams').select('id').eq('id', teamId).maybeSingle();
+        setTeamValid(!!data?.id);
+      } catch {
+        setTeamValid(false);
+      } finally {
+        setCheckingTeam(false);
+      }
+    })();
+  }, [teamId]);
+
+  if (checkingTeam) {
+    return (
+      <div className="portal-native min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!teamId || teamValid === false) {
     return (
       <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
         <GlassCard className="p-8 text-center space-y-3 max-w-xs w-full">
           <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto"><AlertCircle className="h-7 w-7 text-destructive" /></div>
           <h2 className="text-[17px] font-black">Link inválido</h2>
-          <p className="text-[13px] text-muted-foreground">Solicite o link correto ao seu administrador.</p>
+          <p className="text-[13px] text-muted-foreground">O link de acesso é inválido ou expirou. Solicite um novo link ao seu administrador.</p>
         </GlassCard>
       </div>
     );
@@ -255,7 +282,17 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
   ];
 
   const isEmult = category === 'emult';
-  const canSubmit = category && fullName.trim() && (!isEmult || functionName);
+  const trimmedName = fullName.trim();
+  const canSubmit = category && trimmedName.length >= 2 && (!isEmult || functionName);
+
+  const handleSubmit = () => {
+    if (trimmedName.length < 2) {
+      setNameError('Nome deve ter pelo menos 2 caracteres');
+      return;
+    }
+    setNameError('');
+    onRegister(teamId, category, trimmedName, isEmult ? functionName : undefined);
+  };
 
   return (
     <div className="portal-native min-h-screen flex items-center justify-center bg-background px-6">
@@ -275,8 +312,9 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
 
           <div className="space-y-1.5">
             <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Nome completo</Label>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome"
+            <input type="text" value={fullName} onChange={(e) => { setFullName(e.target.value); setNameError(''); }} placeholder="Seu nome" maxLength={100}
               className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-4 text-[14px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary transition-all" />
+            {nameError && <p className="text-[11px] text-destructive font-medium">{nameError}</p>}
           </div>
 
           <div className="space-y-2.5">
@@ -310,7 +348,6 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
             </div>
           </div>
 
-          {/* Seleção de função/profissão para eMult */}
           {isEmult && (
             <div className="space-y-2.5">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sua profissão</Label>
@@ -330,7 +367,7 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
             </div>
           )}
 
-          <ActionButton onClick={() => onRegister(teamId, category, fullName.trim(), isEmult ? functionName : undefined)} disabled={!canSubmit}>
+          <ActionButton onClick={handleSubmit} disabled={!canSubmit}>
             Solicitar Acesso
           </ActionButton>
         </GlassCard>
