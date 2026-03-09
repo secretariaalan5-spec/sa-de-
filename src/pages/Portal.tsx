@@ -493,6 +493,30 @@ export default function Portal() {
   useEffect(() => { const h = (e: Event) => { e.preventDefault(); setDeferredPrompt(e as BeforeInstallPromptEvent); }; window.addEventListener('beforeinstallprompt', h); return () => window.removeEventListener('beforeinstallprompt', h); }, []);
   const handleInstall = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') setDeferredPrompt(null); };
 
+  // Register OneSignal player_id when professional is approved
+  useEffect(() => {
+    if (!professionalUser || professionalUser.status !== 'approved' || !session?.user) return;
+    const registerPlayerId = async () => {
+      try {
+        const w = window as any;
+        if (!w.OneSignalDeferred) return;
+        w.OneSignalDeferred.push(async (OneSignal: any) => {
+          const playerId = await OneSignal.User?.PushSubscription?.id;
+          if (!playerId) return;
+          // Only update if changed
+          if ((professionalUser as any).onesignal_player_id === playerId) return;
+          await supabase
+            .from('professional_users' as any)
+            .update({ onesignal_player_id: playerId } as any)
+            .eq('user_id', session.user.id);
+        });
+      } catch (err) {
+        console.error('OneSignal player_id registration failed:', err);
+      }
+    };
+    registerPlayerId();
+  }, [professionalUser, session]);
+
   const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;
 
   const fetchPortalData = useCallback(async () => {
