@@ -11,9 +11,12 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Trash2, Mail, Briefcase } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Users, Search, Trash2, Mail, Briefcase, User, Calendar, Clock, MapPin } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
+import { useAppData } from '@/hooks/useAppData';
 import { toast } from 'sonner';
+import { DAYS_OF_WEEK, PERIODS } from '@/types';
 
 interface EmultUser {
   id: string;
