@@ -37,11 +37,6 @@ export default function LeaveRequestsPage() {
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
     const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
-    const [loadedAvatars, setLoadedAvatars] = useState<Set<string>>(new Set());
-
-    const markAvatarLoaded = useCallback((id: string) => {
-        setLoadedAvatars(prev => { const next = new Set(prev); next.add(id); return next; });
-    }, []);
 
     const fetchPortalLeaves = useCallback(async () => {
         if (!profile?.team_id) return;
