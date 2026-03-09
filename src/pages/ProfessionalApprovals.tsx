@@ -512,7 +512,7 @@ function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categor
             <h3 className="font-bold text-sm text-foreground truncate">{user.full_name}</h3>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             <span className={`text-[11px] font-bold ${categoryTextColor(user.category)}`}>
-              {categoryLabel(user.category)}
+              {categoryLabel(user.category, user.function_name)}
             </span>
           </div>
           <Button
