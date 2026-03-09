@@ -249,6 +249,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         fetchData();
     }, [userId]);
 
+    const syncUnitsToTable = async (units: Unit[], currentTeamId: string | null) => {
+        if (!currentTeamId) return;
+        try {
+            // Remove existing units for this team
+            await (supabase.from('units' as any).delete().eq('team_id', currentTeamId) as any);
+            // Insert current units
+            if (units.length > 0) {
+                const rows = units.map(u => ({
+                    id: u.id,
+                    team_id: currentTeamId,
+                    name: u.name,
+                    type: u.type || '',
+                    active: u.active,
+                }));
+                await (supabase.from('units' as any).insert(rows as any) as any);
+            }
+        } catch (err) {
+            console.error('Erro ao sincronizar unidades:', err);
+        }
+    };
+
     const saveToSupabase = async (newData: AppData, newCodes?: PortalCodes) => {
         if (!userId) return;
         try {
@@ -261,6 +282,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                     updated_at: new Date().toISOString(),
                 }) as any);
             if (error) throw error;
+            // Sync units to dedicated table
+            syncUnitsToTable(newData.units, teamId);
         } catch (err) {
             console.error('Erro ao salvar dados no Supabase:', err);
             toast.error('Erro ao sincronizar dados com a nuvem.');
