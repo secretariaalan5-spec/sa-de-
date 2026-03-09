@@ -627,118 +627,208 @@ export default function Portal() {
               {/* ════════ SCHEDULE ════════ */}
               {activeTab === 'schedule' && (
                 <div className="space-y-5">
-                  {/* Hero stats card */}
-                  <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
-                    style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
-                    <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Activity className="w-4 h-4 text-primary-foreground/70" />
-                        <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
-                      </div>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
-                          <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
-                        </div>
-                        <div className="text-right space-y-2">
-                          <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                            <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
-                            <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
-                            <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
+                  {isEmultUser ? (
+                    /* ── eMult: Weekly Schedule ── */
+                    <>
+                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CalendarDays className="w-4 h-4 text-primary-foreground/70" />
+                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Escala Semanal</p>
                           </div>
-                          <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                            <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
-                            <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
-                            <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
-                          </div>
+                          <p className="text-primary-foreground text-[20px] font-black leading-tight">
+                            {myEmultProfessional?.name || professionalUser.full_name}
+                          </p>
+                          {myEmultProfessional && (
+                            <p className="text-primary-foreground/60 text-[12px] font-semibold mt-1">
+                              {getEmultFunction(myEmultProfessional.functionId)?.name || categoryLabel}
+                            </p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Month nav */}
-                  <div className="flex items-center justify-between px-1">
-                    <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
-                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                    </h2>
-                    <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
+                      {myEmultSchedule.length === 0 ? (
+                        <GlassCard className="py-14 px-6 text-center">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
+                            <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
+                          </div>
+                          <p className="text-[15px] font-bold text-muted-foreground">Sem escala publicada</p>
+                          <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Aguarde o administrador publicar sua escala</p>
+                        </GlassCard>
+                      ) : (
+                        <div className="space-y-3">
+                          {DAYS_ORDER.map(dayKey => {
+                            const dayEntries = myEmultSchedule.filter(s => s.dayOfWeek === dayKey);
+                            if (dayEntries.length === 0) return null;
 
-                  {/* Calendar */}
-                  <GlassCard className="overflow-hidden">
-                    <div className="grid grid-cols-7 text-center border-b border-border/20">
-                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                        <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7 p-1.5 gap-0.5">
-                      {(() => {
-                        const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
-                        const days = eachDayOfInterval({ start: ms, end: me });
-                        const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
-                        const cells = days.map(day => {
-                          const ds = format(day, 'yyyy-MM-dd');
-                          const hasWork = myEntries.some(e => e.date === ds);
-                          const isWknd = getDay(day) === 0 || getDay(day) === 6;
-                          const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
-                          const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
-                          return (
-                            <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
-                              <span className={cn(
-                                "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
-                                isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
-                                hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
-                                hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
-                                hasLeave && !isToday && "bg-destructive/10 text-destructive",
-                                !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
-                                !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
-                              )}>
-                                {format(day, 'd')}
-                              </span>
-                              {hasWork && !isToday && (
-                                <div className={cn(
-                                  "absolute bottom-1 w-1 h-1 rounded-full",
-                                  isWknd ? "bg-warning" : "bg-accent"
-                                )} />
-                              )}
+                            return (
+                              <GlassCard key={dayKey} className="overflow-hidden">
+                                <div className="px-4 py-3 bg-primary/5 border-b border-border/20 flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                    <Calendar className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <span className="text-[14px] font-black text-foreground">{DAYS_LABELS[dayKey]}</span>
+                                </div>
+                                <div className="divide-y divide-border/15">
+                                  {dayEntries.map((entry, i) => {
+                                    const unit = getEmultUnit(entry.unitId);
+                                    return (
+                                      <div key={i} className="px-4 py-3.5 flex items-center gap-3.5">
+                                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                          <Heart className="w-4 h-4 text-accent" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[14px] font-bold text-foreground truncate">{unit?.name || 'Unidade'}</p>
+                                          <p className="text-[11px] text-muted-foreground font-medium">{PERIOD_LABELS[entry.period] || entry.period}</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </GlassCard>
+                            );
+                          })}
+
+                          {/* Days without schedule */}
+                          {(() => {
+                            const daysWithSchedule = new Set(myEmultSchedule.map(s => s.dayOfWeek));
+                            const daysOff = DAYS_ORDER.filter(d => !daysWithSchedule.has(d));
+                            if (daysOff.length === 0) return null;
+                            return (
+                              <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground/50 font-medium">
+                                <CalendarOff className="w-3.5 h-3.5" />
+                                Sem escala: {daysOff.map(d => DAYS_LABELS[d]).join(', ')}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {updatedLabel && (
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/40 font-medium">
+                          <Clock className="w-3 h-3" /> Atualizado em {updatedLabel}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* ── Nurse/Tech: Monthly Calendar ── */
+                    <>
+                      {/* Hero stats card */}
+                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Activity className="w-4 h-4 text-primary-foreground/70" />
+                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
+                          </div>
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
+                              <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
                             </div>
-                          );
-                        });
-                        return [...blanks, ...cells];
-                      })()}
-                    </div>
-                  </GlassCard>
-
-                  {/* Legend */}
-                  <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
-                    <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
-                  </div>
-
-                  {/* Month stats */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
-                      { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
-                      { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                    ].map((s, i) => (
-                      <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
-                          <s.icon className={cn("w-4 h-4", s.color)} />
+                            <div className="text-right space-y-2">
+                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
+                                <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
+                              </div>
+                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
+                                <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
+                      </div>
+
+                      {/* Month nav */}
+                      <div className="flex items-center justify-between px-1">
+                        <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
+                          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                        </h2>
+                        <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Calendar */}
+                      <GlassCard className="overflow-hidden">
+                        <div className="grid grid-cols-7 text-center border-b border-border/20">
+                          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                            <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7 p-1.5 gap-0.5">
+                          {(() => {
+                            const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
+                            const days = eachDayOfInterval({ start: ms, end: me });
+                            const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
+                            const cells = days.map(day => {
+                              const ds = format(day, 'yyyy-MM-dd');
+                              const hasWork = myEntries.some(e => e.date === ds);
+                              const isWknd = getDay(day) === 0 || getDay(day) === 6;
+                              const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
+                              const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
+                              return (
+                                <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
+                                  <span className={cn(
+                                    "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
+                                    isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
+                                    hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
+                                    hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
+                                    hasLeave && !isToday && "bg-destructive/10 text-destructive",
+                                    !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
+                                    !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
+                                  )}>
+                                    {format(day, 'd')}
+                                  </span>
+                                  {hasWork && !isToday && (
+                                    <div className={cn(
+                                      "absolute bottom-1 w-1 h-1 rounded-full",
+                                      isWknd ? "bg-warning" : "bg-accent"
+                                    )} />
+                                  )}
+                                </div>
+                              );
+                            });
+                            return [...blanks, ...cells];
+                          })()}
+                        </div>
                       </GlassCard>
-                    ))}
-                  </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
+                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
+                      </div>
+
+                      {/* Month stats */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
+                          { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
+                          { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
+                        ].map((s, i) => (
+                          <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
+                              <s.icon className={cn("w-4 h-4", s.color)} />
+                            </div>
+                            <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
+                            <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
+                          </GlassCard>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
