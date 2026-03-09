@@ -64,6 +64,7 @@ export function Sidebar() {
   const [isPublishing, setIsPublishing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { can } = useTeamPermissions();
 
   // ── Dados necessários para montar o payload de publicação ──
   const { data: emultData, portalCodes, updatePortalCodes, teamId } = useAppData();
@@ -72,6 +73,27 @@ export function Sidebar() {
   const { allEntries: techEntries } = useServiceSchedule('tech');
   const { requests: leaveRequests } = useLeaveRequests();
   const pendingLeaves = usePendingLeaveCount();
+
+  // Filter nav items based on permissions
+  const filteredNavItems = navItems.filter(item => {
+    if (item.to === '/emult/profissionais') return can('profissionais');
+    if (item.to === '/unidades') return can('unidades');
+    if (item.to === '/funcoes') return can('escalas_emult');
+    if (item.to === '/restricoes') return can('escalas_emult');
+    if (item.to === '/escala') return can('escalas_emult');
+    if (item.to === '/visualizacao') return can('escalas_emult');
+    if (item.to === '/exportar') return can('escalas_emult');
+    return true;
+  });
+
+  const filteredServiceItems = serviceItems.filter(item => {
+    if (item.to === '/escalas-servicos/profissionais') return can('profissionais');
+    if (item.to === '/escalas-servicos/enfermeiros') return can('escalas_servicos');
+    if (item.to === '/escalas-servicos/tecnicos') return can('escalas_servicos');
+    if (item.to === '/escalas-servicos/folgas') return can('folgas');
+    if (item.to === '/escalas-servicos/relatorios') return can('relatorios');
+    return true;
+  });
 
   /** Publica todas as escalas (eMult + Serviços) no portal público. */
   const handlePublish = async () => {
