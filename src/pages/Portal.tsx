@@ -199,14 +199,11 @@ function RegistrationScreen({
         return;
       }
       try {
-        const { data } = await (supabase
-          .from('profiles' as any)
-          .select('team_id')
-          .eq('user_id', adminId)
-          .maybeSingle() as any);
+        const { data, error } = await supabase.rpc('get_user_team_id', { _user_id: adminId });
 
+        if (error) throw error;
         // Se encontrar team_id, usa ele.
-        setTeamId(data?.team_id || null);
+        setTeamId(data || null);
       } catch (err) {
         console.error('Erro ao buscar equipe:', err);
         setTeamId(null);
@@ -663,24 +660,9 @@ export default function Portal() {
             <Skeleton className="h-64 w-full rounded-xl" />
           </div>
         ) : (
-          <Tabs defaultValue="escala" className="space-y-6 md:space-y-10">
-            {/* Desktop Tabs */}
-            <div className="hidden md:block">
-              <TabsList className="grid grid-cols-3 h-16 p-1.5 bg-slate-100/50 dark:bg-slate-800/50 max-w-2xl mx-auto rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner">
-                <TabsTrigger value="escala" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Calendar className="h-4 w-4" /> Minha Escala
-                </TabsTrigger>
-                <TabsTrigger value="creditos" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <Clock className="h-4 w-4" /> Meus Créditos
-                </TabsTrigger>
-                <TabsTrigger value="folgas" className="flex items-center gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-md rounded-xl font-bold h-full">
-                  <FileText className="h-4 w-4" /> Minhas Folgas
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
+          <div className="space-y-6 md:space-y-8">
             {/* Mobile info bar */}
-            <div className="md:hidden flex items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm mb-4">
+            <div className="flex xl:hidden items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
                   <Clock className="h-4 w-4" />
@@ -701,95 +683,109 @@ export default function Portal() {
               </Button>
             </div>
 
-            {/* Tab: Minha Escala */}
-            <TabsContent value="escala" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minha Escala</h2>
-                  <p className="text-sm text-slate-500 font-medium">Seus dias de trabalho programados</p>
-                </div>
-
-                {/* Month navigation */}
-                <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-4 border border-slate-100 dark:border-slate-800/80 shadow-inner">
-                  <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-10 w-10 rounded-xl">
-                    <ChevronLeft className="h-5 w-5" />
-                  </Button>
-                  <h3 className="text-lg font-black capitalize text-slate-700 dark:text-slate-200">
-                    {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                  </h3>
-                  <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-10 w-10 rounded-xl">
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                {/* Calendar */}
-                <div className="overflow-x-auto rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
-                  <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[700px]">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                      <div key={day} className="text-center text-[10px] font-black p-3 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-[0.2em]">{day}</div>
-                    ))}
-                    {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[80px]" />
-                    ))}
-                    {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const hasEntry = myEntries.some(e => e.date === dateStr);
-                      const isWeekend = getDay(day) === 0 || getDay(day) === 6;
-                      const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
-
-                      return (
-                        <div key={dateStr} className={cn(
-                          'min-h-[80px] p-3 transition-colors relative',
-                          isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
-                        )}>
-                          <div className={cn(
-                            'text-sm font-black mb-2 w-8 h-8 flex items-center justify-center rounded-xl',
-                            isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' :
-                              isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
-                          )}>
-                            {format(day, 'd')}
-                          </div>
-                          {hasEntry && (
-                            <div className={cn(
-                              'text-[9px] px-2 py-1 rounded-lg font-bold uppercase text-center border',
-                              professionalUser.category === 'nurse'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
-                                : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
-                            )}>
-                              {isWeekend ? '⭐ FDS' : 'Escalado'}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+              {/* Coluna 1: Calendário da Escala (Span 5) */}
+              <div className="xl:col-span-5 space-y-6">
+                <div className="px-1 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                      <Calendar className="h-6 w-6 text-primary" /> Minha Escala
+                    </h2>
+                    <p className="text-sm text-slate-500 font-medium">Seus dias de trabalho</p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hidden xl:flex h-10 w-10 rounded-xl text-primary hover:bg-primary/10"
+                    onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+                    disabled={loadingPortal}
+                    title="Atualizar Dados"
+                  >
+                    <RefreshCw className={cn("h-5 w-5", loadingPortal && "animate-spin")} />
+                  </Button>
                 </div>
+
+                <Card className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-100 dark:border-slate-800/80">
+                    <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-10 w-10 rounded-xl">
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <h3 className="text-base font-black capitalize text-slate-700 dark:text-slate-200">
+                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                    </h3>
+                    <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-10 w-10 rounded-xl">
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[300px]">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                        <div key={day} className="text-center text-[10px] font-black p-3 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-wider">{day}</div>
+                      ))}
+                      {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
+                        <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[60px]" />
+                      ))}
+                      {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const hasEntry = myEntries.some(e => e.date === dateStr);
+                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+
+                        return (
+                          <div key={dateStr} className={cn(
+                            'min-h-[70px] p-2 transition-colors relative flex flex-col items-center',
+                            isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
+                          )}>
+                            <div className={cn(
+                              'text-xs font-black mb-1 w-7 h-7 flex items-center justify-center rounded-xl',
+                              isToday ? 'bg-primary text-white shadow-md shadow-primary/30' :
+                                isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
+                            )}>
+                              {format(day, 'd')}
+                            </div>
+                            {hasEntry && (
+                              <div className={cn(
+                                'text-[9px] w-full px-1 py-1 rounded-md font-bold uppercase text-center border truncate',
+                                professionalUser.category === 'nurse'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                                  : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+                              )}>
+                                {isWeekend ? 'FDS' : 'Escala'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
               </div>
-            </TabsContent>
 
-            {/* Tab: Créditos */}
-            <TabsContent value="creditos" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="px-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Meus Créditos</h2>
-                  <p className="text-sm text-slate-500 font-medium">Saldo de banco de horas e créditos de folga</p>
+              {/* Coluna 2: Créditos (Span 3) */}
+              <div className="xl:col-span-3 space-y-6">
+                <div className="px-1">
+                  <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <Clock className="h-6 w-6 text-primary" /> Créditos
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">Balanço do mês</p>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 xl:grid-cols-1 gap-4">
                   <Card className="rounded-[1.5rem] border-0 shadow-md">
-                    <CardContent className="p-5 text-center">
+                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Dias Trabalhados</p>
                       <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{myStats.workedDays}</p>
                     </CardContent>
                   </Card>
                   <Card className="rounded-[1.5rem] border-0 shadow-md bg-amber-50 dark:bg-amber-900/10">
-                    <CardContent className="p-5 text-center">
+                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
                       <p className="text-[10px] font-bold text-amber-500 uppercase tracking-tight mb-2">Fins de Semana</p>
                       <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{myStats.weekendDays}</p>
                     </CardContent>
                   </Card>
                   <Card className="rounded-[1.5rem] border-0 shadow-md">
-                    <CardContent className="p-5 text-center">
+                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
                       <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight mb-2">
                         <TrendingUp className="w-3 h-3" /> Gerados
                       </div>
@@ -801,212 +797,196 @@ export default function Portal() {
                     myStats.creditsBalance > 0 ? 'bg-emerald-50 dark:bg-emerald-900/10' :
                       myStats.creditsBalance < 0 ? 'bg-rose-50 dark:bg-rose-900/10' : ''
                   )}>
-                    <CardContent className="p-5 text-center">
+                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Saldo Livre</p>
                       <p className={cn(
-                        "text-3xl font-black",
+                        "text-4xl font-black",
                         myStats.creditsBalance > 0 ? 'text-emerald-600' :
                           myStats.creditsBalance < 0 ? 'text-rose-600' : 'text-slate-500'
                       )}>
                         {myStats.creditsBalance}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-1">(Usado: {myStats.creditsUsed})</p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-medium">(Usado: {myStats.creditsUsed})</p>
                     </CardContent>
                   </Card>
                 </div>
               </div>
-            </TabsContent>
 
-            {/* Tab: Folgas */}
-            <TabsContent value="folgas" className="mt-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between px-2">
-                  <div>
-                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Minhas Folgas</h2>
-                    <p className="text-sm text-slate-500 font-medium">Solicite e acompanhe seus pedidos de afastamento</p>
-                  </div>
-                  <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="rounded-xl font-bold gap-2">
-                        <Plus className="w-4 h-4" /> Solicitar Folga
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Solicitar Folga</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Tipo de Afastamento</Label>
-                          <Select
-                            value={leaveForm.leaveType}
-                            onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-                            <SelectContent>
-                              {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>{label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {leaveForm.leaveType === 'folga_credito' && (
-                          <div className="p-3 bg-muted rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="w-4 h-4 text-primary" />
-                              <span className="text-sm">
-                                Saldo disponível: <strong className="text-primary">{myStats.creditsBalance} dias</strong>
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label>Data Inicial</Label>
-                          <Input
-                            type="date"
-                            value={leaveForm.startDate}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <Label>Data Final</Label>
-                          <Input
-                            type="date"
-                            value={leaveForm.endDate}
-                            min={leaveForm.startDate || undefined}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
-                          />
-                        </div>
-
-                        {daysRequested > 0 && (
-                          <div className="p-3 bg-muted rounded-lg text-sm">
-                            Quantidade: <strong>{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
-                          </div>
-                        )}
-
-                        <div>
-                          <Label>Observações</Label>
-                          <Textarea
-                            value={leaveForm.observations}
-                            onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
-                            placeholder="Motivo, justificativa..."
-                          />
-                        </div>
-
-                        <Button
-                          onClick={handleSubmitLeave}
-                          className="w-full"
-                          disabled={daysRequested < 1 || (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance)}
-                        >
-                          Enviar Pedido
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+              {/* Coluna 3: Pedidos de Folga (Span 4) */}
+              <div className="xl:col-span-4 space-y-6">
+                <div className="px-1">
+                  <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <FileText className="h-6 w-6 text-primary" /> Pedidos
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">Solicite e veja aprovações</p>
                 </div>
 
-                {/* Leave requests list */}
-                {leaveRequests.length === 0 && myLeaveRequestsFromAdmin.length === 0 ? (
-                  <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                    <p className="text-slate-500 font-medium">Nenhum pedido de folga registrado.</p>
+                {/* Form inline */}
+                <Card className="rounded-[2rem] border-0 shadow-xl bg-white dark:bg-slate-900 overflow-hidden">
+                  <div className="bg-primary/5 dark:bg-primary/10 p-5 border-b border-primary/10">
+                    <h3 className="font-black text-primary flex items-center gap-2">
+                      <Plus className="w-5 h-5" /> Nova Solicitação
+                    </h3>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Portal leave requests */}
-                    {leaveRequests.map(req => (
-                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md">
-                        <CardContent className="p-5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="secondary" className="text-xs">
-                              {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
-                            </Badge>
-                            {statusBadge(req.status)}
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Período</div>
-                              <div className="font-medium">
-                                {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM')}
-                                {req.end_date !== req.start_date && (
-                                  <> a {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM')}</>
-                                )}
-                              </div>
-                            </div>
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Duração</div>
-                              <div className="font-bold text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</div>
-                            </div>
-                          </div>
-                          {req.observations && (
-                            <p className="text-xs text-muted-foreground italic">"{req.observations}"</p>
-                          )}
-                          <div className="text-[11px] text-muted-foreground">
-                            Enviado em {format(new Date(req.created_at), 'dd/MM/yyyy HH:mm')}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <CardContent className="p-5 space-y-4 pt-5">
+                    <div>
+                      <Label className="text-xs font-bold text-slate-500 uppercase">Tipo de Afastamento</Label>
+                      <Select
+                        value={leaveForm.leaveType}
+                        onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+                      >
+                        <SelectTrigger className="mt-1 h-12 rounded-xl border-slate-200">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
+                            <SelectItem key={value} value={value} className="rounded-lg">{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                    {/* Admin-registered leave requests */}
-                    {myLeaveRequestsFromAdmin.map(req => (
-                      <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-md bg-muted/30">
-                        <CardContent className="p-5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="secondary" className="text-xs">
-                              {LEAVE_TYPE_LABELS[req.leaveType] || req.leaveType}
-                            </Badge>
-                            <Badge className="bg-slate-100 text-slate-600 border-slate-200 text-[10px]">
-                              Registrado pelo Admin
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Período</div>
-                              <div className="font-medium">
-                                {req.leaveDates[0] && format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
-                                {req.leaveDates.length > 1 && (
-                                  <> a {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
-                                )}
-                              </div>
-                            </div>
-                            <div className="bg-muted/50 rounded-lg p-2">
-                              <div className="text-xs text-muted-foreground">Duração</div>
-                              <div className="font-bold text-primary">{req.daysRequested} {req.daysRequested === 1 ? 'dia' : 'dias'}</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
+                    {leaveForm.leaveType === 'folga_credito' && (
+                      <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            Saldo de créditos: <strong className="font-black">{myStats.creditsBalance} dias</strong>
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-            {/* Mobile Bottom Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 no-print">
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] p-2">
-                <TabsList className="bg-transparent h-16 w-full grid grid-cols-3 gap-1">
-                  {[
-                    { key: 'escala', label: 'Escala', icon: <Calendar className="h-4 w-4" /> },
-                    { key: 'creditos', label: 'Créditos', icon: <Clock className="h-4 w-4" /> },
-                    { key: 'folgas', label: 'Folgas', icon: <FileText className="h-4 w-4" /> },
-                  ].map(tab => (
-                    <TabsTrigger
-                      key={tab.key}
-                      value={tab.key}
-                      className="flex flex-col items-center justify-center gap-1 data-[state=active]:bg-primary data-[state=active]:text-white rounded-[1.5rem] transition-all duration-300 py-2 border-0"
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs font-bold text-slate-500 uppercase">Início</Label>
+                        <Input
+                          type="date"
+                          className="mt-1 h-12 rounded-xl"
+                          value={leaveForm.startDate}
+                          onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-bold text-slate-500 uppercase">Fim</Label>
+                        <Input
+                          type="date"
+                          className="mt-1 h-12 rounded-xl"
+                          value={leaveForm.endDate}
+                          min={leaveForm.startDate || undefined}
+                          onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {daysRequested > 0 && (
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300">
+                        Duração: <strong className="font-black text-slate-800 dark:text-white">{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label className="text-xs font-bold text-slate-500 uppercase">Observações Opcionais</Label>
+                      <Textarea
+                        className="mt-1 rounded-xl resize-none min-h-[80px]"
+                        value={leaveForm.observations}
+                        onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
+                        placeholder="Justificativa (se aplicável)..."
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleSubmitLeave}
+                      className="w-full h-12 rounded-xl font-bold gap-2 text-md shadow-lg hover:shadow-primary/25 transition-all"
+                      disabled={daysRequested < 1 || (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance)}
                     >
-                      {tab.icon}
-                      <span className="text-[10px] font-bold uppercase tracking-tight">{tab.label}</span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                      <CheckCircle2 className="w-5 h-5" /> Enviar Pedido
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Historico List */}
+                <div className="space-y-4">
+                  <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider pl-1">Histórico de Pedidos</h3>
+
+                  {leaveRequests.length === 0 && myLeaveRequestsFromAdmin.length === 0 ? (
+                    <div className="text-center py-10 bg-white/50 dark:bg-slate-900/50 rounded-[2rem] border border-slate-200 border-dashed dark:border-slate-800">
+                      <FileText className="h-8 w-8 mx-auto mb-3 text-slate-300" />
+                      <p className="text-sm text-slate-500 font-medium">Nenhum pedido feito.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Portal leave requests */}
+                      {leaveRequests.map(req => (
+                        <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="secondary" className="text-[10px] font-bold">
+                                {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+                              </Badge>
+                              {statusBadge(req.status)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Período</div>
+                                <div className="font-medium text-slate-700 dark:text-slate-200">
+                                  {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM')}
+                                  {req.end_date !== req.start_date && (
+                                    <> - {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM')}</>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Duração</div>
+                                <div className="font-black text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</div>
+                              </div>
+                            </div>
+                            {req.observations && (
+                              <p className="text-xs text-slate-500 italic bg-slate-50/50 p-2 rounded-lg break-words">"{req.observations}"</p>
+                            )}
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              {format(new Date(req.created_at), 'dd/MM/yyyy HH:mm')}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {/* Admin-registered leave requests */}
+                      {myLeaveRequestsFromAdmin.map(req => (
+                        <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-sm bg-slate-50/80 dark:bg-slate-800/30">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="secondary" className="text-[10px] font-bold">
+                                {LEAVE_TYPE_LABELS[req.leaveType] || req.leaveType}
+                              </Badge>
+                              <Badge className="bg-slate-200 text-slate-600 border-0 text-[10px] font-bold">
+                                Lançado via Admin
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="bg-white/50 dark:bg-slate-900/50 rounded-xl p-2.5">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Período</div>
+                                <div className="font-medium text-slate-700 dark:text-slate-200">
+                                  {req.leaveDates[0] && format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
+                                  {req.leaveDates.length > 1 && (
+                                    <> - {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="bg-white/50 dark:bg-slate-900/50 rounded-xl p-2.5">
+                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Duração</div>
+                                <div className="font-black text-primary">{req.daysRequested} {req.daysRequested === 1 ? 'dia' : 'dias'}</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </Tabs>
+          </div>
         )}
       </main>
     </div>
