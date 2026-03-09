@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Trash2, AlertCircle, User, Clock, MapPin, Briefcase } from 'lucide-react';
 import { DAYS_OF_WEEK, PERIODS, DayOfWeek, Period } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { ScheduleEntry } from '@/types';
+import type { ScheduleEntry, Professional } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 export default function Schedule() {
   const {
