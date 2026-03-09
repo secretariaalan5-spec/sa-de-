@@ -1020,22 +1020,24 @@ export default function Portal() {
                     </div>
                   </GlassCard>
 
-                  {/* Quick stats */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
-                      { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
-                      { value: myStats.overall.creditsBalance, label: 'Créditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                    ].map((s, i) => (
-                      <GlassCard key={i} className="p-3.5 text-center">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
-                          <s.icon className={cn("w-4 h-4", s.color)} />
-                        </div>
-                        <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
-                        <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
-                      </GlassCard>
-                    ))}
-                  </div>
+                  {/* Quick stats - hidden for eMult */}
+                  {!isEmultUser && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
+                        { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
+                        { value: myStats.overall.creditsBalance, label: 'Créditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
+                      ].map((s, i) => (
+                        <GlassCard key={i} className="p-3.5 text-center">
+                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
+                            <s.icon className={cn("w-4 h-4", s.color)} />
+                          </div>
+                          <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
+                          <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
+                        </GlassCard>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Info rows */}
                   <GlassCard className="divide-y divide-border/20">
