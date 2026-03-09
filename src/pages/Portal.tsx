@@ -496,25 +496,40 @@ export default function Portal() {
   // Register OneSignal player_id when professional is approved
   useEffect(() => {
     if (!professionalUser || professionalUser.status !== 'approved' || !session?.user) return;
-    const registerPlayerId = async () => {
+
+    const savePlayerId = async (playerId: string) => {
+      if (!playerId) return;
+      if ((professionalUser as any).onesignal_player_id === playerId) return;
+      console.log('Saving OneSignal player_id:', playerId);
+      await supabase
+        .from('professional_users' as any)
+        .update({ onesignal_player_id: playerId } as any)
+        .eq('user_id', session.user.id);
+    };
+
+    const w = window as any;
+    if (!w.OneSignalDeferred) return;
+
+    w.OneSignalDeferred.push(async (OneSignal: any) => {
       try {
-        const w = window as any;
-        if (!w.OneSignalDeferred) return;
-        w.OneSignalDeferred.push(async (OneSignal: any) => {
-          const playerId = await OneSignal.User?.PushSubscription?.id;
-          if (!playerId) return;
-          // Only update if changed
-          if ((professionalUser as any).onesignal_player_id === playerId) return;
-          await supabase
-            .from('professional_users' as any)
-            .update({ onesignal_player_id: playerId } as any)
-            .eq('user_id', session.user.id);
+        // Request permission explicitly
+        await OneSignal.Notifications.requestPermission();
+
+        // Get current subscription ID
+        const subId = OneSignal.User?.PushSubscription?.id;
+        if (subId) {
+          await savePlayerId(subId);
+        }
+
+        // Listen for subscription changes (e.g. user enables later)
+        OneSignal.User.PushSubscription.addEventListener('change', (event: any) => {
+          const newId = event?.current?.id;
+          if (newId) savePlayerId(newId);
         });
       } catch (err) {
-        console.error('OneSignal player_id registration failed:', err);
+        console.error('OneSignal registration failed:', err);
       }
-    };
-    registerPlayerId();
+    });
   }, [professionalUser, session]);
 
   const effectiveTeamId = professionalUser?.team_id || teamIdFromUrl;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saude-plus-v2';
+const CACHE_NAME = 'saude-plus-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/manifest.json',
@@ -30,15 +30,22 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Never cache OAuth redirects
-    if (event.request.url.includes('/~oauth')) {
+    const url = new URL(event.request.url);
+
+    // Never cache OAuth, Supabase, or OneSignal requests
+    if (
+        url.pathname.includes('/~oauth') ||
+        url.hostname.includes('supabase') ||
+        url.hostname.includes('onesignal') ||
+        event.request.method !== 'GET'
+    ) {
         return;
     }
 
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                if (response.status === 200 && event.request.method === 'GET') {
+                if (response.status === 200) {
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseClone);
@@ -47,7 +54,55 @@ self.addEventListener('fetch', (event) => {
                 return response;
             })
             .catch(() => {
-                return caches.match(event.request);
+                return caches.match(event.request).then(cached => {
+                    if (cached) return cached;
+                    // Fallback to index.html for navigation requests (SPA)
+                    if (event.request.mode === 'navigate') {
+                        return caches.match('/');
+                    }
+                    return new Response('Offline', { status: 503 });
+                });
             })
+    );
+});
+
+// Handle push events (from OneSignal or direct)
+self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    try {
+        const data = event.data.json();
+        const title = data.title || data.headings?.en || 'Saúde+';
+        const body = data.alert || data.contents?.en || 'Nova atualização';
+        const icon = '/icon-192.png';
+        const badge = '/icon-192.png';
+
+        event.waitUntil(
+            self.registration.showNotification(title, {
+                body,
+                icon,
+                badge,
+                data: data.custom || data.data || {},
+                vibrate: [200, 100, 200],
+                tag: 'saude-plus-notification',
+                renotify: true,
+            })
+        );
+    } catch (e) {
+        // Silent fail for non-JSON push
+    }
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = event.notification.data?.url || '/portal';
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+            for (const client of clients) {
+                if (client.url.includes('/portal') && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            return self.clients.openWindow(url);
+        })
     );
 });
