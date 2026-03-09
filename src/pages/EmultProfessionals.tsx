@@ -114,7 +114,7 @@ export default function EmultProfessionals() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(user => (
-            <div key={user.id} className="page-card overflow-hidden group">
+            <div key={user.id} className="page-card overflow-hidden group cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedUser(user)}>
               <div className="h-1 -mx-5 -mt-5 mb-4 cat-bar-emult" />
 
               <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export default function EmultProfessionals() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => handleRemove(user)}
+                  onClick={(e) => { e.stopPropagation(); handleRemove(user); }}
                   title="Remover profissional"
                 >
                   <Trash2 className="w-4 h-4" />
