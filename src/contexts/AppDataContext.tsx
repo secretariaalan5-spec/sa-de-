@@ -401,8 +401,41 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const addScheduleEntry = useCallback((entry: Omit<ScheduleEntry, 'id'>) => {
         const newEntry = { ...entry, id: generateId() };
         updateData(prev => ({ ...prev, schedule: [...prev.schedule, newEntry] }));
+
+        // Send push notification to eMult professional (fire-and-forget)
+        (async () => {
+            try {
+                const prof = data.professionals.find(p => p.id === entry.professionalId);
+                if (!prof) return;
+                const unit = data.units.find(u => u.id === entry.unitId);
+                const dayLabel = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' }[entry.dayOfWeek] || entry.dayOfWeek;
+                const periodLabel = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' }[entry.period] || entry.period;
+
+                const { data: profUser } = await (supabase
+                    .from('professional_users' as any)
+                    .select('onesignal_player_id')
+                    .eq('professional_id', entry.professionalId)
+                    .eq('status', 'approved')
+                    .maybeSingle() as any);
+
+                const playerId = profUser?.onesignal_player_id;
+                if (!playerId) return;
+
+                await supabase.functions.invoke('send-push-notification', {
+                    body: {
+                        player_ids: [playerId],
+                        title: '📋 Nova Escala eMult',
+                        message: `${dayLabel} - ${periodLabel}${unit ? ` em ${unit.name}` : ''}`,
+                        data: { type: 'emult_schedule_added', professionalId: entry.professionalId },
+                    },
+                });
+            } catch (err) {
+                console.error('eMult push notification failed:', err);
+            }
+        })();
+
         return newEntry;
-    }, [updateData]);
+    }, [updateData, data.professionals, data.units]);
 
     const updateScheduleEntry = useCallback((id: string, updates: Partial<ScheduleEntry>) => {
         updateData(prev => ({
