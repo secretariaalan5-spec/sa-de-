@@ -328,7 +328,7 @@ export default function ProfessionalApprovals() {
                     </div>
 
                     <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground">
-                      Ao aprovar, o profissional será cadastrado como <strong>{categoryLabel(user.category)}</strong> e aparecerá na área correspondente.
+                      Ao aprovar, o profissional será cadastrado como <strong>{categoryLabel(user.category, user.function_name)}</strong> e aparecerá na área correspondente.
                     </div>
 
                     <div className="flex gap-2">
