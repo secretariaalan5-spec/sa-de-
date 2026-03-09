@@ -494,7 +494,7 @@ export default function ProfessionalApprovals() {
 function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categoryColorClass, categoryTextColor, onRemove }: {
   user: ProfessionalUserRecord;
   categoryIcon: (cat: string) => React.ReactNode;
-  categoryLabel: (cat: string) => string;
+  categoryLabel: (cat: string, fn?: string | null) => string;
   categoryBarColor: (cat: string) => string;
   categoryColorClass: (cat: string) => string;
   categoryTextColor: (cat: string) => string;
