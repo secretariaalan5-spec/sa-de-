@@ -374,18 +374,22 @@ function PendingScreen({ onLogout, status }: { onLogout: () => void; status: str
 }
 
 // ─── Bottom Nav ───
-function BottomNav({ active, onChange, leaveCount }: { active: PortalTab; onChange: (t: PortalTab) => void; leaveCount: number }) {
-  const tabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
+function BottomNav({ active, onChange, leaveCount, isEmult }: { active: PortalTab; onChange: (t: PortalTab) => void; leaveCount: number; isEmult?: boolean }) {
+  const allTabs: { id: PortalTab; icon: typeof Calendar; label: string }[] = [
     { id: 'schedule', icon: CalendarDays, label: 'Escala' },
     { id: 'credits', icon: Zap, label: 'Créditos' },
     { id: 'leaves', icon: FileText, label: 'Folgas' },
     { id: 'profile', icon: User, label: 'Perfil' },
   ];
 
+  // eMult only sees Schedule + Profile
+  const tabs = isEmult ? allTabs.filter(t => t.id === 'schedule' || t.id === 'profile') : allTabs;
+  const cols = tabs.length;
+
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border/20 safe-area-bottom"
       style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'saturate(180%) blur(24px)', WebkitBackdropFilter: 'saturate(180%) blur(24px)' }}>
-      <div className="grid grid-cols-4 max-w-lg mx-auto h-[60px]">
+      <div className={`grid max-w-lg mx-auto h-[60px]`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = active === tab.id;
