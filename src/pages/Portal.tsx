@@ -477,19 +477,40 @@ export default function Portal() {
   const [leaveForm, setLeaveForm] = useState({ leaveType: '' as LeaveType | '', startDate: '', endDate: '', observations: '' });
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const getTeamId = (): string | null => {
+  const getTeamId = useCallback((): string | null => {
     const u = new URLSearchParams(window.location.search);
     const h = new URLSearchParams(window.location.hash.slice(1));
-    return u.get('team') || h.get('team') || localStorage.getItem('portal_team_id');
-  };
-  const teamIdFromUrl = getTeamId();
+    const t = u.get('team') || h.get('team') || localStorage.getItem('portal_team_id');
 
-  useEffect(() => { const u = new URLSearchParams(window.location.search); const h = new URLSearchParams(window.location.hash.slice(1)); const t = u.get('team') || h.get('team'); if (t) localStorage.setItem('portal_team_id', t); }, []);
+    // Ignore invalid/placeholder strings that might be in localStorage
+    if (!t || t === 'null' || t === 'undefined' || t === '[object Object]') return null;
+    return t;
+  }, []);
+
+  const teamIdFromUrl = useMemo(() => getTeamId(), [getTeamId]);
+
+  useEffect(() => {
+    const t = getTeamId();
+    if (t) localStorage.setItem('portal_team_id', t);
+  }, [getTeamId]);
 
   useEffect(() => {
     if (!professionalUser || !teamIdFromUrl) return;
     if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
-      (async () => { try { await supabase.rpc('register_professional_via_portal' as any, { _team_id: teamIdFromUrl, _category: professionalUser.category, _full_name: professionalUser.full_name, _email: professionalUser.email } as any); await refreshProfile(); } catch (err) { console.error(err); } })();
+      (async () => {
+        try {
+          await supabase.rpc('register_professional_via_portal' as any, {
+            _team_id: teamIdFromUrl,
+            _category: professionalUser.category,
+            _full_name: professionalUser.full_name,
+            _email: professionalUser.email,
+            _function_name: (professionalUser as any).function_name || null
+          } as any);
+          await refreshProfile();
+        } catch (err) {
+          console.error('Erro ao atualizar equipe:', err);
+        }
+      })();
     }
   }, [professionalUser, teamIdFromUrl, refreshProfile]);
 

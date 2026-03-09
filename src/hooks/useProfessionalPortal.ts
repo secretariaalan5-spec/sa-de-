@@ -188,7 +188,14 @@ export function useProfessionalPortal() {
   // Google login - preserve team param in redirect
   const loginWithGoogle = useCallback(async () => {
     // Ensure team param is preserved after OAuth redirect
-    const teamId = new URLSearchParams(window.location.search).get('team') || localStorage.getItem('portal_team_id');
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    let teamId = params.get('team') || hashParams.get('team') || localStorage.getItem('portal_team_id');
+
+    if (teamId === 'null' || teamId === 'undefined' || teamId === '[object Object]') {
+      teamId = null;
+    }
+
     const redirectUrl = teamId
       ? `${window.location.origin}/portal?team=${teamId}`
       : window.location.href;
