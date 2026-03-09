@@ -208,7 +208,7 @@ export function Sidebar() {
           {/* Service Group Items */}
           {isServicosOpen && (
             <div className="pl-4 space-y-1 mt-1">
-              {serviceItems.map((item) => {
+              {filteredServiceItems.map((item) => {
                 const showBadge = item.to === '/escalas-servicos/folgas' && pendingLeaves > 0;
                 return (
                   <NavLink
