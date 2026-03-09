@@ -91,6 +91,7 @@ const App = () => (
               </Route>
 
               <Route path="/portal" element={<Portal />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ServiceStateProvider>

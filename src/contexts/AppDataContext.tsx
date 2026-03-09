@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Professional, Unit, ProfessionalFunction, ScheduleEntry, Restriction, PERIODS } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -45,10 +45,6 @@ export interface PortalCodes {
 
 // ── Geração de códigos exclusivos ──────────────────────────────────────────
 
-/**
- * Gera um código de acesso único no formato PREFIX-XXXXXX.
- * Usa apenas caracteres sem ambiguidade (sem 0, 1, I, O).
- */
 export function generatePortalCode(prefix: string): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const code = Array.from({ length: 6 }, () =>
@@ -57,7 +53,6 @@ export function generatePortalCode(prefix: string): string {
     return `${prefix}-${code}`;
 }
 
-/** Gera um conjunto completo de códigos exclusivos para todos os grupos. */
 export function generatePortalCodes(): PortalCodes {
     return {
         emult: generatePortalCode('EMT'),
@@ -85,8 +80,9 @@ const INITIAL_DATA: AppData = {
     restrictions: [],
 };
 
-// Usado apenas como estado inicial enquanto os dados não são carregados
 const PLACEHOLDER_CODES: PortalCodes = { emult: '', nurse: '', tech: '' };
+
+const DEBOUNCE_MS = 1500;
 
 // ── Context ────────────────────────────────────────────────────────────────
 
@@ -101,7 +97,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const [portalCodes, setPortalCodes] = useState<PortalCodes>(PLACEHOLDER_CODES);
     const [loading, setLoading] = useState(true);
 
-    // Escuta mudanças de sessão
+    // Refs para debounce
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestDataRef = useRef<AppData>(INITIAL_DATA);
+    const latestCodesRef = useRef<PortalCodes>(PLACEHOLDER_CODES);
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUserId(session?.user?.id || null);
@@ -114,7 +114,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Carrega dados do Supabase e garante códigos exclusivos para cada admin
     useEffect(() => {
         if (!userId) {
             setData(INITIAL_DATA);
@@ -133,7 +132,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                 if (error) throw error;
 
-                // 2. Busca perfil e equipe
                 let currentTeamId = null;
                 const { data: profileRecord } = await (supabase
                     .from('profiles' as any)
@@ -144,7 +142,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                 if (profileRecord?.team_id) {
                     currentTeamId = profileRecord.team_id;
                 } else {
-                    // Se não tiver perfil com equipe, tenta ver se já existe uma equipe criada por ele
                     const { data: teamRecord } = await (supabase
                         .from('teams' as any)
                         .select('id')
@@ -168,10 +165,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                         } else {
                             const { data: newTeam, error: teamError } = await (supabase
                                 .from('teams' as any)
-                                .insert({
-                                    created_by: userId,
-                                    name: 'Equipe Principal',
-                                } as any)
+                                .insert({ created_by: userId, name: 'Equipe Principal' } as any)
                                 .select('id')
                                 .maybeSingle() as any);
 
@@ -182,7 +176,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                             }
 
                             currentTeamId = newTeam.id;
-
                             await (supabase
                                 .from('profiles' as any)
                                 .upsert({ user_id: userId, team_id: currentTeamId, display_name: '' } as any) as any);
@@ -192,7 +185,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
                 setTeamId(currentTeamId);
 
-                // 3. Sincroniza profissionais eMult aprovados do portal para Escala Base
                 const approvedEmultRows = currentTeamId
                     ? (((await (supabase
                         .from('professional_users' as any)
@@ -251,13 +243,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
                 };
 
                 setData(mergedData);
+                latestDataRef.current = mergedData;
 
-                // 4. Restaura códigos existentes ou gera novos exclusivos
                 if (stateData?.portal_codes && Object.keys(stateData.portal_codes).length > 0) {
-                    setPortalCodes(stateData.portal_codes as PortalCodes);
+                    const codes = stateData.portal_codes as PortalCodes;
+                    setPortalCodes(codes);
+                    latestCodesRef.current = codes;
                 } else {
                     const newCodes = generatePortalCodes();
                     setPortalCodes(newCodes);
+                    latestCodesRef.current = newCodes;
                     await (supabase
                         .from('admin_states' as any)
                         .upsert({
@@ -281,9 +276,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     const syncUnitsToTable = async (units: Unit[], currentTeamId: string | null) => {
         if (!currentTeamId) return;
         try {
-            // Remove existing units for this team
             await (supabase.from('units' as any).delete().eq('team_id', currentTeamId) as any);
-            // Insert current units
             if (units.length > 0) {
                 const rows = units.map(u => ({
                     id: u.id,
@@ -299,33 +292,47 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const saveToSupabase = async (newData: AppData, newCodes?: PortalCodes) => {
-        if (!userId) return;
-        try {
-            const { error } = await (supabase
-                .from('admin_states' as any)
-                .upsert({
-                    user_id: userId,
-                    emult_state: newData as any,
-                    portal_codes: (newCodes || portalCodes) as any,
-                    updated_at: new Date().toISOString(),
-                }) as any);
-            if (error) throw error;
-            // Sync units to dedicated table
-            syncUnitsToTable(newData.units, teamId);
-        } catch (err) {
-            console.error('Erro ao salvar dados no Supabase:', err);
-            toast.error('Erro ao sincronizar dados com a nuvem.');
-        }
-    };
+    /** Persiste no Supabase com debounce de 1.5s */
+    const debouncedSave = useCallback((newData: AppData, newCodes: PortalCodes) => {
+        latestDataRef.current = newData;
+        latestCodesRef.current = newCodes;
+
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = setTimeout(async () => {
+            if (!userId) return;
+            try {
+                const { error } = await (supabase
+                    .from('admin_states' as any)
+                    .upsert({
+                        user_id: userId,
+                        emult_state: latestDataRef.current as any,
+                        portal_codes: latestCodesRef.current as any,
+                        updated_at: new Date().toISOString(),
+                    }) as any);
+                if (error) throw error;
+                syncUnitsToTable(latestDataRef.current.units, teamId);
+            } catch (err) {
+                console.error('Erro ao salvar dados no Supabase:', err);
+                toast.error('Erro ao sincronizar dados com a nuvem.');
+            }
+        }, DEBOUNCE_MS);
+    }, [userId, teamId]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, []);
 
     const updateData = useCallback((updater: AppData | ((prev: AppData) => AppData)) => {
         setData(prev => {
             const next = typeof updater === 'function' ? updater(prev) : updater;
-            saveToSupabase(next);
+            debouncedSave(next, latestCodesRef.current);
             return next;
         });
-    }, [userId]);
+    }, [debouncedSave]);
 
     const addProfessional = useCallback((professional: Omit<Professional, 'id'>) => {
         const newProfessional = { ...professional, id: generateId() };
@@ -497,8 +504,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const updatePortalCodes = useCallback((codes: PortalCodes) => {
         setPortalCodes(codes);
-        saveToSupabase(data, codes);
-    }, [userId, data]);
+        latestCodesRef.current = codes;
+        debouncedSave(latestDataRef.current, codes);
+    }, [debouncedSave]);
 
     const regeneratePortalCodes = useCallback(() => {
         const newCodes = generatePortalCodes();

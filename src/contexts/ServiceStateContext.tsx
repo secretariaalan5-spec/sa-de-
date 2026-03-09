@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { ServiceProfessional, ServiceScheduleEntry, LeaveRequest } from '@/types/serviceSchedule';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -13,7 +13,6 @@ export interface ServiceState {
 
 interface ServiceStateContextType {
     state: ServiceState;
-    /** Aplica uma atualização funcional ao estado e persiste na nuvem. */
     updateServiceState: (updater: (prev: ServiceState) => ServiceState) => void;
     loading: boolean;
     userId: string | null;
@@ -27,6 +26,8 @@ const INITIAL_SERVICE_STATE: ServiceState = {
     requests: [],
 };
 
+const DEBOUNCE_MS = 1500;
+
 // ── Context ────────────────────────────────────────────────────────────────
 
 const ServiceStateContext = createContext<ServiceStateContextType | undefined>(undefined);
@@ -38,7 +39,10 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
     const [state, setState] = useState<ServiceState>(INITIAL_SERVICE_STATE);
     const [loading, setLoading] = useState(true);
 
-    // Escuta mudanças de sessão para obter o userId atual
+    // Refs para debounce
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestStateRef = useRef<ServiceState>(INITIAL_SERVICE_STATE);
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUserId(session?.user?.id || null);
@@ -51,7 +55,6 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         return () => subscription.unsubscribe();
     }, []);
 
-    // Busca o estado de serviços na nuvem sempre que o usuário muda
     useEffect(() => {
         if (!userId) {
             setState(INITIAL_SERVICE_STATE);
@@ -72,11 +75,13 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
 
                 if (adminData?.service_state) {
                     const loadedState = adminData.service_state as unknown as ServiceState;
-                    setState({
+                    const s = {
                         professionals: loadedState.professionals || [],
                         entries: loadedState.entries || [],
                         requests: loadedState.requests || [],
-                    });
+                    };
+                    setState(s);
+                    latestStateRef.current = s;
                 } else {
                     setState(INITIAL_SERVICE_STATE);
                 }
@@ -92,32 +97,45 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         fetchServiceState();
     }, [userId]);
 
-    /** Persiste o estado de serviços na tabela admin_states do Supabase. */
-    const saveServiceState = async (newState: ServiceState) => {
-        if (!userId) return;
-        try {
-            const { error } = await supabase
-                .from('admin_states')
-                .upsert({
-                    user_id: userId,
-                    service_state: newState as any,
-                    updated_at: new Date().toISOString(),
-                });
-            if (error) throw error;
-        } catch (err) {
-            console.error('Erro ao salvar estado de serviços:', err);
-            toast.error('Erro ao sincronizar dados de serviços com a nuvem.');
-        }
-    };
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, []);
 
-    /** Aplica o updater ao estado local e dispara a persistência em nuvem. */
+    /** Persiste o estado de serviços com debounce de 1.5s */
+    const debouncedSaveServiceState = useCallback((newState: ServiceState) => {
+        latestStateRef.current = newState;
+
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = setTimeout(async () => {
+            if (!userId) return;
+            try {
+                const { error } = await supabase
+                    .from('admin_states')
+                    .upsert({
+                        user_id: userId,
+                        service_state: latestStateRef.current as any,
+                        updated_at: new Date().toISOString(),
+                    });
+                if (error) throw error;
+            } catch (err) {
+                console.error('Erro ao salvar estado de serviços:', err);
+                toast.error('Erro ao sincronizar dados de serviços com a nuvem.');
+            }
+        }, DEBOUNCE_MS);
+    }, [userId]);
+
+    /** Aplica o updater ao estado local e dispara a persistência com debounce. */
     const updateServiceState = useCallback((updater: (prev: ServiceState) => ServiceState) => {
         setState(prev => {
             const next = updater(prev);
-            saveServiceState(next);
+            debouncedSaveServiceState(next);
             return next;
         });
-    }, [userId]);
+    }, [debouncedSaveServiceState]);
 
     return (
         <ServiceStateContext.Provider value={{ state, updateServiceState, loading, userId }}>
