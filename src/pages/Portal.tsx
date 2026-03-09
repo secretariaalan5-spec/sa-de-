@@ -1078,7 +1078,7 @@ export default function Portal() {
         </div>
       </div>
 
-      <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} />
+      <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} isEmult={isEmultUser} />
     </div>
   );
 }
