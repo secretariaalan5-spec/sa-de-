@@ -20,6 +20,7 @@ interface ProfessionalUserRecord {
   team_id: string | null;
   category: string;
   status: string;
+  function_name: string | null;
   created_at: string;
 }
 
