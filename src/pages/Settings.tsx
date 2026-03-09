@@ -94,14 +94,20 @@ export default function Settings() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ── Reset ──
+  const [resetting, setResetting] = useState(false);
+
   const handleReset = async () => {
     const c1 = confirm('ATENÇÃO: Isso apagará TODOS os dados (eMult + Escalas de Serviço) da NUVEM. Esta ação não pode ser desfeita. Continuar?');
     if (!c1) return;
     const c2 = confirm('Tem certeza? Todos os profissionais, unidades, escalas e pedidos de folga serão perdidos para sempre em todos os seus dispositivos.');
     if (!c2) return;
-    await resetAllCloudData();
-    setTimeout(() => window.location.reload(), 1000);
+    setResetting(true);
+    try {
+      await resetAllCloudData();
+      setTimeout(() => window.location.reload(), 1000);
+    } finally {
+      setResetting(false);
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
