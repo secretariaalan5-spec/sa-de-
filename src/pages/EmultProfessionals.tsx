@@ -33,9 +33,11 @@ interface EmultUser {
 
 export default function EmultProfessionals() {
   const { profile } = useProfile();
+  const { data: appData, getWeeklyHoursUsed } = useAppData();
   const [users, setUsers] = useState<EmultUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<EmultUser | null>(null);
 
   const fetchEmultUsers = useCallback(async () => {
     if (!profile?.team_id) return;
