@@ -271,7 +271,7 @@ export default function Registration() {
                     <p className="font-semibold text-sm text-foreground truncate">{user.full_name}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     <span className={`text-[11px] font-medium ${categoryColor(user.category)}`}>
-                      {categoryLabel(user.category)}
+                      {categoryLabel(user.category, user.function_name)}
                     </span>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
