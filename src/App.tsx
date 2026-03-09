@@ -28,6 +28,7 @@ import Login from "./pages/Login";
 import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
+import TeamManagement from "./pages/TeamManagement";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -115,6 +116,7 @@ const App = () => (
                 <Route path="/emult/profissionais" element={<EmultProfessionals />} />
                 <Route path="/configuracoes" element={<Settings />} />
                 <Route path="/perfil" element={<ProfilePage />} />
+                <Route path="/equipe" element={<TeamManagement />} />
               </Route>
 
               <Route path="/portal" element={<Portal />} />

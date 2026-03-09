@@ -1,8 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { HeaderBar } from './HeaderBar';
+import { useAutoAcceptInvite } from '@/hooks/useAutoAcceptInvite';
 
 export function AppLayout() {
+  useAutoAcceptInvite();
+
   return (
     <>
       <div className="min-h-screen flex w-full">

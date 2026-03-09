@@ -404,8 +404,10 @@ export type Database = {
           member_email: string
           member_id: string | null
           owner_id: string
+          permissions: Json
           role: string | null
           status: string | null
+          team_id: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -414,8 +416,10 @@ export type Database = {
           member_email: string
           member_id?: string | null
           owner_id: string
+          permissions?: Json
           role?: string | null
           status?: string | null
+          team_id?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -424,10 +428,20 @@ export type Database = {
           member_email?: string
           member_id?: string | null
           owner_id?: string
+          permissions?: Json
           role?: string | null
           status?: string | null
+          team_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teams: {
         Row: {
@@ -493,6 +507,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_member_permissions: { Args: { _user_id: string }; Returns: Json }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
       register_professional_via_portal:
         | {
