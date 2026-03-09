@@ -516,12 +516,20 @@ export default function Portal() {
       if (file.size > 2 * 1024 * 1024) { toast.error('Máximo 2 MB'); return; }
       setAvatarUploading(true);
       try {
-        const ext = file.name.split('.').pop() || 'jpg'; const fp = `${session.user.id}/avatar.${ext}`;
-        const { error: ue } = await supabase.storage.from('avatars').upload(fp, file, { upsert: true }); if (ue) throw ue;
-        const url = `https://qxpqzbswtdfatdrtqhrw.supabase.co/storage/v1/object/public/avatars/${fp}?t=${Date.now()}`;
-        await (supabase.from('professional_users' as any).update({ avatar_url: url } as any).eq('user_id', session.user.id) as any);
-        await refreshProfile(); toast.success('Foto atualizada!');
-      } catch (err: any) { toast.error('Erro: ' + (err.message || '')); } finally { setAvatarUploading(false); }
+        const ext = file.name.split('.').pop() || 'jpg';
+        const fp = `${session.user.id}/avatar.${ext}`;
+        const { error: ue } = await supabase.storage.from('avatars').upload(fp, file, { upsert: true });
+        if (ue) throw ue;
+        const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fp);
+        const url = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+        const { error: updateErr } = await (supabase.from('professional_users' as any).update({ avatar_url: url } as any).eq('user_id', session.user.id) as any);
+        if (updateErr) throw updateErr;
+        await refreshProfile();
+        toast.success('Foto atualizada!');
+      } catch (err: any) {
+        console.error('Avatar upload error:', err);
+        toast.error('Erro ao enviar foto: ' + (err.message || ''));
+      } finally { setAvatarUploading(false); }
     };
     input.click();
   };

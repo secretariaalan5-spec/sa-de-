@@ -45,8 +45,8 @@ interface ProfLeaveRequest {
 
 export default function ProfessionalApprovals() {
   const { profile, logActivity } = useProfile();
-  const { teamId } = useAppData();
-  const { professionals, addProfessional, deleteProfessional } = useServiceProfessionals();
+  const { data: emultData, teamId, addProfessional: addEmultProfessional } = useAppData();
+  const { professionals, addProfessional: addServiceProfessional, deleteProfessional } = useServiceProfessionals();
   const { addRequest } = useLeaveRequests();
   const [pendingUsers, setPendingUsers] = useState<ProfessionalUserRecord[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ProfessionalUserRecord[]>([]);
@@ -115,16 +115,47 @@ export default function ProfessionalApprovals() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleApprove = async (user: ProfessionalUserRecord) => {
-    const newProf = addProfessional({
-      name: user.full_name,
-      category: user.category as 'nurse' | 'tech',
-      monthlyHours: 200,
-      active: true,
-    });
+    let professionalId: string;
+
+    if (user.category === 'emult') {
+      // eMult → add to AppDataContext (escala base)
+      // Find matching function by name
+      let funcId = emultData.functions.find(f =>
+        f.name.toLowerCase().trim() === (user.function_name || '').toLowerCase().trim()
+      )?.id;
+
+      // Partial match fallback
+      if (!funcId && user.function_name) {
+        const fnLower = user.function_name.toLowerCase();
+        funcId = emultData.functions.find(f =>
+          f.name.toLowerCase().includes(fnLower.substring(0, 5)) || fnLower.includes(f.name.toLowerCase().substring(0, 5))
+        )?.id;
+      }
+
+      if (!funcId) funcId = emultData.functions[0]?.id || '1';
+
+      const newProf = addEmultProfessional({
+        name: user.full_name,
+        functionId: funcId,
+        team: '',
+        weeklyHours: 40,
+        active: true,
+      });
+      professionalId = newProf.id;
+    } else {
+      // Nurse/Tech → service professionals
+      const newProf = addServiceProfessional({
+        name: user.full_name,
+        category: user.category as 'nurse' | 'tech',
+        monthlyHours: 200,
+        active: true,
+      });
+      professionalId = newProf.id;
+    }
 
     const { error } = await (supabase
       .from('professional_users' as any)
-      .update({ status: 'approved', professional_id: newProf.id } as any)
+      .update({ status: 'approved', professional_id: professionalId } as any)
       .eq('id', user.id) as any);
 
     if (error) {
