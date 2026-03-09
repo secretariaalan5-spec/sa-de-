@@ -536,9 +536,32 @@ export default function Portal() {
   const nextMonth = () => setCurrentMonth(p => new Date(p.getFullYear(), p.getMonth() + 1, 1));
   const greeting = getGreeting();
   const firstName = myProfessional?.name?.split(' ')[0] || professionalUser.full_name.split(' ')[0];
-  const categoryLabel = professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : professionalUser.category === 'tech' ? 'Técnico(a)' : 'eMult';
+  const isEmultUser = professionalUser.category === 'emult';
+  const categoryLabel = isEmultUser ? (professionalUser as any).function_name || 'eMult' : professionalUser.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)';
   const CategoryIcon = professionalUser.category === 'nurse' ? Stethoscope : professionalUser.category === 'tech' ? Syringe : Users;
   const updatedLabel = portalData ? format(parseISO(portalData.publishedAt), "dd/MM 'às' HH:mm", { locale: ptBR }) : '';
+
+  // eMult schedule data
+  const emultData = portalData?.emult;
+  const DAYS_LABELS: Record<string, string> = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' };
+  const PERIOD_LABELS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' };
+
+  // Find eMult professional by name match
+  const myEmultProfessional = useMemo(() => {
+    if (!isEmultUser || !emultData?.professionals) return null;
+    const name = professionalUser.full_name.toLowerCase().trim();
+    return emultData.professionals.find(p =>
+      p.name.toLowerCase().trim() === name
+    ) || null;
+  }, [isEmultUser, emultData, professionalUser]);
+
+  const myEmultSchedule = useMemo(() => {
+    if (!myEmultProfessional || !emultData?.schedule) return [];
+    return emultData.schedule.filter(s => s.professionalId === myEmultProfessional.id);
+  }, [myEmultProfessional, emultData]);
+
+  const getEmultUnit = (unitId: string) => emultData?.units?.find(u => u.id === unitId);
+  const getEmultFunction = (funcId: string) => emultData?.functions?.find(f => f.id === funcId);
 
   const statusBadge = (status: string) => {
     if (status === 'approved') return (
