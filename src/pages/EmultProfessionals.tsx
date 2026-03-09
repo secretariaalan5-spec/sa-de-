@@ -38,6 +38,7 @@ export default function EmultProfessionals() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<EmultUser | null>(null);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
 
   const fetchEmultUsers = useCallback(async () => {
     if (!profile?.team_id) return;
