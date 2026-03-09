@@ -228,7 +228,10 @@ export default function ProfessionalApprovals() {
     fetchData();
   };
 
-  const categoryLabel = (cat: string) => cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  const categoryLabel = (cat: string, fn?: string | null) => {
+    if (cat === 'emult' && fn) return fn;
+    return cat === 'nurse' ? 'Enfermeiro(a)' : cat === 'tech' ? 'Técnico(a)' : 'eMult';
+  };
   const categoryIcon = (cat: string) => cat === 'nurse' ? <Stethoscope className="w-4 h-4" /> : cat === 'tech' ? <Syringe className="w-4 h-4" /> : <Users className="w-4 h-4" />;
   const categoryColorClass = (cat: string) => cat === 'nurse' ? 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30' : cat === 'tech' ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/30' : 'text-violet-600 bg-violet-100 dark:bg-violet-900/30';
   const categoryBarColor = (cat: string) => cat === 'nurse' ? 'bg-emerald-400' : cat === 'tech' ? 'bg-blue-400' : 'bg-violet-400';
