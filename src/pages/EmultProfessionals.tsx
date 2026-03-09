@@ -11,9 +11,12 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Trash2, Mail, Briefcase } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Users, Search, Trash2, Mail, Briefcase, User, Calendar, Clock, MapPin } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
+import { useAppData } from '@/hooks/useAppData';
 import { toast } from 'sonner';
+import { DAYS_OF_WEEK, PERIODS } from '@/types';
 
 interface EmultUser {
   id: string;
@@ -30,9 +33,11 @@ interface EmultUser {
 
 export default function EmultProfessionals() {
   const { profile } = useProfile();
+  const { data: appData, getWeeklyHoursUsed } = useAppData();
   const [users, setUsers] = useState<EmultUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<EmultUser | null>(null);
 
   const fetchEmultUsers = useCallback(async () => {
     if (!profile?.team_id) return;
@@ -109,7 +114,7 @@ export default function EmultProfessionals() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(user => (
-            <div key={user.id} className="page-card overflow-hidden group">
+            <div key={user.id} className="page-card overflow-hidden group cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedUser(user)}>
               <div className="h-1 -mx-5 -mt-5 mb-4 cat-bar-emult" />
 
               <div className="flex items-center gap-3">
@@ -136,7 +141,7 @@ export default function EmultProfessionals() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => handleRemove(user)}
+                  onClick={(e) => { e.stopPropagation(); handleRemove(user); }}
                   title="Remover profissional"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -150,6 +155,123 @@ export default function EmultProfessionals() {
       <p className="text-xs text-muted-foreground">
         {filtered.length} profissional(is) eMult
       </p>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="bg-card max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Detalhes do Profissional
+            </DialogTitle>
+          </DialogHeader>
+          {selectedUser && (() => {
+            // Find matching professional in schedule data
+            const prof = appData.professionals.find(p =>
+              p.name.toLowerCase() === selectedUser.full_name.toLowerCase() ||
+              p.id === selectedUser.professional_id
+            );
+            const func = prof ? appData.functions.find(f => f.id === prof.functionId) : null;
+            const profSchedule = prof ? appData.schedule.filter(s => s.professionalId === prof.id) : [];
+            const used = prof ? getWeeklyHoursUsed(prof.id) : 0;
+            const limit = prof?.weeklyHours || 0;
+
+            return (
+              <div className="space-y-5 mt-2">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-primary-foreground shrink-0 cat-icon-emult">
+                    {selectedUser.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-foreground">{selectedUser.full_name}</h3>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Mail className="w-3.5 h-3.5" />
+                      {selectedUser.email}
+                    </div>
+                    {selectedUser.function_name && (
+                      <Badge variant="outline" className="text-primary border-primary">
+                        <Briefcase className="w-3 h-3 mr-1" />
+                        {selectedUser.function_name}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Briefcase className="w-3.5 h-3.5" />
+                      Categoria
+                    </div>
+                    <Badge variant="secondary" className="cat-text-emult">eMult</Badge>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5" />
+                      Carga Semanal
+                    </div>
+                    <p className="text-lg font-bold text-foreground">
+                      {prof ? (
+                        <>
+                          <span className={used > limit ? 'text-destructive' : ''}>{used}h</span>
+                          <span className="text-muted-foreground font-normal text-sm"> / {limit}h</span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Sem escala</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Escala Semanal
+                  </h4>
+                  {profSchedule.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">Nenhuma escala definida</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {DAYS_OF_WEEK.map(day => {
+                        const dayEntries = profSchedule.filter(s => s.dayOfWeek === day.key);
+                        if (dayEntries.length === 0) return null;
+                        return (
+                          <div key={day.key} className="flex items-start gap-2 text-sm">
+                            <span className="font-medium text-foreground w-20 shrink-0">{day.label}:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {dayEntries.map(entry => {
+                                const unit = appData.units.find(u => u.id === entry.unitId);
+                                const periodLabel = PERIODS.find(p => p.key === entry.period)?.label || entry.period;
+                                return (
+                                  <Badge key={entry.id} variant="secondary" className="text-xs">
+                                    <MapPin className="w-3 h-3 mr-1" />
+                                    {unit?.name} – {periodLabel}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <span className="font-medium">Cadastrado em:</span>{' '}
+                  {new Date(selectedUser.created_at).toLocaleDateString('pt-BR')}
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
