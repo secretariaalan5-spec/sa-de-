@@ -74,10 +74,10 @@ export function useTeamMembers() {
     fetchMembers();
   }, [fetchMembers]);
 
-  const updateMemberPermissions = useCallback(async (memberId: string, permissions: Record<string, boolean>) => {
+  const updateMemberPermissions = useCallback(async (memberId: string, permissions: Record<string, boolean>, role: string = 'member') => {
     const { error } = await supabase
       .from('team_members' as any)
-      .update({ permissions } as any)
+      .update({ permissions, role } as any)
       .eq('id', memberId) as any;
 
     if (error) {
@@ -85,7 +85,7 @@ export function useTeamMembers() {
       return false;
     }
 
-    toast.success('Permissões atualizadas!');
+    toast.success('Alterações salvas!');
     await fetchMembers();
     return true;
   }, [fetchMembers]);
@@ -116,7 +116,7 @@ export function useTeamMembers() {
     return true;
   }, [fetchMembers, members]);
 
-  const approveManagerRequest = useCallback(async (requestId: string, permissions: Record<string, boolean>) => {
+  const approveManagerRequest = useCallback(async (requestId: string, permissions: Record<string, boolean>, role: string = 'member') => {
     const request = pendingRequests.find(r => r.id === requestId);
     if (!request) return false;
 
@@ -147,7 +147,7 @@ export function useTeamMembers() {
         owner_id: user.id,
         member_id: request.user_id,
         member_email: request.email,
-        role: 'member',
+        role: role,
         status: 'accepted',
         permissions,
         team_id: profile?.team_id,
@@ -158,7 +158,7 @@ export function useTeamMembers() {
       console.error('Insert team_member error:', insertError);
       toast.error('Solicitação aprovada em professional_users, mas erro ao criar registro de membro.');
     } else {
-      toast.success(`${request.full_name} agora é um gestor da equipe!`);
+      toast.success(`${request.full_name} agora é um ${role === 'admin' ? 'Administrador' : 'Gestor'} da equipe!`);
     }
 
     await fetchMembers();

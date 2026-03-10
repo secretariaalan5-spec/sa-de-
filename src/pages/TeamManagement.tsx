@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,7 @@ export default function TeamManagement() {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<PendingManagerRequest | null>(null);
   const [perms, setPerms] = useState<Record<string, boolean>>({ ...DEFAULT_PERMISSIONS });
+  const [role, setRole] = useState<string>('member');
   const [copied, setCopied] = useState(false);
 
   const inviteLink = teamId
@@ -71,25 +73,27 @@ export default function TeamManagement() {
   const openApprove = (req: PendingManagerRequest) => {
     setSelectedRequest(req);
     setPerms({ ...DEFAULT_PERMISSIONS });
+    setRole('member');
     setApprovalDialogOpen(true);
   };
 
   const openEdit = (member: TeamMember) => {
     setEditingMember(member);
     setPerms({ ...DEFAULT_PERMISSIONS, ...member.permissions });
+    setRole(member.role || 'member');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (editingMember) {
-      await updateMemberPermissions(editingMember.id, perms);
+      await updateMemberPermissions(editingMember.id, perms, role);
     }
     setDialogOpen(false);
   };
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
-    const ok = await approveManagerRequest(selectedRequest.id, perms);
+    const ok = await approveManagerRequest(selectedRequest.id, perms, role);
     if (ok) setApprovalDialogOpen(false);
   };
 
@@ -187,9 +191,14 @@ export default function TeamManagement() {
                           <Mail className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <CardTitle className="text-base font-bold">{member.member_email}</CardTitle>
+                          <CardTitle className="text-base font-bold flex items-center gap-2">
+                            {member.member_email}
+                            <Badge variant="outline" className={member.role === 'admin' ? "text-violet-600 border-violet-200 bg-violet-50" : "text-slate-600 border-slate-200 bg-slate-50"}>
+                              {member.role === 'admin' ? 'Admin' : 'Gestor'}
+                            </Badge>
+                          </CardTitle>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {getActivePermsCount(member.permissions || {})}/{Object.keys(PERMISSION_LABELS).length} permissões ativas
+                            {getActivePermsCount(member.permissions || {})} / {Object.keys(PERMISSION_LABELS).length} permissões ativas
                           </p>
                         </div>
                       </div>
@@ -284,6 +293,20 @@ export default function TeamManagement() {
               <p className="font-bold">{editingMember?.member_email}</p>
             </div>
 
+            <div className="space-y-3">
+              <Label className="text-xs uppercase font-bold text-primary">Nível de Acesso</Label>
+              <RadioGroup value={role} onValueChange={setRole} className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="member" id="r-member-edit" />
+                  <Label htmlFor="r-member-edit" className="font-medium">Gestor</Label>
+                </div>
+                <div className="flex items-center space-x-2 text-violet-600">
+                  <RadioGroupItem value="admin" id="r-admin-edit" />
+                  <Label htmlFor="r-admin-edit" className="font-bold">Administrador</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-3 border-b pb-2">
                 <Label className="text-xs uppercase font-bold text-primary">Permissões de acesso</Label>
@@ -335,6 +358,21 @@ export default function TeamManagement() {
               <p className="text-xs text-muted-foreground">Profissional:</p>
               <p className="font-bold">{selectedRequest?.full_name}</p>
               <p className="text-xs">{selectedRequest?.email}</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs uppercase font-bold text-emerald-600">Nível de Acesso</Label>
+              <RadioGroup value={role} onValueChange={setRole} className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="member" id="r-member" />
+                  <Label htmlFor="r-member" className="font-medium">Gestor</Label>
+                </div>
+                <div className="flex items-center space-x-2 text-violet-600">
+                  <RadioGroupItem value="admin" id="r-admin" />
+                  <Label htmlFor="r-admin" className="font-bold">Administrador</Label>
+                </div>
+              </RadioGroup>
+              <p className="text-[10px] text-muted-foreground italic">Administradores têm acesso total por padrão, mas você pode definir permissões específicas abaixo.</p>
             </div>
 
             <div>
