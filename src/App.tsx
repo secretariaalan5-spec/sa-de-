@@ -29,7 +29,6 @@ import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
 import TeamManagement from "./pages/TeamManagement";
-import AdminInvite from "./pages/AdminInvite";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -121,7 +120,6 @@ const App = () => (
               </Route>
 
               <Route path="/portal" element={<Portal />} />
-              <Route path="/convite-admin" element={<AdminInvite />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ServiceStateProvider>
