@@ -1,0 +1,905 @@
+﻿diff --cc src/pages/Portal.tsx
+index 36534ef,c90422e..0000000
+--- a/src/pages/Portal.tsx
++++ b/src/pages/Portal.tsx
+@@@ -170,54 -225,40 +225,51 @@@ function GoogleLoginScreen({ onLogin, l
+    );
+  }
+  
+- // ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+- // Registration Screen
+- // ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+- function RegistrationScreen({
+-   onRegister,
+-   adminId,
+-   userEmail,
+-   userName,
+-   presetRole,
+- }: {
+-   onRegister: (teamId: string, category: string, fullName: string) => void;
+-   adminId: string | null;
+-   userEmail: string;
+-   userName: string;
+-   presetRole: string | null;
+- }) {
++ // ÔöÇÔöÇÔöÇ Registration Screen ÔöÇÔöÇÔöÇ
++ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onRegister: (t: string, c: string, n: string, fn?: string) => void; teamId: string | null; userEmail: string; userName: string; }) {
+    const [fullName, setFullName] = useState(userName || '');
+-   const [teamId, setTeamId] = useState<string | null>(null);
+-   const [loadingTeam, setLoadingTeam] = useState(true);
+- 
+-   const roleFromUrl = presetRole && ['nurse', 'tech'].includes(presetRole) ? presetRole : null;
+- 
++   const [category, setCategory] = useState('');
++   const [functionName, setFunctionName] = useState('');
++   const [nameError, setNameError] = useState('');
++   const [teamValid, setTeamValid] = useState<boolean | null>(null);
++   const [checkingTeam, setCheckingTeam] = useState(false);
++ 
++   const emultFunctions = [
++     'Psic├│logo(a)', 'Fisioterapeuta', 'Nutricionista', 'Assistente Social',
++     'Educador(a) F├¡sico', 'Fonoaudi├│logo(a)', 'Terapeuta Ocupacional', 'Farmac├¬utico(a)',
++   ];
++ 
++   // Validar team_id no banco ao montar
+    useEffect(() => {
+-     const fetchAdminTeam = async () => {
+-       if (!adminId) {
+-         setLoadingTeam(false);
+-         return;
+-       }
++     if (!teamId) { setTeamValid(false); return; }
++     setCheckingTeam(true);
++     (async () => {
+        try {
+++<<<<<<< HEAD
+ +        const { data, error } = await supabase.rpc('get_user_team_id', { _user_id: adminId });
+ +
+ +        if (error) throw error;
+ +        // Se encontrar team_id, usa ele.
+ +        setTeamId(data || null);
+ +      } catch (err) {
+ +        console.error('Erro ao buscar equipe:', err);
+ +        setTeamId(null);
+++=======
++         const { data } = await supabase.from('teams').select('id').eq('id', teamId).maybeSingle();
++         setTeamValid(!!data?.id);
++       } catch {
++         setTeamValid(false);
+++>>>>>>> dad2020c09c39bac736570650221f1e6bbcf8bcf
+        } finally {
+-         setLoadingTeam(false);
++         setCheckingTeam(false);
+        }
+-     };
+-     fetchAdminTeam();
+-   }, [adminId]);
++     })();
++   }, [teamId]);
+  
+-   if (loadingTeam) {
++   if (checkingTeam) {
+      return (
+-       <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-[#0f172a]">
+-         <Loader2 className="h-8 w-8 animate-spin text-primary" />
++       <div className="portal-native min-h-screen flex items-center justify-center bg-background">
++         <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        </div>
+      );
+    }
+@@@ -653,342 -763,475 +774,815 @@@ export default function Portal() 
+          </div>
+        </header>
+  
+++<<<<<<< HEAD
+ +      <main className="container mx-auto px-4 py-6 md:py-10">
+ +        {loadingPortal ? (
+ +          <div className="space-y-4 w-full max-w-2xl mx-auto">
+ +            <Skeleton className="h-16 w-full rounded-xl" />
+ +            <Skeleton className="h-64 w-full rounded-xl" />
+ +          </div>
+ +        ) : (
+ +          <div className="space-y-6 md:space-y-8">
+ +            {/* Mobile info bar */}
+ +            <div className="flex xl:hidden items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+ +              <div className="flex items-center gap-3">
+ +                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500">
+ +                  <Clock className="h-4 w-4" />
+ +                </div>
+ +                <div className="flex flex-col">
+ +                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Atualizado em</span>
+ +                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{updatedLabel}</span>
+ +                </div>
+ +              </div>
+ +              <Button
+ +                variant="secondary"
+ +                size="icon"
+ +                className="h-10 w-10 rounded-xl text-primary bg-primary/10 hover:bg-primary/20"
+ +                onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+ +                disabled={loadingPortal}
+ +              >
+ +                <RefreshCw className={cn("h-4 w-4", loadingPortal && "animate-spin")} />
+ +              </Button>
+ +            </div>
+ +
+ +            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+ +              {/* Coluna 1: Calend├írio da Escala (Span 5) */}
+ +              <div className="xl:col-span-5 space-y-6">
+ +                <div className="px-1 flex items-center justify-between">
+ +                  <div>
+ +                    <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+ +                      <Calendar className="h-6 w-6 text-primary" /> Minha Escala
+ +                    </h2>
+ +                    <p className="text-sm text-slate-500 font-medium">Seus dias de trabalho</p>
+ +                  </div>
+ +                  <Button
+ +                    variant="ghost"
+ +                    size="icon"
+ +                    className="hidden xl:flex h-10 w-10 rounded-xl text-primary hover:bg-primary/10"
+ +                    onClick={() => { fetchPortalData(); refreshLeaveRequests(); }}
+ +                    disabled={loadingPortal}
+ +                    title="Atualizar Dados"
+ +                  >
+ +                    <RefreshCw className={cn("h-5 w-5", loadingPortal && "animate-spin")} />
+ +                  </Button>
+ +                </div>
+ +
+ +                <Card className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+ +                  <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-100 dark:border-slate-800/80">
+ +                    <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-10 w-10 rounded-xl">
+ +                      <ChevronLeft className="h-5 w-5" />
+ +                    </Button>
+ +                    <h3 className="text-base font-black capitalize text-slate-700 dark:text-slate-200">
+ +                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+ +                    </h3>
+ +                    <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-10 w-10 rounded-xl">
+ +                      <ChevronRight className="h-5 w-5" />
+ +                    </Button>
+ +                  </div>
+ +
+ +                  <div className="overflow-x-auto">
+ +                    <div className="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-800 min-w-[300px]">
+ +                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'S├íb'].map(day => (
+ +                        <div key={day} className="text-center text-[10px] font-black p-3 bg-slate-50 dark:bg-slate-800/80 text-slate-400 uppercase tracking-wider">{day}</div>
+ +                      ))}
+ +                      {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
+ +                        <div key={`empty-${i}`} className="p-2 bg-white dark:bg-slate-900 min-h-[60px]" />
+ +                      ))}
+ +                      {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map(day => {
+ +                        const dateStr = format(day, 'yyyy-MM-dd');
+ +                        const hasEntry = myEntries.some(e => e.date === dateStr);
+ +                        const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+ +                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+ +
+ +                        return (
+ +                          <div key={dateStr} className={cn(
+ +                            'min-h-[70px] p-2 transition-colors relative flex flex-col items-center',
+ +                            isWeekend ? 'bg-slate-50/50 dark:bg-slate-800/20' : 'bg-white dark:bg-slate-900'
+ +                          )}>
+ +                            <div className={cn(
+ +                              'text-xs font-black mb-1 w-7 h-7 flex items-center justify-center rounded-xl',
+ +                              isToday ? 'bg-primary text-white shadow-md shadow-primary/30' :
+ +                                isWeekend ? 'text-slate-400' : 'text-slate-700 dark:text-slate-300'
+ +                            )}>
+ +                              {format(day, 'd')}
+ +                            </div>
+ +                            {hasEntry && (
+ +                              <div className={cn(
+ +                                'text-[9px] w-full px-1 py-1 rounded-md font-bold uppercase text-center border truncate',
+ +                                professionalUser.category === 'nurse'
+ +                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+ +                                  : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+ +                              )}>
+ +                                {isWeekend ? 'FDS' : 'Escala'}
+ +                              </div>
+ +                            )}
+ +                          </div>
+ +                        );
+ +                      })}
+ +                    </div>
+ +                  </div>
+ +                </Card>
+ +              </div>
+ +
+ +              {/* Coluna 2: Cr├®ditos (Span 3) */}
+ +              <div className="xl:col-span-3 space-y-6">
+ +                <div className="px-1">
+ +                  <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+ +                    <Clock className="h-6 w-6 text-primary" /> Cr├®ditos
+ +                  </h2>
+ +                  <p className="text-sm text-slate-500 font-medium">Balan├ºo do m├¬s</p>
+ +                </div>
+ +
+ +                <div className="grid grid-cols-2 xl:grid-cols-1 gap-4">
+ +                  <Card className="rounded-[1.5rem] border-0 shadow-md">
+ +                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
+ +                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Dias Trabalhados</p>
+ +                      <p className="text-3xl font-black text-slate-700 dark:text-slate-200">{myStats.workedDays}</p>
+ +                    </CardContent>
+ +                  </Card>
+ +                  <Card className="rounded-[1.5rem] border-0 shadow-md bg-amber-50 dark:bg-amber-900/10">
+ +                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
+ +                      <p className="text-[10px] font-bold text-amber-500 uppercase tracking-tight mb-2">Fins de Semana</p>
+ +                      <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{myStats.weekendDays}</p>
+ +                    </CardContent>
+ +                  </Card>
+ +                  <Card className="rounded-[1.5rem] border-0 shadow-md">
+ +                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
+ +                      <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-tight mb-2">
+ +                        <TrendingUp className="w-3 h-3" /> Gerados
+ +                      </div>
+ +                      <p className="text-3xl font-black text-emerald-600">{myStats.creditsGenerated}</p>
+ +                    </CardContent>
+ +                  </Card>
+ +                  <Card className={cn(
+ +                    "rounded-[1.5rem] border-0 shadow-md",
+ +                    myStats.creditsBalance > 0 ? 'bg-emerald-50 dark:bg-emerald-900/10' :
+ +                      myStats.creditsBalance < 0 ? 'bg-rose-50 dark:bg-rose-900/10' : ''
+ +                  )}>
+ +                    <CardContent className="p-5 text-center flex flex-col items-center justify-center h-full">
+ +                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Saldo Livre</p>
+ +                      <p className={cn(
+ +                        "text-4xl font-black",
+ +                        myStats.creditsBalance > 0 ? 'text-emerald-600' :
+ +                          myStats.creditsBalance < 0 ? 'text-rose-600' : 'text-slate-500'
+ +                      )}>
+ +                        {myStats.creditsBalance}
+ +                      </p>
+ +                      <p className="text-[10px] text-slate-400 mt-1 font-medium">(Usado: {myStats.creditsUsed})</p>
+ +                    </CardContent>
+ +                  </Card>
+ +                </div>
+ +              </div>
+ +
+ +              {/* Coluna 3: Pedidos de Folga (Span 4) */}
+ +              <div className="xl:col-span-4 space-y-6">
+ +                <div className="px-1">
+ +                  <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+ +                    <FileText className="h-6 w-6 text-primary" /> Pedidos
+ +                  </h2>
+ +                  <p className="text-sm text-slate-500 font-medium">Solicite e veja aprova├º├Áes</p>
+++=======
++       {/* ÔòÉÔòÉÔòÉ CONTENT ÔòÉÔòÉÔòÉ */}
++       <div ref={contentRef} className="flex-1 overflow-y-auto pb-[80px]">
++         <div className="max-w-lg mx-auto px-5 py-5">
++           {loadingPortal ? (
++             <div className="space-y-4">
++               <Skeleton className="h-36 w-full rounded-3xl" />
++               <div className="grid grid-cols-3 gap-3"><Skeleton className="h-20 rounded-2xl" /><Skeleton className="h-20 rounded-2xl" /><Skeleton className="h-20 rounded-2xl" /></div>
++               <Skeleton className="h-64 w-full rounded-3xl" />
++             </div>
++           ) : (
++             <div key={activeTab} className="portal-page-enter">
++ 
++               {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ SCHEDULE ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
++               {activeTab === 'schedule' && (
++                 <div className="space-y-5">
++                   {isEmultUser ? (
++                     /* ÔöÇÔöÇ eMult: Weekly Schedule ÔöÇÔöÇ */
++                     <>
++                       <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
++                         style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
++                         <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
++                         <div className="relative z-10">
++                           <div className="flex items-center gap-2 mb-2">
++                             <CalendarDays className="w-4 h-4 text-primary-foreground/70" />
++                             <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Escala Semanal</p>
++                           </div>
++                           <p className="text-primary-foreground text-[20px] font-black leading-tight">
++                             {myEmultProfessional?.name || professionalUser.full_name}
++                           </p>
++                           {myEmultProfessional && (
++                             <p className="text-primary-foreground/60 text-[12px] font-semibold mt-1">
++                               {getEmultFunction(myEmultProfessional.functionId)?.name || categoryLabel}
++                             </p>
++                           )}
++                         </div>
++                       </div>
++ 
++                       {myEmultSchedule.length === 0 ? (
++                         <GlassCard className="py-14 px-6 text-center">
++                           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
++                             <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
++                           </div>
++                           <p className="text-[15px] font-bold text-muted-foreground">Sem escala publicada</p>
++                           <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Aguarde o administrador publicar sua escala</p>
++                         </GlassCard>
++                       ) : (
++                         <div className="space-y-3">
++                           {DAYS_ORDER.map(dayKey => {
++                             const dayEntries = myEmultSchedule.filter(s => s.dayOfWeek === dayKey);
++                             if (dayEntries.length === 0) return null;
++ 
++                             return (
++                               <GlassCard key={dayKey} className="overflow-hidden">
++                                 <div className="px-4 py-3 bg-primary/5 border-b border-border/20 flex items-center gap-2.5">
++                                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
++                                     <Calendar className="w-4 h-4 text-primary" />
++                                   </div>
++                                   <span className="text-[14px] font-black text-foreground">{DAYS_LABELS[dayKey]}</span>
++                                 </div>
++                                 <div className="divide-y divide-border/15">
++                                   {dayEntries.map((entry, i) => {
++                                     const unit = getEmultUnit(entry.unitId);
++                                     return (
++                                       <div key={i} className="px-4 py-3.5 flex items-center gap-3.5">
++                                         <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
++                                           <Heart className="w-4 h-4 text-accent" />
++                                         </div>
++                                         <div className="flex-1 min-w-0">
++                                           <p className="text-[14px] font-bold text-foreground truncate">{unit?.name || 'Unidade'}</p>
++                                           <p className="text-[11px] text-muted-foreground font-medium">{PERIOD_LABELS[entry.period] || entry.period}</p>
++                                         </div>
++                                       </div>
++                                     );
++                                   })}
++                                 </div>
++                               </GlassCard>
++                             );
++                           })}
++ 
++                           {/* Days without schedule */}
++                           {(() => {
++                             const daysWithSchedule = new Set(myEmultSchedule.map(s => s.dayOfWeek));
++                             const daysOff = DAYS_ORDER.filter(d => !daysWithSchedule.has(d));
++                             if (daysOff.length === 0) return null;
++                             return (
++                               <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground/50 font-medium">
++                                 <CalendarOff className="w-3.5 h-3.5" />
++                                 Sem escala: {daysOff.map(d => DAYS_LABELS[d]).join(', ')}
++                               </div>
++                             );
++                           })()}
++                         </div>
++                       )}
++ 
++                       {updatedLabel && (
++                         <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/40 font-medium">
++                           <Clock className="w-3 h-3" /> Atualizado em {updatedLabel}
++                         </div>
++                       )}
++                     </>
++                   ) : (
++                     /* ÔöÇÔöÇ Nurse/Tech: Monthly Calendar ÔöÇÔöÇ */
++                     <>
++                       {/* Hero stats card */}
++                       <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
++                         style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
++                         <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
++                         <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
++                         <div className="relative z-10">
++                           <div className="flex items-center gap-2 mb-3">
++                             <Activity className="w-4 h-4 text-primary-foreground/70" />
++                             <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
++                           </div>
++                           <div className="flex items-end justify-between">
++                             <div>
++                               <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
++                               <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
++                             </div>
++                             <div className="text-right space-y-2">
++                               <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
++                                 <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
++                                 <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
++                                 <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
++                               </div>
++                               <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
++                                 <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
++                                 <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
++                                 <span className="text-primary-foreground/60 text-[10px] font-semibold">cr├®d</span>
++                               </div>
++                             </div>
++                           </div>
++                         </div>
++                       </div>
++ 
++                       {/* Month nav */}
++                       <div className="flex items-center justify-between px-1">
++                         <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
++                           <ChevronLeft className="h-5 w-5" />
++                         </button>
++                         <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
++                           {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
++                         </h2>
++                         <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
++                           <ChevronRight className="h-5 w-5" />
++                         </button>
++                       </div>
++ 
++                       {/* Calendar */}
++                       <GlassCard className="overflow-hidden">
++                         <div className="grid grid-cols-7 text-center border-b border-border/20">
++                           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
++                             <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
++                           ))}
++                         </div>
++                         <div className="grid grid-cols-7 p-1.5 gap-0.5">
++                           {(() => {
++                             const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
++                             const days = eachDayOfInterval({ start: ms, end: me });
++                             const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
++                             const cells = days.map(day => {
++                               const ds = format(day, 'yyyy-MM-dd');
++                               const hasWork = myEntries.some(e => e.date === ds);
++                               const isWknd = getDay(day) === 0 || getDay(day) === 6;
++                               const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
++                               const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
++                               return (
++                                 <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
++                                   <span className={cn(
++                                     "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
++                                     isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
++                                     hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
++                                     hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
++                                     hasLeave && !isToday && "bg-destructive/10 text-destructive",
++                                     !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
++                                     !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
++                                   )}>
++                                     {format(day, 'd')}
++                                   </span>
++                                   {hasWork && !isToday && (
++                                     <div className={cn(
++                                       "absolute bottom-1 w-1 h-1 rounded-full",
++                                       isWknd ? "bg-warning" : "bg-accent"
++                                     )} />
++                                   )}
++                                 </div>
++                               );
++                             });
++                             return [...blanks, ...cells];
++                           })()}
++                         </div>
++                       </GlassCard>
++ 
++                       {/* Legend */}
++                       <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
++                         <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia ├║til</span>
++                         <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
++                         <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
++                       </div>
++ 
++                       {/* Month stats */}
++                       <div className="grid grid-cols-3 gap-3">
++                         {[
++                           { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
++                           { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
++                           { value: myStats.month.creditsBalance, label: 'Cr├®ditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
++                         ].map((s, i) => (
++                           <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
++                             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
++                               <s.icon className={cn("w-4 h-4", s.color)} />
++                             </div>
++                             <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
++                             <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
++                           </GlassCard>
++                         ))}
++                       </div>
++                     </>
++                   )}
+                  </div>
++               )}
+  
++               {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ CREDITS ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
++               {activeTab === 'credits' && (
++                 <div className="space-y-5">
++                   <GlassCard className="p-7 text-center">
++                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
++                       <Zap className="w-3 h-3" /> Saldo de Cr├®ditos
++                     </div>
++                     <CreditRing balance={myStats.overall.creditsBalance} total={Math.max(myStats.overall.creditsGenerated, 1)} />
++                     <p className="text-[13px] text-muted-foreground font-medium mt-3">dias dispon├¡veis para folga</p>
++                   </GlassCard>
++ 
++                   <div className="grid grid-cols-2 gap-3">
++                     <GlassCard className="p-5 text-center">
++                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center mx-auto mb-2.5">
++                         <TrendingUp className="w-6 h-6 text-accent" />
++                       </div>
++                       <p className="text-3xl font-black text-accent">{myStats.overall.creditsGenerated}</p>
++                       <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Gerados</p>
++                     </GlassCard>
++                     <GlassCard className="p-5 text-center">
++                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-destructive/15 to-destructive/5 flex items-center justify-center mx-auto mb-2.5">
++                         <TrendingDown className="w-6 h-6 text-destructive" />
++                       </div>
++                       <p className="text-3xl font-black text-destructive">{myStats.overall.creditsUsed}</p>
++                       <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Utilizados</p>
++                     </GlassCard>
++                   </div>
++ 
++                   <GlassCard className="overflow-hidden">
++                     <div className="px-5 py-3.5 bg-muted/20 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] capitalize flex items-center gap-2">
++                       <Calendar className="w-3.5 h-3.5" />
++                       {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
++                     </div>
++                     {[
++                       { label: 'Cr├®ditos gerados', value: `+${myStats.month.creditsGenerated}`, color: 'text-accent', icon: TrendingUp },
++                       { label: 'Cr├®ditos utilizados', value: `-${myStats.month.creditsUsed}`, color: 'text-destructive', icon: TrendingDown },
++                       { label: 'Saldo do m├¬s', value: `${myStats.month.creditsBalance}`, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Star, bold: true },
++                     ].map((row, i) => (
++                       <div key={i} className="px-5 py-3.5 flex items-center justify-between border-t border-border/20">
++                         <div className="flex items-center gap-2.5">
++                           <row.icon className={cn("w-4 h-4", row.color, "opacity-60")} />
++                           <span className={cn("text-[13px]", row.bold ? "font-bold text-foreground" : "text-muted-foreground font-medium")}>{row.label}</span>
++                         </div>
++                         <span className={cn("text-[14px] font-black", row.color)}>{row.value}</span>
++                       </div>
++                     ))}
++                   </GlassCard>
++ 
++                   <div className="flex items-start gap-3 px-2 py-3 rounded-2xl bg-primary/5 border border-primary/10">
++                     <Sparkles className="w-5 h-5 text-primary/40 shrink-0 mt-px" />
++                     <p className="text-[12px] text-muted-foreground leading-relaxed">Cada final de semana trabalhado gera <strong className="text-foreground">2 cr├®ditos</strong> automaticamente.</p>
++                   </div>
++                 </div>
++               )}
++ 
++               {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ LEAVES ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
++               {activeTab === 'leaves' && (
++                 <div className="space-y-4">
++                   <ActionButton onClick={() => setLeaveDialogOpen(true)} icon={Plus}>
++                     Nova Solicita├º├úo
++                   </ActionButton>
++ 
++                   <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
++                     <DialogContent className="rounded-3xl max-w-[380px] mx-auto p-6">
++                       <DialogHeader><DialogTitle className="text-[18px] font-black">Nova Solicita├º├úo</DialogTitle></DialogHeader>
++                       <div className="space-y-4 pt-2">
++                         <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-primary/5 border border-primary/10">
++                           <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
++                           <p className="text-[11px] text-foreground/70 leading-relaxed font-medium">Solicite com m├¡nimo <strong>10 dias de anteced├¬ncia</strong>. Imprevistos ser├úo analisados pela coordena├º├úo.</p>
++                         </div>
++                         <div>
++                           <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de afastamento</Label>
++                           <Select value={leaveForm.leaveType} onValueChange={(v) => setLeaveForm(p => ({ ...p, leaveType: v as LeaveType }))}>
++                             <SelectTrigger className="h-12 rounded-2xl text-[13px] font-medium border-2"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger>
++                             <SelectContent>{Object.entries(LEAVE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
++                           </Select>
++                           {leaveForm.leaveType === 'folga_credito' && (
++                             <p className="text-[11px] text-accent mt-1.5 font-bold flex items-center gap-1">
++                               <Zap className="w-3 h-3" />Saldo dispon├¡vel: {myStats.overall.creditsBalance} dias
++                             </p>
++                           )}
++                         </div>
++                         <div className="grid grid-cols-2 gap-3">
++                           <div>
++                             <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">In├¡cio</Label>
++                             <input type="date" value={leaveForm.startDate} onChange={(e) => setLeaveForm(p => ({ ...p, startDate: e.target.value }))}
++                               className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
++                           </div>
++                           <div>
++                             <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fim</Label>
++                             <input type="date" value={leaveForm.endDate} onChange={(e) => setLeaveForm(p => ({ ...p, endDate: e.target.value }))}
++                               className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
++                           </div>
++                         </div>
++                         {daysRequested > 0 && (
++                           <div className="text-center">
++                             <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/10 text-primary text-[14px] font-black shadow-sm">
++                               <CalendarDays className="w-4 h-4" />
++                               {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}
++                             </span>
++                           </div>
++                         )}
++                         <div>
++                           <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Observa├º├Áes (opcional)</Label>
++                           <Textarea value={leaveForm.observations} onChange={(e) => setLeaveForm(p => ({ ...p, observations: e.target.value }))} placeholder="Motivo ou detalhes..." className="rounded-2xl resize-none text-[13px] border-2 font-medium" rows={2} />
++                         </div>
++                         {isShortNotice && leaveForm.startDate && (
++                           <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-warning/8 border border-warning/15">
++                             <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
++                             <p className="text-[11px] text-foreground/70 font-medium"><strong>Prazo inferior ao recomendado.</strong> Sujeito ├á an├ílise da coordena├º├úo.</p>
++                           </div>
++                         )}
++                         <ActionButton onClick={handleSubmitLeave} disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1} icon={ArrowRight}>
++                           {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicita├º├úo'}
++                         </ActionButton>
++                       </div>
++                     </DialogContent>
++                   </Dialog>
++ 
++                   {/* List */}
++                   {leaveRequests.length === 0 ? (
++                     <GlassCard className="py-14 px-6 text-center">
++                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
++                         <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
++                       </div>
++                       <p className="text-[15px] font-bold text-muted-foreground">Sem solicita├º├Áes</p>
++                       <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Toque em "Nova Solicita├º├úo" para pedir folga</p>
++                     </GlassCard>
++                   ) : (
++                     <div className="space-y-3">
++                       {leaveRequests.map(req => (
++                         <GlassCard key={req.id} className="p-4.5 hover:shadow-md transition-shadow">
++                           <div className="p-4">
++                             <div className="flex items-start justify-between gap-3">
++                               <div className="min-w-0 flex-1">
++                                 <p className="font-bold text-[14px] text-foreground truncate">{LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}</p>
++                                 <div className="flex items-center gap-2 mt-2">
++                                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium bg-muted/40 px-2.5 py-1 rounded-full">
++                                     <CalendarDays className="w-3 h-3 shrink-0" />
++                                     {format(new Date(req.start_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}
++                                     {req.end_date !== req.start_date && <> ÔåÆ {format(new Date(req.end_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}</>}
++                                   </div>
++                                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
++                                     {req.days_requested}d
++                                   </span>
++                                 </div>
++                               </div>
++                               {statusBadge(req.status)}
++                             </div>
++                             {req.observations && (
++                               <p className="text-[11px] text-muted-foreground/60 italic mt-3 pt-3 border-t border-border/15 font-medium">"{req.observations}"</p>
++                             )}
++                           </div>
++                         </GlassCard>
++                       ))}
++                     </div>
++                   )}
+++>>>>>>> dad2020c09c39bac736570650221f1e6bbcf8bcf
++                 </div>
++               )}
++ 
+++<<<<<<< HEAD
+ +                {/* Form inline */}
+ +                <Card className="rounded-[2rem] border-0 shadow-xl bg-white dark:bg-slate-900 overflow-hidden">
+ +                  <div className="bg-primary/5 dark:bg-primary/10 p-5 border-b border-primary/10">
+ +                    <h3 className="font-black text-primary flex items-center gap-2">
+ +                      <Plus className="w-5 h-5" /> Nova Solicita├º├úo
+ +                    </h3>
+ +                  </div>
+ +                  <CardContent className="p-5 space-y-4 pt-5">
+ +                    <div>
+ +                      <Label className="text-xs font-bold text-slate-500 uppercase">Tipo de Afastamento</Label>
+ +                      <Select
+ +                        value={leaveForm.leaveType}
+ +                        onValueChange={(v) => setLeaveForm(prev => ({ ...prev, leaveType: v as LeaveType }))}
+ +                      >
+ +                        <SelectTrigger className="mt-1 h-12 rounded-xl border-slate-200">
+ +                          <SelectValue placeholder="Selecione o tipo" />
+ +                        </SelectTrigger>
+ +                        <SelectContent className="rounded-xl">
+ +                          {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([value, label]) => (
+ +                            <SelectItem key={value} value={value} className="rounded-lg">{label}</SelectItem>
+ +                          ))}
+ +                        </SelectContent>
+ +                      </Select>
+ +                    </div>
+ +
+ +                    {leaveForm.leaveType === 'folga_credito' && (
+ +                      <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-100 dark:border-indigo-800">
+ +                        <div className="flex items-center gap-2">
+ +                          <AlertCircle className="w-4 h-4" />
+ +                          <span className="text-sm font-medium">
+ +                            Saldo de cr├®ditos: <strong className="font-black">{myStats.creditsBalance} dias</strong>
+ +                          </span>
+ +                        </div>
+ +                      </div>
+ +                    )}
+ +
+ +                    <div className="grid grid-cols-2 gap-4">
+ +                      <div>
+ +                        <Label className="text-xs font-bold text-slate-500 uppercase">In├¡cio</Label>
+ +                        <Input
+ +                          type="date"
+ +                          className="mt-1 h-12 rounded-xl"
+ +                          value={leaveForm.startDate}
+ +                          onChange={(e) => setLeaveForm(prev => ({ ...prev, startDate: e.target.value }))}
+ +                        />
+ +                      </div>
+ +                      <div>
+ +                        <Label className="text-xs font-bold text-slate-500 uppercase">Fim</Label>
+ +                        <Input
+ +                          type="date"
+ +                          className="mt-1 h-12 rounded-xl"
+ +                          value={leaveForm.endDate}
+ +                          min={leaveForm.startDate || undefined}
+ +                          onChange={(e) => setLeaveForm(prev => ({ ...prev, endDate: e.target.value }))}
+ +                        />
+ +                      </div>
+ +                    </div>
+ +
+ +                    {daysRequested > 0 && (
+ +                      <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300">
+ +                        Dura├º├úo: <strong className="font-black text-slate-800 dark:text-white">{daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}</strong>
+ +                      </div>
+ +                    )}
+ +
+ +                    <div>
+ +                      <Label className="text-xs font-bold text-slate-500 uppercase">Observa├º├Áes Opcionais</Label>
+ +                      <Textarea
+ +                        className="mt-1 rounded-xl resize-none min-h-[80px]"
+ +                        value={leaveForm.observations}
+ +                        onChange={(e) => setLeaveForm(prev => ({ ...prev, observations: e.target.value }))}
+ +                        placeholder="Justificativa (se aplic├ível)..."
+ +                      />
+ +                    </div>
+ +
+ +                    <Button
+ +                      onClick={handleSubmitLeave}
+ +                      className="w-full h-12 rounded-xl font-bold gap-2 text-md shadow-lg hover:shadow-primary/25 transition-all"
+ +                      disabled={daysRequested < 1 || (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.creditsBalance)}
+ +                    >
+ +                      <CheckCircle2 className="w-5 h-5" /> Enviar Pedido
+ +                    </Button>
+ +                  </CardContent>
+ +                </Card>
+ +
+ +                {/* Historico List */}
+ +                <div className="space-y-4">
+ +                  <h3 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wider pl-1">Hist├│rico de Pedidos</h3>
+ +
+ +                  {leaveRequests.length === 0 && myLeaveRequestsFromAdmin.length === 0 ? (
+ +                    <div className="text-center py-10 bg-white/50 dark:bg-slate-900/50 rounded-[2rem] border border-slate-200 border-dashed dark:border-slate-800">
+ +                      <FileText className="h-8 w-8 mx-auto mb-3 text-slate-300" />
+ +                      <p className="text-sm text-slate-500 font-medium">Nenhum pedido feito.</p>
+ +                    </div>
+ +                  ) : (
+ +                    <div className="space-y-3">
+ +                      {/* Portal leave requests */}
+ +                      {leaveRequests.map(req => (
+ +                        <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
+ +                          <CardContent className="p-4 space-y-3">
+ +                            <div className="flex items-center justify-between">
+ +                              <Badge variant="secondary" className="text-[10px] font-bold">
+ +                                {LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}
+ +                              </Badge>
+ +                              {statusBadge(req.status)}
+ +                            </div>
+ +                            <div className="grid grid-cols-2 gap-2 text-sm">
+ +                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+ +                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Per├¡odo</div>
+ +                                <div className="font-medium text-slate-700 dark:text-slate-200">
+ +                                  {format(new Date(req.start_date + 'T00:00:00'), 'dd/MM')}
+ +                                  {req.end_date !== req.start_date && (
+ +                                    <> - {format(new Date(req.end_date + 'T00:00:00'), 'dd/MM')}</>
+ +                                  )}
+ +                                </div>
+ +                              </div>
+ +                              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2.5">
+ +                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Dura├º├úo</div>
+ +                                <div className="font-black text-primary">{req.days_requested} {req.days_requested === 1 ? 'dia' : 'dias'}</div>
+ +                              </div>
+ +                            </div>
+ +                            {req.observations && (
+ +                              <p className="text-xs text-slate-500 italic bg-slate-50/50 p-2 rounded-lg break-words">"{req.observations}"</p>
+ +                            )}
+ +                            <div className="text-[10px] text-slate-400 font-medium">
+ +                              {format(new Date(req.created_at), 'dd/MM/yyyy HH:mm')}
+ +                            </div>
+ +                          </CardContent>
+ +                        </Card>
+ +                      ))}
+ +
+ +                      {/* Admin-registered leave requests */}
+ +                      {myLeaveRequestsFromAdmin.map(req => (
+ +                        <Card key={req.id} className="rounded-[1.5rem] border-0 shadow-sm bg-slate-50/80 dark:bg-slate-800/30">
+ +                          <CardContent className="p-4 space-y-3">
+ +                            <div className="flex items-center justify-between">
+ +                              <Badge variant="secondary" className="text-[10px] font-bold">
+ +                                {LEAVE_TYPE_LABELS[req.leaveType] || req.leaveType}
+ +                              </Badge>
+ +                              <Badge className="bg-slate-200 text-slate-600 border-0 text-[10px] font-bold">
+ +                                Lan├ºado via Admin
+ +                              </Badge>
+ +                            </div>
+ +                            <div className="grid grid-cols-2 gap-2 text-sm">
+ +                              <div className="bg-white/50 dark:bg-slate-900/50 rounded-xl p-2.5">
+ +                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Per├¡odo</div>
+ +                                <div className="font-medium text-slate-700 dark:text-slate-200">
+ +                                  {req.leaveDates[0] && format(new Date(req.leaveDates[0] + 'T00:00:00'), 'dd/MM')}
+ +                                  {req.leaveDates.length > 1 && (
+ +                                    <> - {format(new Date(req.leaveDates[req.leaveDates.length - 1] + 'T00:00:00'), 'dd/MM')}</>
+ +                                  )}
+ +                                </div>
+ +                              </div>
+ +                              <div className="bg-white/50 dark:bg-slate-900/50 rounded-xl p-2.5">
+ +                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Dura├º├úo</div>
+ +                                <div className="font-black text-primary">{req.daysRequested} {req.daysRequested === 1 ? 'dia' : 'dias'}</div>
+ +                              </div>
+ +                            </div>
+ +                          </CardContent>
+ +                        </Card>
+ +                      ))}
+ +                    </div>
+ +                  )}
+ +                </div>
+ +              </div>
+ +            </div>
+ +          </div>
+ +        )}
+ +      </main>
+++=======
++               {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ PROFILE ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
++               {activeTab === 'profile' && (
++                 <div className="space-y-5">
++                   {/* Hero card */}
++                   <GlassCard className="overflow-hidden">
++                     <div className="h-24 relative" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
++                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,hsl(var(--primary-foreground)/0.1),transparent_60%)]" />
++                       <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
++                     </div>
++                     <div className="px-5 pb-6 -mt-12 relative z-10 flex flex-col items-center">
++                       <div className="relative mb-3">
++                         <div className="w-[88px] h-[88px] rounded-full overflow-hidden bg-card ring-4 ring-card flex items-center justify-center shadow-xl">
++                           {professionalUser.avatar_url
++                             ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
++                             : <span className="text-3xl font-black text-primary">{firstName[0]}</span>}
++                         </div>
++                         <button onClick={handleAvatarUpload} disabled={avatarUploading}
++                           className="portal-press absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-3 ring-card transition-transform hover:scale-110">
++                           {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
++                         </button>
++                       </div>
++                       <h2 className="text-[18px] font-black text-foreground mt-1">{myProfessional?.name || professionalUser.full_name}</h2>
++                       <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
++                         <CategoryIcon className="w-3.5 h-3.5" /> {categoryLabel}
++                       </div>
++                     </div>
++                   </GlassCard>
++ 
++                   {/* Quick stats - hidden for eMult */}
++                   {!isEmultUser && (
++                     <div className="grid grid-cols-3 gap-3">
++                       {[
++                         { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
++                         { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
++                         { value: myStats.overall.creditsBalance, label: 'Cr├®ditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
++                       ].map((s, i) => (
++                         <GlassCard key={i} className="p-3.5 text-center">
++                           <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
++                             <s.icon className={cn("w-4 h-4", s.color)} />
++                           </div>
++                           <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
++                           <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
++                         </GlassCard>
++                       ))}
++                     </div>
++                   )}
++ 
++                   {/* Info rows */}
++                   <GlassCard className="divide-y divide-border/20">
++                     {[
++                       { icon: Mail, label: 'E-mail', value: professionalUser.email, iconColor: 'text-primary', iconBg: 'bg-primary/10' },
++                       { icon: Shield, label: 'Status', value: 'Aprovado', cls: 'text-accent font-bold', iconColor: 'text-accent', iconBg: 'bg-accent/10' },
++                       { icon: Clock, label: 'Atualizado', value: updatedLabel || 'Sem dados', iconColor: 'text-muted-foreground', iconBg: 'bg-muted/60' },
++                     ].map((row, i) => (
++                       <div key={i} className="flex items-center gap-3.5 px-5 py-4">
++                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", row.iconBg)}>
++                           <row.icon className={cn("w-4.5 h-4.5", row.iconColor)} />
++                         </div>
++                         <div className="min-w-0 flex-1">
++                           <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em]">{row.label}</p>
++                           <p className={cn("text-[13px] text-foreground truncate font-medium", row.cls)}>{row.value}</p>
++                         </div>
++                       </div>
++                     ))}
++                   </GlassCard>
++ 
++                   {/* Actions */}
++                   <div className="space-y-3">
++                     {deferredPrompt && (
++                       <ActionButton onClick={handleInstall} variant="outline" icon={Download}>
++                         Instalar Aplicativo
++                       </ActionButton>
++                     )}
++                     <ActionButton onClick={logout} variant="danger" icon={LogOut}>
++                       Sair da Conta
++                     </ActionButton>
++                   </div>
++ 
++                   <p className="text-center text-[9px] text-muted-foreground/25 uppercase tracking-[0.2em] font-bold pt-3 pb-1">
++                     ┬® 2025 Secretaria Municipal de Sa├║de
++                   </p>
++                 </div>
++               )}
++             </div>
++           )}
++         </div>
++       </div>
++ 
++       <BottomNav active={activeTab} onChange={setActiveTab} leaveCount={leaveRequests.filter(r => r.status === 'pending').length} isEmult={isEmultUser} />
+++>>>>>>> dad2020c09c39bac736570650221f1e6bbcf8bcf
+      </div>
+    );
+  }

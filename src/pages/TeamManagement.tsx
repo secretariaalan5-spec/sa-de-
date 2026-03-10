@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useTeamMembers, TeamMember } from '@/hooks/useTeamMembers';
-import { Users, Plus, Pencil, Trash2, Mail, Shield, Clock } from 'lucide-react';
+import { useTeamMembers, TeamMember, PendingManagerRequest } from '@/hooks/useTeamMembers';
+import { useAppData } from '@/hooks/useAppData';
+import { Users, Plus, Pencil, Trash2, Mail, Shield, Clock, Link2, Copy, Check, CheckCircle2, XCircle } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 const PERMISSION_LABELS: Record<string, { label: string; description: string }> = {
@@ -37,17 +39,48 @@ const DEFAULT_PERMISSIONS: Record<string, boolean> = {
 };
 
 export default function TeamManagement() {
-  const { members, loading, inviteMember, updateMemberPermissions, removeMember } = useTeamMembers();
+  const { teamId } = useAppData();
+  const {
+    members,
+    pendingRequests,
+    loading,
+    inviteMember,
+    updateMemberPermissions,
+    removeMember,
+    approveManagerRequest,
+    rejectManagerRequest
+  } = useTeamMembers();
+
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<PendingManagerRequest | null>(null);
   const [email, setEmail] = useState('');
   const [perms, setPerms] = useState<Record<string, boolean>>({ ...DEFAULT_PERMISSIONS });
+  const [copied, setCopied] = useState(false);
+
+  const inviteLink = teamId
+    ? `${window.location.origin}/portal?team=${teamId}`
+    : '';
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    toast.success('Link copiado!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const openInvite = () => {
     setEditingMember(null);
     setEmail('');
     setPerms({ ...DEFAULT_PERMISSIONS });
     setDialogOpen(true);
+  };
+
+  const openApprove = (req: PendingManagerRequest) => {
+    setSelectedRequest(req);
+    setPerms({ ...DEFAULT_PERMISSIONS });
+    setApprovalDialogOpen(true);
   };
 
   const openEdit = (member: TeamMember) => {
@@ -68,6 +101,12 @@ export default function TeamManagement() {
       await inviteMember(email, perms);
     }
     setDialogOpen(false);
+  };
+
+  const handleApprove = async () => {
+    if (!selectedRequest) return;
+    const ok = await approveManagerRequest(selectedRequest.id, perms);
+    if (ok) setApprovalDialogOpen(false);
   };
 
   const handleRemove = async (member: TeamMember) => {
@@ -101,124 +140,205 @@ export default function TeamManagement() {
     return Object.values(permissions).filter(Boolean).length;
   };
 
-  if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>;
+  if (loading) return <div className="p-8 text-muted-foreground flex items-center gap-2"><Clock className="w-4 h-4 animate-spin" /> Carregando...</div>;
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Gerenciar Equipe"
-        description="Convide pessoas para gerenciar as escalas e defina o nível de acesso de cada uma"
+        title="Equipe"
+        description="Gerencie os administradores que podem editar escalas e folgas"
         action={
           <Button onClick={openInvite}>
             <Plus className="w-4 h-4 mr-2" />
-            Convidar Membro
+            Convidar E-mail
           </Button>
         }
       />
 
-      {members.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Nenhum membro adicionado"
-          description="Convide pessoas para ajudar a gerenciar as escalas da equipe"
-          actionLabel="Convidar Membro"
-          onAction={openInvite}
-        />
-      ) : (
-        <div className="grid gap-4 max-w-3xl">
-          {members.map(member => (
-            <Card key={member.id} className="bg-card">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{member.member_email}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {getActivePermsCount(member.permissions || {})}/{Object.keys(PERMISSION_LABELS).length} permissões
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(member.status)}
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(member)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleRemove(member)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(PERMISSION_LABELS).map(([key, { label }]) => (
-                    <Badge
-                      key={key}
-                      variant={member.permissions?.[key] ? 'default' : 'outline'}
-                      className={member.permissions?.[key]
-                        ? 'bg-primary/10 text-primary border-primary/20 text-xs'
-                        : 'text-muted-foreground text-xs opacity-50'
-                      }
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Link de Convite Especial */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold flex items-center gap-2 text-primary">
+              <Link2 className="w-4 h-4" /> Link de Convite Especial
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Envie este link para que novos gestores peçam para entrar na sua equipe via Portal
+            </p>
+            <div className="mt-2 font-mono text-[10px] bg-background/50 p-2 rounded border border-primary/10 break-all select-all">
+              {inviteLink}
+            </div>
+          </div>
+          <Button onClick={copyLink} className="shrink-0 gap-2" variant="default" size="sm">
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            Copiar Link
+          </Button>
+        </CardContent>
+      </Card>
 
-      {/* Dialog de convite / edição */}
+      <Tabs defaultValue="members" className="space-y-4">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="members" className="gap-2">
+            <Users className="w-4 h-4" /> Membros ({members.length})
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="gap-2 relative">
+            <Shield className="w-4 h-4" /> Solicitações
+            {pendingRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-[10px] text-white rounded-full flex items-center justify-center font-bold">
+                {pendingRequests.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="members">
+          {members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Nenhum membro adicionado"
+              description="Use o link acima ou convide por e-mail para gerenciar as escalas"
+              actionLabel="Convidar por E-mail"
+              onAction={openInvite}
+            />
+          ) : (
+            <div className="grid gap-4 max-w-3xl">
+              {members.map(member => (
+                <Card key={member.id} className="bg-card group hover:border-primary/30 transition-all">
+                  <CardHeader className="pb-3 px-5 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base font-bold">{member.member_email}</CardTitle>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {getActivePermsCount(member.permissions || {})}/{Object.keys(PERMISSION_LABELS).length} permissões ativas
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(member.status)}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(member)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(member)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 px-5 pb-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(PERMISSION_LABELS).map(([key, { label }]) => (
+                        <Badge
+                          key={key}
+                          variant="outline"
+                          className={member.permissions?.[key]
+                            ? 'bg-primary/5 text-primary border-primary/20 text-[10px] h-5'
+                            : 'text-muted-foreground/40 text-[10px] h-5 opacity-40 border-muted'
+                          }
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="requests">
+          {pendingRequests.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-dashed">
+              <Shield className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Nenhuma solicitação de acesso pendente</p>
+              <p className="text-xs mt-1">Gestores que usarem o link especial aparecerão aqui</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 max-w-3xl">
+              {pendingRequests.map(req => (
+                <Card key={req.id} className="bg-card border-amber-500/20">
+                  <CardHeader className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                          <Users className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base font-bold">{req.full_name}</CardTitle>
+                          <CardDescription>{req.email}</CardDescription>
+                          <Badge variant="outline" className="mt-1.5 text-amber-700 bg-amber-50 border-amber-200">
+                            Pendente Aprovação
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => openApprove(req)} className="gap-2">
+                          <CheckCircle2 className="w-4 h-4" /> Aprovar
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => rejectManagerRequest(req.id)} className="text-destructive hover:bg-destructive/5">
+                          <XCircle className="w-4 h-4" /> Rejeitar
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog de convite / edição por email */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-card max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              {editingMember ? 'Editar Permissões' : 'Convidar Membro'}
+              {editingMember ? 'Editar Permissões' : 'Convidar p/ Equipe'}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 mt-2">
             {!editingMember && (
               <div>
-                <Label>E-mail do membro *</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">E-mail *</Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
+                  className="mt-1"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  A pessoa receberá acesso ao painel ao fazer login com este e-mail
+                <p className="text-[11px] text-muted-foreground mt-2 italic">
+                  A pessoa deve fazer login com este e-mail para acessar
                 </p>
               </div>
             )}
 
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <Label className="text-sm font-semibold">Permissões de acesso</Label>
+              <div className="flex items-center justify-between mb-3 border-b pb-2">
+                <Label className="text-xs uppercase font-bold text-primary">Permissões de acesso</Label>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={selectAll}>Tudo</Button>
-                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={selectNone}>Nenhum</Button>
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectAll}>Tudo</Button>
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectNone}>Nenhum</Button>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {Object.entries(PERMISSION_LABELS).map(([key, { label, description }]) => (
-                  <div key={key} className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-muted/40 transition-colors">
+                  <div key={key} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
                     <Switch
                       checked={perms[key] || false}
                       onCheckedChange={() => togglePerm(key)}
-                      className="mt-0.5"
+                      className="mt-1 scale-90"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-tight">{label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                      <p className="text-sm font-bold leading-tight">{label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>
                     </div>
                   </div>
                 ))}
@@ -226,9 +346,62 @@ export default function TeamManagement() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave}>
-                {editingMember ? 'Salvar' : 'Enviar Convite'}
+                {editingMember ? 'Salvar Alterações' : 'Enviar Convite'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de aprovação de solicitação por link */}
+      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <DialogContent className="bg-card max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              Aprovar Gestor
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <p className="text-xs text-muted-foreground">Profissional:</p>
+              <p className="font-bold">{selectedRequest?.full_name}</p>
+              <p className="text-xs">{selectedRequest?.email}</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3 border-b pb-2">
+                <Label className="text-xs uppercase font-bold text-emerald-600">Definir Permissões</Label>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectAll}>Tudo</Button>
+                  <Button variant="ghost" size="sm" className="text-[10px] h-6 px-2" onClick={selectNone}>Nenhum</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {Object.entries(PERMISSION_LABELS).map(([key, { label, description }]) => (
+                  <div key={key} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                    <Switch
+                      checked={perms[key] || false}
+                      onCheckedChange={() => togglePerm(key)}
+                      className="mt-1 scale-90"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold leading-tight">{label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setApprovalDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleApprove} className="bg-emerald-600 hover:bg-emerald-700">
+                Confirmar Acesso
               </Button>
             </div>
           </div>

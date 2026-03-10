@@ -14,6 +14,9 @@ export interface ServiceState {
 interface ServiceStateContextType {
     state: ServiceState;
     updateServiceState: (updater: (prev: ServiceState) => ServiceState) => void;
+    deleteProfessional: (id: string) => void;
+    deleteEntry: (id: string) => void;
+    deleteRequest: (id: string) => void;
     loading: boolean;
     userId: string | null;
 }
@@ -137,8 +140,39 @@ export function ServiceStateProvider({ children }: { children: React.ReactNode }
         });
     }, [debouncedSaveServiceState]);
 
+    const deleteProfessional = useCallback((id: string) => {
+        updateServiceState(prev => ({
+            ...prev,
+            professionals: prev.professionals.filter(p => p.id !== id),
+            entries: prev.entries.filter(e => e.professionalId !== id),
+            requests: prev.requests.filter(r => r.professionalId !== id),
+        }));
+    }, [updateServiceState]);
+
+    const deleteEntry = useCallback((id: string) => {
+        updateServiceState(prev => ({
+            ...prev,
+            entries: prev.entries.filter(e => e.id !== id),
+        }));
+    }, [updateServiceState]);
+
+    const deleteRequest = useCallback((id: string) => {
+        updateServiceState(prev => ({
+            ...prev,
+            requests: prev.requests.filter(r => r.id !== id),
+        }));
+    }, [updateServiceState]);
+
     return (
-        <ServiceStateContext.Provider value={{ state, updateServiceState, loading, userId }}>
+        <ServiceStateContext.Provider value={{
+            state,
+            updateServiceState,
+            deleteProfessional,
+            deleteEntry,
+            deleteRequest,
+            loading,
+            userId
+        }}>
             {children}
         </ServiceStateContext.Provider>
     );

@@ -8,7 +8,7 @@ import { useServiceState } from './useServiceState';
 import { generateId } from '@/lib/uuid';
 
 export function useServiceProfessionals() {
-    const { state, updateServiceState, loading } = useServiceState();
+    const { state, updateServiceState, deleteProfessional: contextDeleteProfessional, loading } = useServiceState();
     const professionals = useMemo(() => state?.professionals || [], [state?.professionals]);
 
     /** Adiciona um novo profissional, mantendo a lista ordenada por nome. */
@@ -35,13 +35,15 @@ export function useServiceProfessionals() {
         }));
     }, [updateServiceState]);
 
-    /** Remove um profissional pelo ID. */
+    /** Remove um profissional pelo ID e limpa todos os seus dados. */
     const deleteProfessional = useCallback((id: string) => {
-        updateServiceState(prev => ({
-            ...prev,
-            professionals: prev.professionals.filter(p => p.id !== id),
-        }));
-    }, [updateServiceState]);
+        const prof = professionals.find(p => p.id === id);
+        if (!prof) return;
+
+        if (confirm(`Excluir ${prof.name}? Toda a escala, folgas e créditos serão apagados definitivamente.`)) {
+            contextDeleteProfessional(id);
+        }
+    }, [contextDeleteProfessional, professionals]);
 
     /** Retorna apenas os enfermeiros ativos. */
     const getNurses = useCallback(() =>
