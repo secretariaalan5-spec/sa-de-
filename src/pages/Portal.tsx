@@ -806,6 +806,24 @@ export default function Portal() {
 
   const isEmultUser = professionalUser?.category === 'emult' || !!myEmultProfessional;
 
+  const upcomingShift = useMemo(() => {
+    if (!portalData) return null;
+    const entries = isEmultUser ? [] : myEntries;
+    if (!entries.length) return null;
+
+    const sorted = [...entries]
+      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!sorted.length) return null;
+
+    return {
+      date: sorted[0].date,
+      category: sorted[0].type,
+      isWeekend: sorted[0].isWeekend || false
+    };
+  }, [portalData, isEmultUser, myEntries]);
+
   const myEmultSchedule = useMemo(() => {
     if (!myEmultProfessional || !emultData?.schedule) return [];
     return emultData.schedule.filter(s => s.professionalId === myEmultProfessional.id);
