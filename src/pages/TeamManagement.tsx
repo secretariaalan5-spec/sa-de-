@@ -60,7 +60,7 @@ export default function TeamManagement() {
   const [copied, setCopied] = useState(false);
 
   const inviteLink = teamId
-    ? `${window.location.origin}/portal?team=${teamId}`
+    ? `${window.location.origin}/convite-admin?team=${teamId}`
     : '';
 
   const copyLink = () => {

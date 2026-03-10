@@ -29,6 +29,7 @@ import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
 import TeamManagement from "./pages/TeamManagement";
+import AdminInvite from "./pages/AdminInvite";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -72,7 +73,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const hasEmailProvider = session.user.identities?.some(
       id => id.provider === 'email'
     );
-    
+
     // If logged in via Google and never set a password
     const isGoogleOnly = providers?.includes('google') && !hasEmailProvider;
     setNeedsPassword(!!isGoogleOnly);
@@ -108,7 +109,7 @@ const App = () => (
                 <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
                 <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
-                
+
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/cadastro" element={<Registration />} />
                 <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
@@ -120,6 +121,7 @@ const App = () => (
               </Route>
 
               <Route path="/portal" element={<Portal />} />
+              <Route path="/convite-admin" element={<AdminInvite />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ServiceStateProvider>

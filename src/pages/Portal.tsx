@@ -282,7 +282,6 @@ function RegistrationScreen({ onRegister, teamId, userEmail, userName }: { onReg
     { value: 'nurse', label: 'Enfermeiro(a)', icon: Stethoscope, desc: 'Escala de enfermagem', gradient: 'from-primary/10 to-primary/5' },
     { value: 'tech', label: 'Técnico(a)', icon: Syringe, desc: 'Escala técnica', gradient: 'from-accent/10 to-accent/5' },
     { value: 'emult', label: 'eMult', icon: Users, desc: 'Equipe multiprofissional', gradient: 'from-warning/10 to-warning/5' },
-    { value: 'manager', label: 'Admin / Gestor', icon: Shield, desc: 'Gestão da equipe e escalas', gradient: 'from-violet-500/10 to-violet-500/5' },
   ];
 
   const isEmult = category === 'emult';
