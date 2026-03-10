@@ -564,24 +564,8 @@ export default function Portal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // ─── Find Next Shift ───
-  const upcomingShift = useMemo(() => {
-    if (!portalData) return null;
-    const entries = isEmultUser ? [] : myEntries; // Simplified for now
-    if (!entries.length) return null;
-
-    const sorted = [...entries]
-      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    if (!sorted.length) return null;
-
-    return {
-      date: sorted[0].date,
-      category: sorted[0].type,
-      isWeekend: sorted[0].isWeekend || false
-    };
-  }, [portalData, isEmultUser, myEntries]);
+  // ─── Find Next Shift (moved after myEntries/isEmultUser declarations) ───
+  // upcomingShift is defined further below after isEmultUser and myEntries are available
 
   const getTeamId = useCallback((): string | null => {
     const u = new URLSearchParams(window.location.search);
@@ -821,6 +805,24 @@ export default function Portal() {
   }, [emultData, professionalUser]);
 
   const isEmultUser = professionalUser?.category === 'emult' || !!myEmultProfessional;
+
+  const upcomingShift = useMemo(() => {
+    if (!portalData) return null;
+    const entries = isEmultUser ? [] : myEntries;
+    if (!entries.length) return null;
+
+    const sorted = [...entries]
+      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!sorted.length) return null;
+
+    return {
+      date: sorted[0].date,
+      category: sorted[0].type,
+      isWeekend: sorted[0].isWeekend || false
+    };
+  }, [portalData, isEmultUser, myEntries]);
 
   const myEmultSchedule = useMemo(() => {
     if (!myEmultProfessional || !emultData?.schedule) return [];
