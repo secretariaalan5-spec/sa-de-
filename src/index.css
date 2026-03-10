@@ -19,75 +19,112 @@
 /* ─── Tokens de Cor (Light Mode) ──────────────────────────────────────── */
 @layer base {
   :root {
-    /* Superfícies */
-    --background: 210 15% 95%;        /* Cinza azulado claro — fundo geral */
-    --foreground: 210 25% 15%;        /* Texto principal */
+    /* Superfícies - Premium Palette */
+    --background: 220 33% 98%;
+    /* Soft cool white */
+    --foreground: 224 71% 4%;
+    /* Near black */
 
-    --card: 0 0% 100%;                /* Fundo dos cards */
-    --card-foreground: 210 25% 15%;   /* Texto dentro de cards */
+    --card: 0 0% 100%;
+    /* Pure white card */
+    --card-foreground: 224 71% 4%;
+    --card-shadow: 220 15% 90%;
+    /* Subtle soft shadow */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 25% 15%;
+    --popover-foreground: 224 71% 4%;
 
-    /* Cores de Marca */
-    --primary: 210 100% 48%;          /* Azul SUS — ações principais */
-    --primary-foreground: 0 0% 100%;
+    /* Cores de Marca - Modern Professional Blue/Violet */
+    --primary: 221 83% 53%;
+    /* Modern Electric Blue */
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 25% 90%;         /* Fundo de elementos secundários */
-    --secondary-foreground: 210 25% 25%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 12% 92%;             /* Fundo sutil, placeholders */
-    --muted-foreground: 210 15% 45%;  /* Texto secundário */
+    --muted: 214 32% 91%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 152 60% 40%;            /* Verde — sucesso e destaques */
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     /* Status */
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
 
-    --success: 152 60% 40%;
-    --success-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
 
-    --warning: 45 95% 50%;
-    --warning-foreground: 210 25% 15%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 210 40% 98%;
 
     /* Bordas e Inputs */
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 210 100% 48%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
 
-    /* Raio padrão — 0.5rem para visual arredondado */
-    --radius: 0.5rem;
+    /* Raio padrão — 0.75rem for modern soft look */
+    --radius: 0.75rem;
 
-    /* ── Sidebar ── */
-    --sidebar-background: 210 100% 35%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 45 95% 55%;
-    --sidebar-primary-foreground: 210 25% 15%;
-    --sidebar-accent: 210 100% 42%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 80% 42%;
-    --sidebar-ring: 45 95% 55%;
+    /* ── Sidebar - Dark Premium ── */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 32% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 32% 17%;
+    --sidebar-ring: 224 76% 48%;
 
     /* ── Tabelas ── */
-    --table-header: 210 100% 48%;
+    --table-header: 221 83% 53%;
     --table-header-foreground: 0 0% 100%;
-    --table-row-even: 210 15% 94%;
+    --table-row-even: 210 40% 98%;
     --table-row-odd: 0 0% 100%;
 
-    /* ── Cores de Categoria (Enfermeiro / Técnico / eMult) ── */
-    --cat-nurse: 210 80% 50%;
-    --cat-nurse-light: 210 80% 96%;
-    --cat-tech: 152 55% 45%;
-    --cat-tech-light: 152 55% 96%;
-    --cat-emult: 270 55% 55%;
-    --cat-emult-light: 270 55% 96%;
+    /* ── Cores de Categoria (Premium Vibrancy) ── */
+    --cat-nurse: 217 91% 60%;
+    --cat-nurse-light: 217 91% 97%;
+    --cat-tech: 142 71% 45%;
+    --cat-tech-light: 142 71% 97%;
+    --cat-emult: 262 83% 58%;
+    --cat-emult-light: 262 83% 97%;
+
+    /* ── Glassmorphism Utils ── */
+    --glass-opacity: 0.7;
+    --glass-blur: 12px;
   }
 
-  /* Dark mode — herda valores padrão por enquanto */
+  /* Dark mode - Pro palette */
   .dark {
-    --radius: 0.5rem;
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 71% 4%;
+    --card-foreground: 210 40% 98%;
+    --card-shadow: 0 0% 0%;
+
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 224 76% 48%;
   }
 }
 
@@ -103,9 +140,17 @@
   }
 
   /* Hierarquia tipográfica padrão */
-  h1 { @apply text-2xl font-bold text-foreground tracking-tight; }
-  h2 { @apply text-lg font-semibold text-foreground; }
-  h3 { @apply text-base font-semibold text-foreground; }
+  h1 {
+    @apply text-2xl font-bold text-foreground tracking-tight;
+  }
+
+  h2 {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  h3 {
+    @apply text-base font-semibold text-foreground;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -224,19 +269,43 @@
   }
 
   /* ── Cor do texto por categoria ── */
-  .cat-text-nurse  { color: hsl(var(--cat-nurse)); }
-  .cat-text-tech   { color: hsl(var(--cat-tech)); }
-  .cat-text-emult  { color: hsl(var(--cat-emult)); }
+  .cat-text-nurse {
+    color: hsl(var(--cat-nurse));
+  }
+
+  .cat-text-tech {
+    color: hsl(var(--cat-tech));
+  }
+
+  .cat-text-emult {
+    color: hsl(var(--cat-emult));
+  }
 
   /* ── Ícone de categoria (fundo arredondado) ── */
-  .cat-icon-nurse  { @apply text-[hsl(var(--cat-nurse))] bg-[hsl(var(--cat-nurse-light))]; }
-  .cat-icon-tech   { @apply text-[hsl(var(--cat-tech))] bg-[hsl(var(--cat-tech-light))]; }
-  .cat-icon-emult  { @apply text-[hsl(var(--cat-emult))] bg-[hsl(var(--cat-emult-light))]; }
+  .cat-icon-nurse {
+    @apply text-[hsl(var(--cat-nurse))] bg-[hsl(var(--cat-nurse-light))];
+  }
+
+  .cat-icon-tech {
+    @apply text-[hsl(var(--cat-tech))] bg-[hsl(var(--cat-tech-light))];
+  }
+
+  .cat-icon-emult {
+    @apply text-[hsl(var(--cat-emult))] bg-[hsl(var(--cat-emult-light))];
+  }
 
   /* ── Barra de cor no topo do card ── */
-  .cat-bar-nurse  { background-color: hsl(var(--cat-nurse)); }
-  .cat-bar-tech   { background-color: hsl(var(--cat-tech)); }
-  .cat-bar-emult  { background-color: hsl(var(--cat-emult)); }
+  .cat-bar-nurse {
+    background-color: hsl(var(--cat-nurse));
+  }
+
+  .cat-bar-tech {
+    background-color: hsl(var(--cat-tech));
+  }
+
+  .cat-bar-emult {
+    background-color: hsl(var(--cat-emult));
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -271,6 +340,7 @@
 .portal-press {
   transition: transform 0.1s ease, opacity 0.1s ease;
 }
+
 .portal-press:active {
   transform: scale(0.96);
   opacity: 0.85;
@@ -293,8 +363,15 @@
 }
 
 @keyframes portalSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Progress ring for credits */

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Stethoscope, Syringe, Search, Users, Trash2, ChevronLeft, Download,
-  Calendar, TrendingUp, TrendingDown, Clock,
+  Calendar, TrendingUp, TrendingDown, Clock, BookOpen, Sparkles, Plus, X
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
@@ -29,7 +29,7 @@ import jsPDF from 'jspdf';
 const ITEMS_PER_PAGE = 12;
 
 export default function ServiceProfessionalsPage() {
-  const { professionals, deleteProfessional } = useServiceProfessionals();
+  const { professionals, updateProfessional, deleteProfessional } = useServiceProfessionals();
   const { requests, getTotalCreditsUsedByProfessional, getRequestsByProfessional } = useLeaveRequests();
   const { allEntries } = useServiceSchedule('nurse');
   const { allEntries: techEntries } = useServiceSchedule('tech');
@@ -236,6 +236,9 @@ export default function ServiceProfessionalsPage() {
             <p className="text-xs text-muted-foreground">{prof.monthlyHours}h mensal</p>
             <div className="flex flex-wrap gap-1 mt-1">
               <Badge variant="secondary" className={`text-[10px] ${catText}`}>{catLabel}</Badge>
+              {prof.skills?.map(skill => (
+                <Badge key={skill} variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">{skill}</Badge>
+              ))}
               {isOnLeave && <Badge variant="outline" className="text-[10px] text-warning border-warning/30">De Folga</Badge>}
               {!prof.active && <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">Inativo</Badge>}
             </div>
@@ -349,6 +352,58 @@ export default function ServiceProfessionalsPage() {
           )}>
             {stats.creditsBalance} <span className="text-sm font-normal text-muted-foreground">dias</span>
           </span>
+        </div>
+
+        {/* Skills Section (Habilidades) */}
+        <div className="form-section">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            Habilidades & Qualificações
+          </h3>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {prof.skills && prof.skills.length > 0 ? (
+              prof.skills.map(skill => (
+                <Badge key={skill} variant="secondary" className="pl-2 pr-1 py-1 gap-1 bg-violet-50 text-violet-700 border-violet-100">
+                  {skill}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newSkills = prof.skills?.filter(s => s !== skill);
+                      updateProfessional(prof.id, { skills: newSkills });
+                      setSelectedProf(prev => prev ? { ...prev, skills: newSkills } : null);
+                    }}
+                    className="hover:bg-violet-200 rounded-full p-0.5 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground italic px-1">Nenhuma habilidade cadastrada.</p>
+            )}
+          </div>
+          <div className="relative group">
+            <Input
+              placeholder="Adicionar nova habilidade (ex: Especialista UTI, Curso ACLS)..."
+              className="h-9 pr-10 text-xs"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.currentTarget.value.trim();
+                  if (val) {
+                    const currentSkills = prof.skills || [];
+                    if (!currentSkills.includes(val)) {
+                      const newSkills = [...currentSkills, val];
+                      updateProfessional(prof.id, { skills: newSkills });
+                      setSelectedProf(prev => prev ? { ...prev, skills: newSkills } : null);
+                    }
+                    e.currentTarget.value = '';
+                  }
+                }
+              }}
+            />
+            <Plus className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-50" />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 px-1">Pressione Enter para adicionar.</p>
         </div>
 
         {/* Weekend History */}
