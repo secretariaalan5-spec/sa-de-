@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
       onesignal_response: result,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Push notification error:', err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: (err as Error).message }), { status: 500, headers: corsHeaders });
   }
 });
