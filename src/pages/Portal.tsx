@@ -7,6 +7,9 @@ import {
   getDay,
   parseISO,
   differenceInCalendarDays,
+  isAfter,
+  isToday,
+  startOfToday,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -50,7 +53,12 @@ import {
   FileText,
   ArrowRight,
   CircleDot,
+  RefreshCcw,
+  Clock3,
+  MapPin,
+  ArrowRightCircle,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,7 +111,7 @@ function getGreeting() {
 function GlassCard({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn(
-      "rounded-3xl border border-border/30 bg-card/80 backdrop-blur-xl shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)]",
+      "rounded-[28px] border border-white/40 bg-white/70 backdrop-blur-2xl shadow-[0_8px_32px_-4px_rgba(0,0,0,0.06)] overflow-hidden",
       className
     )} {...props}>
       {children}
@@ -113,18 +121,90 @@ function GlassCard({ children, className, ...props }: React.HTMLAttributes<HTMLD
 
 // ─── Stat Pill ───
 function StatPill({ icon: Icon, value, label, color = 'text-primary', iconBg = 'bg-primary/10' }: {
-  icon: typeof Calendar; value: string | number; label: string; color?: string; iconBg?: string;
+  icon: any; value: string | number; label: string; color?: string; iconBg?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/20 shadow-sm">
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
-        <Icon className={cn("w-5 h-5", color)} />
+    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-border/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.02)]">
+      <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
+        <Icon className={cn("w-5.5 h-5.5", color)} />
       </div>
       <div>
-        <p className={cn("text-lg font-black leading-none", color)}>{value}</p>
-        <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase mt-0.5">{label}</p>
+        <p className={cn("text-[20px] font-black leading-none", color)}>{value}</p>
+        <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-wider mt-1">{label}</p>
       </div>
     </div>
+  );
+}
+
+// ─── Next Shift Card ───
+function NextShiftCard({ shift, onClick }: { shift: { date: string; category: string; isWeekend: boolean } | null; onClick: () => void }) {
+  if (!shift) return null;
+
+  const dateObj = parseISO(shift.date);
+  const isShiftToday = isToday(dateObj);
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={onClick}
+      className="w-full text-left relative overflow-hidden group"
+    >
+      <div className={cn(
+        "absolute inset-0 bg-gradient-to-br transition-all duration-500",
+        isShiftToday
+          ? "from-primary to-primary-hover shadow-xl shadow-primary/20"
+          : "from-slate-900 to-slate-800 shadow-xl shadow-slate-900/10"
+      )} />
+
+      {/* Decorative patterns */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 blur-xl" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12 blur-lg" />
+
+      <div className="relative z-10 p-6 flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <div className={cn(
+              "p-1.5 rounded-lg backdrop-blur-md",
+              isShiftToday ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
+            )}>
+              <Clock3 className="w-4 h-4" />
+            </div>
+            <span className={cn(
+              "text-[10px] font-black uppercase tracking-[0.2em]",
+              isShiftToday ? "text-white/70" : "text-white/40"
+            )}>
+              {isShiftToday ? 'Próximo Plantão (Hoje)' : 'Próximo Plantão'}
+            </span>
+          </div>
+
+          <h3 className="text-white text-[24px] font-black tracking-tight leading-tight">
+            {format(dateObj, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+          </h3>
+
+          <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
+              <MapPin className="w-3 h-3 text-white/60" />
+              <span className="text-white/90 text-[11px] font-bold">Unidade Sede</span>
+            </div>
+            {shift.isWeekend && (
+              <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-warning/20 border border-warning/20">
+                <Zap className="w-3 h-3 text-warning" />
+                <span className="text-warning text-[11px] font-bold">Plantão FDS</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={cn(
+          "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:translate-x-1",
+          isShiftToday ? "bg-white text-primary" : "bg-white/10 text-white border border-white/10"
+        )}>
+          <ArrowRightCircle className="w-6 h-6" />
+        </div>
+      </div>
+    </motion.button>
   );
 }
 
@@ -436,15 +516,20 @@ function BottomNav({ active, onChange, leaveCount, isEmult }: { active: PortalTa
           const isActive = active === tab.id;
           return (
             <button key={tab.id} onClick={() => onChange(tab.id)}
-              className={cn("portal-press flex flex-col items-center justify-center gap-[2px] relative transition-all", isActive ? "text-primary" : "text-muted-foreground/60")}>
-              {isActive && <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-12 h-[3px] bg-primary rounded-full shadow-sm shadow-primary/30" />}
-              <div className={cn("relative w-9 h-9 rounded-xl flex items-center justify-center transition-all", isActive && "bg-primary/10")}>
-                <Icon className={cn("h-[20px] w-[20px] transition-all", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.5 : 1.8} />
+              className={cn("portal-press flex flex-col items-center justify-center gap-1 relative transition-all", isActive ? "text-primary" : "text-slate-400")}>
+              {isActive && (
+                <motion.div
+                  layoutId="bottom-nav-indicator"
+                  className="absolute -top-[1.5px] left-1/2 -translate-x-1/2 w-12 h-[3px] bg-primary rounded-full shadow-[0_0_12px_rgba(var(--primary),0.4)]"
+                />
+              )}
+              <div className={cn("relative w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300", isActive && "bg-primary/[0.08]")}>
+                <Icon className={cn("h-[22px] w-[22px] transition-all", isActive && "scale-110 drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]")} strokeWidth={isActive ? 2.5 : 2} />
                 {tab.id === 'leaves' && leaveCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[8px] font-bold flex items-center justify-center px-0.5 shadow-sm">{leaveCount}</span>
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-white text-[10px] font-black flex items-center justify-center border-2 border-[hsl(var(--card))] shadow-sm">{leaveCount}</span>
                 )}
               </div>
-              <span className={cn("text-[10px] transition-all", isActive ? "font-bold" : "font-medium")}>{tab.label}</span>
+              <span className={cn("text-[10px] transition-all tracking-tight", isActive ? "font-black" : "font-semibold")}>{tab.label}</span>
             </button>
           );
         })}
@@ -476,7 +561,27 @@ export default function Portal() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<PortalTab>('schedule');
   const [leaveForm, setLeaveForm] = useState({ leaveType: '' as LeaveType | '', startDate: '', endDate: '', observations: '' });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // ─── Find Next Shift ───
+  const upcomingShift = useMemo(() => {
+    if (!portalData) return null;
+    const entries = isEmultUser ? [] : myEntries; // Simplified for now
+    if (!entries.length) return null;
+
+    const sorted = [...entries]
+      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!sorted.length) return null;
+
+    return {
+      date: sorted[0].date,
+      category: sorted[0].type,
+      isWeekend: sorted[0].isWeekend || false
+    };
+  }, [portalData, isEmultUser, myEntries]);
 
   const getTeamId = useCallback((): string | null => {
     const u = new URLSearchParams(window.location.search);
@@ -762,500 +867,505 @@ export default function Portal() {
   };
 
   return (
-    <div className="portal-native min-h-screen bg-background flex flex-col">
-      {/* ═══ HEADER ═══ */}
-      <header className="sticky top-0 z-40 border-b border-border/15"
-        style={{ background: 'hsl(var(--card) / 0.85)', backdropFilter: 'saturate(180%) blur(24px)', WebkitBackdropFilter: 'saturate(180%) blur(24px)' }}>
-        <div className="px-5 max-w-lg mx-auto h-[60px] flex items-center justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <button onClick={() => setActiveTab('profile')} className="portal-press shrink-0">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 ring-2 ring-primary/20 flex items-center justify-center shadow-sm">
-                {professionalUser.avatar_url
-                  ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : <span className="text-[14px] font-black text-primary">{firstName[0]}</span>}
-              </div>
-            </button>
-            <div className="min-w-0">
-              <p className="text-[15px] font-black text-foreground leading-tight truncate">{greeting.text}, {firstName} {greeting.emoji}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/8 text-primary text-[9px] font-bold">
-                  <CategoryIcon className="w-2.5 h-2.5" />{categoryLabel}
-                </span>
-              </div>
+    <div className="portal-native min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-start pb-24 overflow-x-hidden font-sans">
+      <div className="w-full max-w-lg mx-auto">
+        {/* Header */}
+        <motion.header
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-0 z-[60] px-6 pt-10 pb-4 bg-[#F8FAFC]/80 backdrop-blur-2xl flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+              <Star className="text-white w-5 h-5" fill="currentColor" />
+            </div>
+            <div>
+              <p className="text-[12px] font-black text-primary uppercase tracking-[0.2em] leading-none mb-1.5">{greeting.text}</p>
+              <h1 className="text-[20px] font-black tracking-tight leading-none truncate max-w-[140px] md:max-w-none text-slate-900">
+                {firstName}
+              </h1>
             </div>
           </div>
-          <button onClick={() => { fetchPortalData(); refreshLeaveRequests(); }} disabled={loadingPortal}
-            className="portal-press w-10 h-10 rounded-xl flex items-center justify-center bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all">
-            <RefreshCw className={cn("h-[18px] w-[18px]", loadingPortal && "animate-spin")} />
-          </button>
-        </div>
-      </header>
-
-      {/* ═══ CONTENT ═══ */}
-      <div ref={contentRef} className="flex-1 overflow-y-auto pb-[80px]">
-        <div className="max-w-lg mx-auto px-5 py-5">
-          {loadingPortal ? (
-            <div className="space-y-4">
-              <Skeleton className="h-36 w-full rounded-3xl" />
-              <div className="grid grid-cols-3 gap-3"><Skeleton className="h-20 rounded-2xl" /><Skeleton className="h-20 rounded-2xl" /><Skeleton className="h-20 rounded-2xl" /></div>
-              <Skeleton className="h-64 w-full rounded-3xl" />
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileTap={{ rotate: 180 }}
+              onClick={() => { setIsRefreshing(true); setTimeout(() => { window.location.reload(); }, 1500); }}
+              className="w-10 h-10 rounded-2xl bg-white border border-border/10 shadow-sm flex items-center justify-center text-slate-400"
+            >
+              {isRefreshing ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-4.5 h-4.5" />}
+            </motion.button>
+            <div className="w-10 h-10 rounded-full border-2 border-white shadow-xl overflow-hidden bg-white cursor-pointer" onClick={() => setActiveTab('profile')}>
+              {professionalUser.avatar_url
+                ? <img src={professionalUser.avatar_url} className="w-full h-full object-cover" alt="" />
+                : <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm">{firstName[0]}</div>
+              }
             </div>
-          ) : (
-            <div key={activeTab} className="portal-page-enter">
+          </div>
+        </motion.header>
 
-              {/* ════════ SCHEDULE ════════ */}
-              {activeTab === 'schedule' && (
-                <div className="space-y-5">
-                  {isEmultUser ? (
-                    /* ── eMult: Weekly Schedule ── */
-                    <>
-                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
-                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
-                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-2 mb-2">
-                            <CalendarDays className="w-4 h-4 text-primary-foreground/70" />
-                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Escala Semanal</p>
+        <div className="px-6 pb-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ x: 10, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -10, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="space-y-6 pt-2"
+            >
+              {loadingPortal ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-[140px] w-full rounded-[28px]" />
+                  <div className="grid grid-cols-3 gap-3"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-24 rounded-2xl" /></div>
+                  <Skeleton className="h-80 w-full rounded-[28px]" />
+                </div>
+              ) : (
+                <>
+                  {/* ════════ SCHEDULE ════════ */}
+                  {activeTab === 'schedule' && (
+                    <div className="space-y-6">
+                      {/* Highlight Next Shift */}
+                      {!isEmultUser && <NextShiftCard shift={upcomingShift} onClick={() => { }} />}
+
+                      {isEmultUser ? (
+                        /* ── eMult: Weekly Schedule ── */
+                        <>
+                          <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                            <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CalendarDays className="w-4 h-4 text-primary-foreground/70" />
+                                <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Escala Semanal</p>
+                              </div>
+                              <p className="text-primary-foreground text-[20px] font-black leading-tight">
+                                {myEmultProfessional?.name || professionalUser.full_name}
+                              </p>
+                              {myEmultProfessional && (
+                                <p className="text-primary-foreground/60 text-[12px] font-semibold mt-1">
+                                  {getEmultFunction(myEmultProfessional.functionId)?.name || categoryLabel}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-primary-foreground text-[20px] font-black leading-tight">
-                            {myEmultProfessional?.name || professionalUser.full_name}
-                          </p>
-                          {myEmultProfessional && (
-                            <p className="text-primary-foreground/60 text-[12px] font-semibold mt-1">
-                              {getEmultFunction(myEmultProfessional.functionId)?.name || categoryLabel}
-                            </p>
+
+                          {myEmultSchedule.length === 0 ? (
+                            <GlassCard className="py-14 px-6 text-center">
+                              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
+                                <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
+                              </div>
+                              <p className="text-[15px] font-bold text-muted-foreground">Sem escala publicada</p>
+                              <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Aguarde o administrador publicar sua escala</p>
+                            </GlassCard>
+                          ) : (
+                            <div className="space-y-3">
+                              {DAYS_ORDER.map(dayKey => {
+                                const dayEntries = myEmultSchedule.filter(s => s.dayOfWeek === dayKey);
+                                if (dayEntries.length === 0) return null;
+
+                                return (
+                                  <GlassCard key={dayKey} className="overflow-hidden">
+                                    <div className="px-4 py-3 bg-primary/5 border-b border-border/20 flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <Calendar className="w-4 h-4 text-primary" />
+                                      </div>
+                                      <span className="text-[14px] font-black text-foreground">{DAYS_LABELS[dayKey]}</span>
+                                    </div>
+                                    <div className="divide-y divide-border/15">
+                                      {dayEntries.map((entry, i) => {
+                                        const unit = getEmultUnit(entry.unitId);
+                                        return (
+                                          <div key={i} className="px-4 py-3.5 flex items-center gap-3.5">
+                                            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                              <Heart className="w-4 h-4 text-accent" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[14px] font-bold text-foreground truncate">{unit?.name || 'Unidade'}</p>
+                                              <p className="text-[11px] text-muted-foreground font-medium">{PERIOD_LABELS[entry.period] || entry.period}</p>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </GlassCard>
+                                );
+                              })}
+
+                              {/* Days without schedule */}
+                              {(() => {
+                                const daysWithSchedule = new Set(myEmultSchedule.map(s => s.dayOfWeek));
+                                const daysOff = DAYS_ORDER.filter(d => !daysWithSchedule.has(d));
+                                if (daysOff.length === 0) return null;
+                                return (
+                                  <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground/50 font-medium">
+                                    <CalendarOff className="w-3.5 h-3.5" />
+                                    Sem escala: {daysOff.map(d => DAYS_LABELS[d]).join(', ')}
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           )}
+
+                          {updatedLabel && (
+                            <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/40 font-medium">
+                              <Clock className="w-3 h-3" /> Atualizado em {updatedLabel}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        /* ── Nurse/Tech: Monthly Calendar ── */
+                        <>
+                          {/* Hero stats card */}
+                          <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
+                            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
+                            <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
+                            <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Activity className="w-4 h-4 text-primary-foreground/70" />
+                                <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
+                              </div>
+                              <div className="flex items-end justify-between">
+                                <div>
+                                  <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
+                                  <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
+                                </div>
+                                <div className="text-right space-y-2">
+                                  <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                    <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                    <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
+                                    <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
+                                  </div>
+                                  <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
+                                    <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
+                                    <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
+                                    <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Month nav */}
+                          <div className="flex items-center justify-between px-1">
+                            <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                              <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
+                              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                            </h2>
+                            <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
+                              <ChevronRight className="h-5 w-5" />
+                            </button>
+                          </div>
+
+                          {/* Calendar */}
+                          <GlassCard className="overflow-hidden">
+                            <div className="grid grid-cols-7 text-center border-b border-border/20">
+                              {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                                <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-7 p-1.5 gap-0.5">
+                              {(() => {
+                                const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
+                                const days = eachDayOfInterval({ start: ms, end: me });
+                                const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
+                                const cells = days.map(day => {
+                                  const ds = format(day, 'yyyy-MM-dd');
+                                  const hasWork = myEntries.some(e => e.date === ds);
+                                  const isWknd = getDay(day) === 0 || getDay(day) === 6;
+                                  const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
+                                  const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
+                                  return (
+                                    <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
+                                      <span className={cn(
+                                        "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
+                                        isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
+                                        hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
+                                        hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
+                                        hasLeave && !isToday && "bg-destructive/10 text-destructive",
+                                        !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
+                                        !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
+                                      )}>
+                                        {format(day, 'd')}
+                                      </span>
+                                      {hasWork && !isToday && (
+                                        <div className={cn(
+                                          "absolute bottom-1 w-1 h-1 rounded-full",
+                                          isWknd ? "bg-warning" : "bg-accent"
+                                        )} />
+                                      )}
+                                    </div>
+                                  );
+                                });
+                                return [...blanks, ...cells];
+                              })()}
+                            </div>
+                          </GlassCard>
+
+                          {/* Legend */}
+                          <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
+                            <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
+                            <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
+                            <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
+                          </div>
+
+                          {/* Month stats */}
+                          <div className="grid grid-cols-3 gap-3">
+                            {[
+                              { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
+                              { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
+                              { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
+                            ].map((s, i) => (
+                              <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
+                                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
+                                  <s.icon className={cn("w-4 h-4", s.color)} />
+                                </div>
+                                <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
+                                <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
+                              </GlassCard>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ════════ CREDITS ════════ */}
+                  {activeTab === 'credits' && (
+                    <div className="space-y-5">
+                      <GlassCard className="p-7 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
+                          <Zap className="w-3 h-3" /> Saldo de Créditos
                         </div>
+                        <CreditRing balance={myStats.overall.creditsBalance} total={Math.max(myStats.overall.creditsGenerated, 1)} />
+                        <p className="text-[13px] text-muted-foreground font-medium mt-3">dias disponíveis para folga</p>
+                      </GlassCard>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <GlassCard className="p-5 text-center">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center mx-auto mb-2.5">
+                            <TrendingUp className="w-6 h-6 text-accent" />
+                          </div>
+                          <p className="text-3xl font-black text-accent">{myStats.overall.creditsGenerated}</p>
+                          <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Gerados</p>
+                        </GlassCard>
+                        <GlassCard className="p-5 text-center">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-destructive/15 to-destructive/5 flex items-center justify-center mx-auto mb-2.5">
+                            <TrendingDown className="w-6 h-6 text-destructive" />
+                          </div>
+                          <p className="text-3xl font-black text-destructive">{myStats.overall.creditsUsed}</p>
+                          <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Utilizados</p>
+                        </GlassCard>
                       </div>
 
-                      {myEmultSchedule.length === 0 ? (
+                      <GlassCard className="overflow-hidden">
+                        <div className="px-5 py-3.5 bg-muted/20 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] capitalize flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+                        </div>
+                        {[
+                          { label: 'Créditos gerados', value: `+${myStats.month.creditsGenerated}`, color: 'text-accent', icon: TrendingUp },
+                          { label: 'Créditos utilizados', value: `-${myStats.month.creditsUsed}`, color: 'text-destructive', icon: TrendingDown },
+                          { label: 'Saldo do mês', value: `${myStats.month.creditsBalance}`, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Star, bold: true },
+                        ].map((row, i) => (
+                          <div key={i} className="px-5 py-3.5 flex items-center justify-between border-t border-border/20">
+                            <div className="flex items-center gap-2.5">
+                              <row.icon className={cn("w-4 h-4", row.color, "opacity-60")} />
+                              <span className={cn("text-[13px]", row.bold ? "font-bold text-foreground" : "text-muted-foreground font-medium")}>{row.label}</span>
+                            </div>
+                            <span className={cn("text-[14px] font-black", row.color)}>{row.value}</span>
+                          </div>
+                        ))}
+                      </GlassCard>
+
+                      <div className="flex items-start gap-3 px-2 py-3 rounded-2xl bg-primary/5 border border-primary/10">
+                        <Sparkles className="w-5 h-5 text-primary/40 shrink-0 mt-px" />
+                        <p className="text-[12px] text-muted-foreground leading-relaxed">Cada final de semana trabalhado gera <strong className="text-foreground">2 créditos</strong> automaticamente.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ════════ LEAVES ════════ */}
+                  {activeTab === 'leaves' && (
+                    <div className="space-y-4">
+                      <ActionButton onClick={() => setLeaveDialogOpen(true)} icon={Plus}>
+                        Nova Solicitação
+                      </ActionButton>
+
+                      <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                        <DialogContent className="rounded-3xl max-w-[380px] mx-auto p-6">
+                          <DialogHeader><DialogTitle className="text-[18px] font-black">Nova Solicitação</DialogTitle></DialogHeader>
+                          <div className="space-y-4 pt-2">
+                            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-primary/5 border border-primary/10">
+                              <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-foreground/70 leading-relaxed font-medium">Solicite com mínimo <strong>10 dias de antecedência</strong>. Imprevistos serão analisados pela coordenação.</p>
+                            </div>
+                            <div>
+                              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de afastamento</Label>
+                              <Select value={leaveForm.leaveType} onValueChange={(v) => setLeaveForm(p => ({ ...p, leaveType: v as LeaveType }))}>
+                                <SelectTrigger className="h-12 rounded-2xl text-[13px] font-medium border-2"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger>
+                                <SelectContent>{Object.entries(LEAVE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                              </Select>
+                              {leaveForm.leaveType === 'folga_credito' && (
+                                <p className="text-[11px] text-accent mt-1.5 font-bold flex items-center gap-1">
+                                  <Zap className="w-3 h-3" />Saldo disponível: {myStats.overall.creditsBalance} dias
+                                </p>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Início</Label>
+                                <input type="date" value={leaveForm.startDate} onChange={(e) => setLeaveForm(p => ({ ...p, startDate: e.target.value }))}
+                                  className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
+                              </div>
+                              <div>
+                                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fim</Label>
+                                <input type="date" value={leaveForm.endDate} onChange={(e) => setLeaveForm(p => ({ ...p, endDate: e.target.value }))}
+                                  className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
+                              </div>
+                            </div>
+                            {daysRequested > 0 && (
+                              <div className="text-center">
+                                <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/10 text-primary text-[14px] font-black shadow-sm">
+                                  <CalendarDays className="w-4 h-4" />
+                                  {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Observações (opcional)</Label>
+                              <Textarea value={leaveForm.observations} onChange={(e) => setLeaveForm(p => ({ ...p, observations: e.target.value }))} placeholder="Motivo ou detalhes..." className="rounded-2xl resize-none text-[13px] border-2 font-medium" rows={2} />
+                            </div>
+                            {isShortNotice && leaveForm.startDate && (
+                              <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-warning/8 border border-warning/15">
+                                <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-foreground/70 font-medium"><strong>Prazo inferior ao recomendado.</strong> Sujeito à análise da coordenação.</p>
+                              </div>
+                            )}
+                            <ActionButton onClick={handleSubmitLeave} disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1} icon={ArrowRight}>
+                              {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicitação'}
+                            </ActionButton>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
+                      {/* List */}
+                      {leaveRequests.length === 0 ? (
                         <GlassCard className="py-14 px-6 text-center">
                           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
                             <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
                           </div>
-                          <p className="text-[15px] font-bold text-muted-foreground">Sem escala publicada</p>
-                          <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Aguarde o administrador publicar sua escala</p>
+                          <p className="text-[15px] font-bold text-muted-foreground">Sem solicitações</p>
+                          <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Toque em "Nova Solicitação" para pedir folga</p>
                         </GlassCard>
                       ) : (
                         <div className="space-y-3">
-                          {DAYS_ORDER.map(dayKey => {
-                            const dayEntries = myEmultSchedule.filter(s => s.dayOfWeek === dayKey);
-                            if (dayEntries.length === 0) return null;
-
-                            return (
-                              <GlassCard key={dayKey} className="overflow-hidden">
-                                <div className="px-4 py-3 bg-primary/5 border-b border-border/20 flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                    <Calendar className="w-4 h-4 text-primary" />
-                                  </div>
-                                  <span className="text-[14px] font-black text-foreground">{DAYS_LABELS[dayKey]}</span>
-                                </div>
-                                <div className="divide-y divide-border/15">
-                                  {dayEntries.map((entry, i) => {
-                                    const unit = getEmultUnit(entry.unitId);
-                                    return (
-                                      <div key={i} className="px-4 py-3.5 flex items-center gap-3.5">
-                                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                                          <Heart className="w-4 h-4 text-accent" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-[14px] font-bold text-foreground truncate">{unit?.name || 'Unidade'}</p>
-                                          <p className="text-[11px] text-muted-foreground font-medium">{PERIOD_LABELS[entry.period] || entry.period}</p>
-                                        </div>
+                          {leaveRequests.map(req => (
+                            <GlassCard key={req.id} className="p-4.5 hover:shadow-md transition-shadow">
+                              <div className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-[14px] text-foreground truncate">{LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}</p>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium bg-muted/40 px-2.5 py-1 rounded-full">
+                                        <CalendarDays className="w-3 h-3 shrink-0" />
+                                        {format(new Date(req.start_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}
+                                        {req.end_date !== req.start_date && <> → {format(new Date(req.end_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}</>}
                                       </div>
-                                    );
-                                  })}
+                                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
+                                        {req.days_requested}d
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {statusBadge(req.status)}
                                 </div>
-                              </GlassCard>
-                            );
-                          })}
-
-                          {/* Days without schedule */}
-                          {(() => {
-                            const daysWithSchedule = new Set(myEmultSchedule.map(s => s.dayOfWeek));
-                            const daysOff = DAYS_ORDER.filter(d => !daysWithSchedule.has(d));
-                            if (daysOff.length === 0) return null;
-                            return (
-                              <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted-foreground/50 font-medium">
-                                <CalendarOff className="w-3.5 h-3.5" />
-                                Sem escala: {daysOff.map(d => DAYS_LABELS[d]).join(', ')}
+                                {req.observations && (
+                                  <p className="text-[11px] text-muted-foreground/60 italic mt-3 pt-3 border-t border-border/15 font-medium">"{req.observations}"</p>
+                                )}
                               </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {updatedLabel && (
-                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/40 font-medium">
-                          <Clock className="w-3 h-3" /> Atualizado em {updatedLabel}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    /* ── Nurse/Tech: Monthly Calendar ── */
-                    <>
-                      {/* Hero stats card */}
-                      <div className="rounded-3xl p-5 relative overflow-hidden shadow-lg"
-                        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
-                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-primary-foreground/5 -translate-y-12 translate-x-12" />
-                        <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-primary-foreground/3 translate-y-8 -translate-x-4" />
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Activity className="w-4 h-4 text-primary-foreground/70" />
-                            <p className="text-primary-foreground/70 text-[10px] font-bold uppercase tracking-[0.15em]">Resumo geral</p>
-                          </div>
-                          <div className="flex items-end justify-between">
-                            <div>
-                              <p className="text-primary-foreground text-[42px] font-black leading-none tracking-tight">{myStats.overall.workedDays}</p>
-                              <p className="text-primary-foreground/60 text-[13px] font-semibold mt-1">dias escalados</p>
-                            </div>
-                            <div className="text-right space-y-2">
-                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                                <Sun className="w-3.5 h-3.5 text-primary-foreground/80" />
-                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.weekendDays}</span>
-                                <span className="text-primary-foreground/60 text-[10px] font-semibold">FDS</span>
-                              </div>
-                              <div className="inline-flex items-center gap-1.5 bg-primary-foreground/10 backdrop-blur-sm rounded-full px-3 py-1.5">
-                                <Zap className="w-3.5 h-3.5 text-primary-foreground/80" />
-                                <span className="text-primary-foreground text-[13px] font-bold">{myStats.overall.creditsBalance}</span>
-                                <span className="text-primary-foreground/60 text-[10px] font-semibold">créd</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Month nav */}
-                      <div className="flex items-center justify-between px-1">
-                        <button onClick={prevMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                          <ChevronLeft className="h-5 w-5" />
-                        </button>
-                        <h2 className="text-[16px] font-black capitalize text-foreground tracking-tight">
-                          {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                        </h2>
-                        <button onClick={nextMonth} className="portal-press w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all">
-                          <ChevronRight className="h-5 w-5" />
-                        </button>
-                      </div>
-
-                      {/* Calendar */}
-                      <GlassCard className="overflow-hidden">
-                        <div className="grid grid-cols-7 text-center border-b border-border/20">
-                          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                            <div key={i} className="py-3 text-[10px] font-bold text-muted-foreground/40 uppercase">{d}</div>
+                            </GlassCard>
                           ))}
                         </div>
-                        <div className="grid grid-cols-7 p-1.5 gap-0.5">
-                          {(() => {
-                            const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
-                            const days = eachDayOfInterval({ start: ms, end: me });
-                            const blanks = Array.from({ length: getDay(ms) }, (_, i) => <div key={`b${i}`} className="aspect-square" />);
-                            const cells = days.map(day => {
-                              const ds = format(day, 'yyyy-MM-dd');
-                              const hasWork = myEntries.some(e => e.date === ds);
-                              const isWknd = getDay(day) === 0 || getDay(day) === 6;
-                              const isToday = format(new Date(), 'yyyy-MM-dd') === ds;
-                              const hasLeave = myLeaveRequestsFromAdmin.some(r => r.status === 'approved' && r.leaveDates?.includes(ds));
-                              return (
-                                <div key={ds} className="aspect-square flex flex-col items-center justify-center relative p-0.5">
-                                  <span className={cn(
-                                    "text-[13px] font-semibold w-[36px] h-[36px] flex items-center justify-center rounded-xl transition-all",
-                                    isToday && "bg-primary text-primary-foreground font-black shadow-md shadow-primary/25 ring-2 ring-primary/20",
-                                    hasWork && !isToday && !hasLeave && !isWknd && "bg-accent/12 text-accent font-bold",
-                                    hasWork && !isToday && !hasLeave && isWknd && "bg-warning/12 text-warning font-bold",
-                                    hasLeave && !isToday && "bg-destructive/10 text-destructive",
-                                    !isToday && !hasWork && !hasLeave && isWknd && "text-muted-foreground/30",
-                                    !isToday && !hasWork && !hasLeave && !isWknd && "text-foreground/70",
-                                  )}>
-                                    {format(day, 'd')}
-                                  </span>
-                                  {hasWork && !isToday && (
-                                    <div className={cn(
-                                      "absolute bottom-1 w-1 h-1 rounded-full",
-                                      isWknd ? "bg-warning" : "bg-accent"
-                                    )} />
-                                  )}
-                                </div>
-                              );
-                            });
-                            return [...blanks, ...cells];
-                          })()}
+                      )}
+                    </div>
+                  )}
+
+                  {/* ════════ PROFILE ════════ */}
+                  {activeTab === 'profile' && (
+                    <div className="space-y-6">
+                      <GlassCard className="overflow-hidden">
+                        <div className="h-28 relative bg-primary">
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+                          <div className="absolute bottom-4 left-6">
+                            <div className="flex items-center gap-1.5 py-1 px-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em]">
+                              Conta Verificada
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-8 pb-8 -mt-10 relative z-10">
+                          <div className="flex items-end gap-5">
+                            <div className="relative group">
+                              <div className="w-[100px] h-[100px] rounded-[32px] overflow-hidden bg-white ring-4 ring-white shadow-2xl flex items-center justify-center transition-transform group-hover:scale-105">
+                                {professionalUser.avatar_url
+                                  ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                                  : <span className="text-4xl font-black text-primary">{firstName[0]}</span>}
+                              </div>
+                              <button onClick={handleAvatarUpload} disabled={avatarUploading}
+                                className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center shadow-xl ring-4 ring-white transition-transform hover:scale-110 active:scale-90">
+                                {avatarUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                              </button>
+                            </div>
+                            <div className="pb-1">
+                              <h2 className="text-[24px] font-black text-slate-800 leading-tight mb-1">{myProfessional?.name || professionalUser.full_name}</h2>
+                              <div className="inline-flex items-center gap-2 text-primary font-black text-[12px] uppercase tracking-widest">
+                                <CategoryIcon className="w-4 h-4" /> {categoryLabel}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </GlassCard>
 
-                      {/* Legend */}
-                      <div className="flex items-center justify-center gap-5 text-[10px] font-semibold text-muted-foreground">
-                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-accent" />Dia útil</span>
-                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-warning" />FDS</span>
-                        <span className="flex items-center gap-1.5"><CircleDot className="w-3 h-3 text-destructive" />Folga</span>
-                      </div>
-
-                      {/* Month stats */}
-                      <div className="grid grid-cols-3 gap-3">
+                      <GlassCard className="divide-y divide-border/10">
                         {[
-                          { value: myStats.month.workedDays, label: 'Escalas', icon: CalendarDays, color: 'text-primary', iconBg: 'bg-primary/10' },
-                          { value: myStats.month.weekendDays, label: 'FDS', icon: Sun, color: 'text-warning', iconBg: 'bg-warning/10' },
-                          { value: myStats.month.creditsBalance, label: 'Créditos', icon: Zap, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', iconBg: myStats.month.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                        ].map((s, i) => (
-                          <GlassCard key={i} className="p-3.5 flex flex-col items-center gap-1.5">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", s.iconBg)}>
-                              <s.icon className={cn("w-4 h-4", s.color)} />
+                          { icon: Mail, label: 'E-mail principal', value: professionalUser.email, color: 'text-primary' },
+                          { icon: Shield, label: 'Status da conta', value: 'Aprovado para uso total', color: 'text-accent', bold: true },
+                          { icon: Clock, label: 'Última atualização', value: updatedLabel || 'Nenhuma recente', color: 'text-slate-400' },
+                        ].map((row, i) => (
+                          <div key={i} className="flex items-center gap-5 px-8 py-5 group">
+                            <div className={cn("w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 transition-colors group-hover:bg-primary/10", row.color)}>
+                              <row.icon className="w-5 h-5" />
                             </div>
-                            <p className={cn("text-xl font-black leading-none", s.color)}>{s.value}</p>
-                            <p className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-wider">{s.label}</p>
-                          </GlassCard>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-0.5">{row.label}</p>
+                              <p className={cn("text-[14px] font-black text-slate-800 truncate leading-none", row.bold && "text-accent")}>{row.value}</p>
+                            </div>
+                          </div>
                         ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                      </GlassCard>
 
-              {/* ════════ CREDITS ════════ */}
-              {activeTab === 'credits' && (
-                <div className="space-y-5">
-                  <GlassCard className="p-7 text-center">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/50 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                      <Zap className="w-3 h-3" /> Saldo de Créditos
-                    </div>
-                    <CreditRing balance={myStats.overall.creditsBalance} total={Math.max(myStats.overall.creditsGenerated, 1)} />
-                    <p className="text-[13px] text-muted-foreground font-medium mt-3">dias disponíveis para folga</p>
-                  </GlassCard>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <GlassCard className="p-5 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center mx-auto mb-2.5">
-                        <TrendingUp className="w-6 h-6 text-accent" />
-                      </div>
-                      <p className="text-3xl font-black text-accent">{myStats.overall.creditsGenerated}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Gerados</p>
-                    </GlassCard>
-                    <GlassCard className="p-5 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-destructive/15 to-destructive/5 flex items-center justify-center mx-auto mb-2.5">
-                        <TrendingDown className="w-6 h-6 text-destructive" />
-                      </div>
-                      <p className="text-3xl font-black text-destructive">{myStats.overall.creditsUsed}</p>
-                      <p className="text-[10px] font-bold text-muted-foreground/50 uppercase mt-1 tracking-wider">Utilizados</p>
-                    </GlassCard>
-                  </div>
-
-                  <GlassCard className="overflow-hidden">
-                    <div className="px-5 py-3.5 bg-muted/20 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] capitalize flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-                    </div>
-                    {[
-                      { label: 'Créditos gerados', value: `+${myStats.month.creditsGenerated}`, color: 'text-accent', icon: TrendingUp },
-                      { label: 'Créditos utilizados', value: `-${myStats.month.creditsUsed}`, color: 'text-destructive', icon: TrendingDown },
-                      { label: 'Saldo do mês', value: `${myStats.month.creditsBalance}`, color: myStats.month.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Star, bold: true },
-                    ].map((row, i) => (
-                      <div key={i} className="px-5 py-3.5 flex items-center justify-between border-t border-border/20">
-                        <div className="flex items-center gap-2.5">
-                          <row.icon className={cn("w-4 h-4", row.color, "opacity-60")} />
-                          <span className={cn("text-[13px]", row.bold ? "font-bold text-foreground" : "text-muted-foreground font-medium")}>{row.label}</span>
-                        </div>
-                        <span className={cn("text-[14px] font-black", row.color)}>{row.value}</span>
-                      </div>
-                    ))}
-                  </GlassCard>
-
-                  <div className="flex items-start gap-3 px-2 py-3 rounded-2xl bg-primary/5 border border-primary/10">
-                    <Sparkles className="w-5 h-5 text-primary/40 shrink-0 mt-px" />
-                    <p className="text-[12px] text-muted-foreground leading-relaxed">Cada final de semana trabalhado gera <strong className="text-foreground">2 créditos</strong> automaticamente.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* ════════ LEAVES ════════ */}
-              {activeTab === 'leaves' && (
-                <div className="space-y-4">
-                  <ActionButton onClick={() => setLeaveDialogOpen(true)} icon={Plus}>
-                    Nova Solicitação
-                  </ActionButton>
-
-                  <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-                    <DialogContent className="rounded-3xl max-w-[380px] mx-auto p-6">
-                      <DialogHeader><DialogTitle className="text-[18px] font-black">Nova Solicitação</DialogTitle></DialogHeader>
-                      <div className="space-y-4 pt-2">
-                        <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-primary/5 border border-primary/10">
-                          <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-foreground/70 leading-relaxed font-medium">Solicite com mínimo <strong>10 dias de antecedência</strong>. Imprevistos serão analisados pela coordenação.</p>
-                        </div>
-                        <div>
-                          <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de afastamento</Label>
-                          <Select value={leaveForm.leaveType} onValueChange={(v) => setLeaveForm(p => ({ ...p, leaveType: v as LeaveType }))}>
-                            <SelectTrigger className="h-12 rounded-2xl text-[13px] font-medium border-2"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger>
-                            <SelectContent>{Object.entries(LEAVE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-                          </Select>
-                          {leaveForm.leaveType === 'folga_credito' && (
-                            <p className="text-[11px] text-accent mt-1.5 font-bold flex items-center gap-1">
-                              <Zap className="w-3 h-3" />Saldo disponível: {myStats.overall.creditsBalance} dias
-                            </p>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Início</Label>
-                            <input type="date" value={leaveForm.startDate} onChange={(e) => setLeaveForm(p => ({ ...p, startDate: e.target.value }))}
-                              className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Fim</Label>
-                            <input type="date" value={leaveForm.endDate} onChange={(e) => setLeaveForm(p => ({ ...p, endDate: e.target.value }))}
-                              className="flex h-12 w-full rounded-2xl border-2 border-input bg-background px-3 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
-                          </div>
-                        </div>
-                        {daysRequested > 0 && (
-                          <div className="text-center">
-                            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary/10 text-primary text-[14px] font-black shadow-sm">
-                              <CalendarDays className="w-4 h-4" />
-                              {daysRequested} {daysRequested === 1 ? 'dia' : 'dias'}
-                            </span>
-                          </div>
+                      <div className="space-y-4 pt-4">
+                        {deferredPrompt && (
+                          <button onClick={handleInstall} className="w-full h-16 rounded-[28px] bg-white border border-border/10 shadow-sm flex items-center justify-center gap-4 text-slate-800 font-black text-[15px] transition-all hover:bg-slate-50 active:scale-95">
+                            <Download className="w-5 h-5 text-primary" /> Instalar Aplicativo
+                          </button>
                         )}
-                        <div>
-                          <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Observações (opcional)</Label>
-                          <Textarea value={leaveForm.observations} onChange={(e) => setLeaveForm(p => ({ ...p, observations: e.target.value }))} placeholder="Motivo ou detalhes..." className="rounded-2xl resize-none text-[13px] border-2 font-medium" rows={2} />
-                        </div>
-                        {isShortNotice && leaveForm.startDate && (
-                          <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-warning/8 border border-warning/15">
-                            <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-foreground/70 font-medium"><strong>Prazo inferior ao recomendado.</strong> Sujeito à análise da coordenação.</p>
-                          </div>
-                        )}
-                        <ActionButton onClick={handleSubmitLeave} disabled={!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1} icon={ArrowRight}>
-                          {isShortNotice ? 'Enviar Mesmo Assim' : 'Enviar Solicitação'}
-                        </ActionButton>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* List */}
-                  {leaveRequests.length === 0 ? (
-                    <GlassCard className="py-14 px-6 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center mx-auto mb-4">
-                        <CalendarOff className="w-7 h-7 text-muted-foreground/30" />
-                      </div>
-                      <p className="text-[15px] font-bold text-muted-foreground">Sem solicitações</p>
-                      <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">Toque em "Nova Solicitação" para pedir folga</p>
-                    </GlassCard>
-                  ) : (
-                    <div className="space-y-3">
-                      {leaveRequests.map(req => (
-                        <GlassCard key={req.id} className="p-4.5 hover:shadow-md transition-shadow">
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-[14px] text-foreground truncate">{LEAVE_TYPE_LABELS[req.leave_type as LeaveType] || req.leave_type}</p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium bg-muted/40 px-2.5 py-1 rounded-full">
-                                    <CalendarDays className="w-3 h-3 shrink-0" />
-                                    {format(new Date(req.start_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}
-                                    {req.end_date !== req.start_date && <> → {format(new Date(req.end_date + 'T00:00:00'), 'dd MMM', { locale: ptBR })}</>}
-                                  </div>
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
-                                    {req.days_requested}d
-                                  </span>
-                                </div>
-                              </div>
-                              {statusBadge(req.status)}
-                            </div>
-                            {req.observations && (
-                              <p className="text-[11px] text-muted-foreground/60 italic mt-3 pt-3 border-t border-border/15 font-medium">"{req.observations}"</p>
-                            )}
-                          </div>
-                        </GlassCard>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ════════ PROFILE ════════ */}
-              {activeTab === 'profile' && (
-                <div className="space-y-5">
-                  {/* Hero card */}
-                  <GlassCard className="overflow-hidden">
-                    <div className="h-24 relative" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 90% 40%) 100%)' }}>
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,hsl(var(--primary-foreground)/0.1),transparent_60%)]" />
-                      <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
-                    </div>
-                    <div className="px-5 pb-6 -mt-12 relative z-10 flex flex-col items-center">
-                      <div className="relative mb-3">
-                        <div className="w-[88px] h-[88px] rounded-full overflow-hidden bg-card ring-4 ring-card flex items-center justify-center shadow-xl">
-                          {professionalUser.avatar_url
-                            ? <img src={professionalUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                            : <span className="text-3xl font-black text-primary">{firstName[0]}</span>}
-                        </div>
-                        <button onClick={handleAvatarUpload} disabled={avatarUploading}
-                          className="portal-press absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg ring-3 ring-card transition-transform hover:scale-110">
-                          {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        <button onClick={logout} className="w-full h-11 rounded-[28px] bg-destructive/10 text-destructive flex items-center justify-center gap-4 font-black transition-all hover:bg-destructive/15 active:scale-95">
+                          <LogOut className="w-5 h-5" /> Sair da Conta
                         </button>
                       </div>
-                      <h2 className="text-[18px] font-black text-foreground mt-1">{myProfessional?.name || professionalUser.full_name}</h2>
-                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/8 text-primary text-[11px] font-bold">
-                        <CategoryIcon className="w-3.5 h-3.5" /> {categoryLabel}
-                      </div>
-                    </div>
-                  </GlassCard>
 
-                  {/* Quick stats - hidden for eMult */}
-                  {!isEmultUser && (
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { value: myStats.overall.workedDays, label: 'Dias', color: 'text-primary', icon: CalendarDays, iconBg: 'bg-primary/10' },
-                        { value: myStats.overall.weekendDays, label: 'FDS', color: 'text-warning', icon: Sun, iconBg: 'bg-warning/10' },
-                        { value: myStats.overall.creditsBalance, label: 'Créditos', color: myStats.overall.creditsBalance >= 0 ? 'text-accent' : 'text-destructive', icon: Zap, iconBg: myStats.overall.creditsBalance >= 0 ? 'bg-accent/10' : 'bg-destructive/10' },
-                      ].map((s, i) => (
-                        <GlassCard key={i} className="p-3.5 text-center">
-                          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-1.5", s.iconBg)}>
-                            <s.icon className={cn("w-4 h-4", s.color)} />
-                          </div>
-                          <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
-                          <p className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-wider">{s.label}</p>
-                        </GlassCard>
-                      ))}
+                      <footer className="text-center py-10 opacity-30">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900 leading-relaxed mb-1">eMulti • Escala Clara</p>
+                        <p className="text-[9px] font-bold text-slate-900 leading-none">© 2025 • Secretaria Municipal de Saúde</p>
+                      </footer>
                     </div>
                   )}
-
-                  {/* Info rows */}
-                  <GlassCard className="divide-y divide-border/20">
-                    {[
-                      { icon: Mail, label: 'E-mail', value: professionalUser.email, iconColor: 'text-primary', iconBg: 'bg-primary/10' },
-                      { icon: Shield, label: 'Status', value: 'Aprovado', cls: 'text-accent font-bold', iconColor: 'text-accent', iconBg: 'bg-accent/10' },
-                      { icon: Clock, label: 'Atualizado', value: updatedLabel || 'Sem dados', iconColor: 'text-muted-foreground', iconBg: 'bg-muted/60' },
-                    ].map((row, i) => (
-                      <div key={i} className="flex items-center gap-3.5 px-5 py-4">
-                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", row.iconBg)}>
-                          <row.icon className={cn("w-4.5 h-4.5", row.iconColor)} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em]">{row.label}</p>
-                          <p className={cn("text-[13px] text-foreground truncate font-medium", row.cls)}>{row.value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </GlassCard>
-
-                  {/* Actions */}
-                  <div className="space-y-3">
-                    {deferredPrompt && (
-                      <ActionButton onClick={handleInstall} variant="outline" icon={Download}>
-                        Instalar Aplicativo
-                      </ActionButton>
-                    )}
-                    <ActionButton onClick={logout} variant="danger" icon={LogOut}>
-                      Sair da Conta
-                    </ActionButton>
-                  </div>
-
-                  <p className="text-center text-[9px] text-muted-foreground/25 uppercase tracking-[0.2em] font-bold pt-3 pb-1">
-                    © 2025 Secretaria Municipal de Saúde
-                  </p>
-                </div>
+                </>
               )}
-            </div>
-          )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
