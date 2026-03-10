@@ -53,5 +53,4 @@ export interface ServiceProfessional {
     category: 'nurse' | 'tech';
     monthlyHours: number;
     active: boolean;
-    skills?: string[];
 }

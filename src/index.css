@@ -19,112 +19,89 @@
 /* ─── Tokens de Cor (Light Mode) ──────────────────────────────────────── */
 @layer base {
   :root {
-    /* Superfícies - Premium Palette */
-    --background: 220 33% 98%;
-    /* Soft cool white */
-    --foreground: 224 71% 4%;
-    /* Near black */
+    /* Superfícies */
+    --background: 210 15% 95%;
+    /* Cinza azulado claro — fundo geral */
+    --foreground: 210 25% 15%;
+    /* Texto principal */
 
     --card: 0 0% 100%;
-    /* Pure white card */
-    --card-foreground: 224 71% 4%;
-    --card-shadow: 220 15% 90%;
-    /* Subtle soft shadow */
+    /* Fundo dos cards */
+    --card-foreground: 210 25% 15%;
+    /* Texto dentro de cards */
+    --card-shadow: 210 15% 90%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover-foreground: 210 25% 15%;
 
-    /* Cores de Marca - Modern Professional Blue/Violet */
-    --primary: 221 83% 53%;
-    /* Modern Electric Blue */
-    --primary-foreground: 210 40% 98%;
+    /* Cores de Marca */
+    --primary: 210 100% 48%;
+    /* Azul SUS — ações principais */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 25% 90%;
+    /* Fundo de elementos secundários */
+    --secondary-foreground: 210 25% 25%;
 
-    --muted: 214 32% 91%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 12% 92%;
+    /* Fundo sutil, placeholders */
+    --muted-foreground: 210 15% 45%;
+    /* Texto secundário */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 152 60% 40%;
+    /* Verde — sucesso e destaques */
+    --accent-foreground: 0 0% 100%;
 
     /* Status */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 210 40% 98%;
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 210 40% 98%;
+    --warning: 45 95% 50%;
+    --warning-foreground: 210 25% 15%;
 
     /* Bordas e Inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 210 100% 48%;
 
-    /* Raio padrão — 0.75rem for modern soft look */
-    --radius: 0.75rem;
+    /* Raio padrão — 0.5rem para visual arredondado */
+    --radius: 0.5rem;
 
-    /* ── Sidebar - Dark Premium ── */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 32% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 32% 17%;
-    --sidebar-ring: 224 76% 48%;
+    /* ── Sidebar (Restored Blue) ── */
+    --sidebar-background: 210 100% 35%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 95% 55%;
+    --sidebar-primary-foreground: 210 25% 15%;
+    --sidebar-accent: 210 100% 42%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 80% 42%;
+    --sidebar-ring: 45 95% 55%;
 
     /* ── Tabelas ── */
-    --table-header: 221 83% 53%;
+    --table-header: 210 100% 48%;
     --table-header-foreground: 0 0% 100%;
-    --table-row-even: 210 40% 98%;
+    --table-row-even: 210 15% 94%;
     --table-row-odd: 0 0% 100%;
 
-    /* ── Cores de Categoria (Premium Vibrancy) ── */
-    --cat-nurse: 217 91% 60%;
-    --cat-nurse-light: 217 91% 97%;
-    --cat-tech: 142 71% 45%;
-    --cat-tech-light: 142 71% 97%;
-    --cat-emult: 262 83% 58%;
-    --cat-emult-light: 262 83% 97%;
+    /* ── Cores de Categoria (Enfermeiro / Técnico / eMult) ── */
+    --cat-nurse: 210 80% 50%;
+    --cat-nurse-light: 210 80% 96%;
+    --cat-tech: 152 55% 45%;
+    --cat-tech-light: 152 55% 96%;
+    --cat-emult: 270 55% 55%;
+    --cat-emult-light: 270 55% 96%;
 
     /* ── Glassmorphism Utils ── */
     --glass-opacity: 0.7;
     --glass-blur: 12px;
   }
 
-  /* Dark mode - Pro palette */
+  /* Dark mode — herda valores padrão por enquanto */
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
-
-    --card: 224 71% 4%;
-    --card-foreground: 210 40% 98%;
-    --card-shadow: 0 0% 0%;
-
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217 32% 17%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
-    --ring: 224 76% 48%;
+    --radius: 0.5rem;
   }
 }
 
