@@ -44,7 +44,6 @@ export default function TeamManagement() {
     members,
     pendingRequests,
     loading,
-    inviteMember,
     updateMemberPermissions,
     removeMember,
     approveManagerRequest,
@@ -55,7 +54,6 @@ export default function TeamManagement() {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<PendingManagerRequest | null>(null);
-  const [email, setEmail] = useState('');
   const [perms, setPerms] = useState<Record<string, boolean>>({ ...DEFAULT_PERMISSIONS });
   const [copied, setCopied] = useState(false);
 
@@ -70,13 +68,6 @@ export default function TeamManagement() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const openInvite = () => {
-    setEditingMember(null);
-    setEmail('');
-    setPerms({ ...DEFAULT_PERMISSIONS });
-    setDialogOpen(true);
-  };
-
   const openApprove = (req: PendingManagerRequest) => {
     setSelectedRequest(req);
     setPerms({ ...DEFAULT_PERMISSIONS });
@@ -85,7 +76,6 @@ export default function TeamManagement() {
 
   const openEdit = (member: TeamMember) => {
     setEditingMember(member);
-    setEmail(member.member_email);
     setPerms({ ...DEFAULT_PERMISSIONS, ...member.permissions });
     setDialogOpen(true);
   };
@@ -93,12 +83,6 @@ export default function TeamManagement() {
   const handleSave = async () => {
     if (editingMember) {
       await updateMemberPermissions(editingMember.id, perms);
-    } else {
-      if (!email.trim() || !email.includes('@')) {
-        toast.error('Digite um e-mail válido');
-        return;
-      }
-      await inviteMember(email, perms);
     }
     setDialogOpen(false);
   };
@@ -147,12 +131,6 @@ export default function TeamManagement() {
       <PageHeader
         title="Equipe"
         description="Gerencie os administradores que podem editar escalas e folgas"
-        action={
-          <Button onClick={openInvite}>
-            <Plus className="w-4 h-4 mr-2" />
-            Convidar E-mail
-          </Button>
-        }
       />
 
       {/* Link de Convite Especial */}
@@ -196,9 +174,7 @@ export default function TeamManagement() {
             <EmptyState
               icon={Users}
               title="Nenhum membro adicionado"
-              description="Use o link acima ou convide por e-mail para gerenciar as escalas"
-              actionLabel="Convidar por E-mail"
-              onAction={openInvite}
+              description="Use o link acima para que novos gestores peçam acesso à equipe"
             />
           ) : (
             <div className="grid gap-4 max-w-3xl">
@@ -298,26 +274,15 @@ export default function TeamManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              {editingMember ? 'Editar Permissões' : 'Convidar p/ Equipe'}
+              Editar Permissões
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 mt-2">
-            {!editingMember && (
-              <div>
-                <Label className="text-xs uppercase font-bold text-muted-foreground">E-mail *</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="mt-1"
-                />
-                <p className="text-[11px] text-muted-foreground mt-2 italic">
-                  A pessoa deve fazer login com este e-mail para acessar
-                </p>
-              </div>
-            )}
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+              <p className="text-xs text-muted-foreground">Membro:</p>
+              <p className="font-bold">{editingMember?.member_email}</p>
+            </div>
 
             <div>
               <div className="flex items-center justify-between mb-3 border-b pb-2">

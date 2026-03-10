@@ -74,43 +74,6 @@ export function useTeamMembers() {
     fetchMembers();
   }, [fetchMembers]);
 
-  const inviteMember = useCallback(async (email: string, permissions: Record<string, boolean>) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    // Get user's team_id
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('team_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    const { error } = await supabase
-      .from('team_members' as any)
-      .insert({
-        owner_id: user.id,
-        member_email: email.toLowerCase().trim(),
-        role: 'member',
-        status: 'pending',
-        permissions,
-        team_id: profile?.team_id || null,
-      } as any);
-
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('Este e-mail já foi convidado.');
-      } else {
-        toast.error('Erro ao convidar membro.');
-        console.error(error);
-      }
-      return false;
-    }
-
-    toast.success(`Convite enviado para ${email}`);
-    await fetchMembers();
-    return true;
-  }, [fetchMembers]);
-
   const updateMemberPermissions = useCallback(async (memberId: string, permissions: Record<string, boolean>) => {
     const { error } = await supabase
       .from('team_members' as any)
@@ -222,7 +185,6 @@ export function useTeamMembers() {
     members,
     pendingRequests,
     loading,
-    inviteMember,
     updateMemberPermissions,
     removeMember,
     approveManagerRequest,

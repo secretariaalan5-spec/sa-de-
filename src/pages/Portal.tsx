@@ -500,6 +500,9 @@ export default function Portal() {
     if (!professionalUser.team_id || professionalUser.team_id !== teamIdFromUrl) {
       (async () => {
         try {
+          // Clear old data immediately to ensure isolation
+          setPortalData(null);
+
           await supabase.rpc('register_professional_via_portal' as any, {
             _team_id: teamIdFromUrl,
             _category: professionalUser.category,
