@@ -13,6 +13,10 @@ import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { format } from 'date-fns';
 import { LEAVE_TYPE_LABELS, LeaveType } from '@/types/serviceSchedule';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useServiceStats } from '@/hooks/useServiceStats';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 interface ProfessionalUserRecord {
   id: string;
@@ -53,6 +57,19 @@ export default function ProfessionalApprovals() {
   const [pendingLeaves, setPendingLeaves] = useState<ProfLeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [selectedProfId, setSelectedProfId] = useState<string | null>(null);
+  const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+  const [emailMap, setEmailMap] = useState<Record<string, string>>({});
+
+  const { getTotalCreditsUsedByProfessional } = useLeaveRequests();
+  const { allEntries: nurseEntries } = useServiceSchedule('nurse');
+  const { allEntries: techEntries } = useServiceSchedule('tech');
+  const allEntries = useMemo(() => [...nurseEntries, ...techEntries], [nurseEntries, techEntries]);
+  
+  const { getStatsForProfessional: getStats } = useServiceStats({
+    allEntries,
+    getTotalCreditsUsedByProfessional,
+  });
 
   const portalLink = teamId
     ? `${window.location.origin}/portal?team=${teamId}`
@@ -109,6 +126,25 @@ export default function ProfessionalApprovals() {
       .order('created_at', { ascending: false }) as any);
 
     setPendingLeaves((leaves || []) as ProfLeaveRequest[]);
+
+    // Fetch avatars and emails
+    const { data: profUsers } = await supabase
+      .from('professional_users')
+      .select('professional_id, avatar_url, email')
+      .eq('team_id', profile.team_id);
+    if (profUsers) {
+      const aMap: Record<string, string> = {};
+      const eMap: Record<string, string> = {};
+      profUsers.forEach((pu: any) => {
+        if (pu.professional_id) {
+          if (pu.avatar_url) aMap[pu.professional_id] = pu.avatar_url;
+          if (pu.email) eMap[pu.professional_id] = pu.email;
+        }
+      });
+      setAvatarMap(aMap);
+      setEmailMap(eMap);
+    }
+
     setLoading(false);
   }, [profile?.team_id]);
 
@@ -396,7 +432,12 @@ export default function ProfessionalApprovals() {
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="font-bold text-foreground">{prof?.name || 'Profissional'}</h3>
+                          <h3 
+                            className="font-bold text-foreground hover:text-primary cursor-pointer transition-colors"
+                            onClick={() => setSelectedProfId(leave.professional_id)}
+                          >
+                            {prof?.name || 'Profissional'}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1">
                             {categoryIcon(leave.category)}
                             <Badge variant="secondary" className="text-xs">
@@ -484,7 +525,7 @@ export default function ProfessionalApprovals() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {approvedUsers.filter(u => u.category === 'nurse').map(user => (
-                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} />
+                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} onSelect={() => setSelectedProfId(user.professional_id)} avatarUrl={user.professional_id ? avatarMap[user.professional_id] : null} />
                     ))}
                   </div>
                 </div>
@@ -498,7 +539,7 @@ export default function ProfessionalApprovals() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {approvedUsers.filter(u => u.category === 'tech').map(user => (
-                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} />
+                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} onSelect={() => setSelectedProfId(user.professional_id)} avatarUrl={user.professional_id ? avatarMap[user.professional_id] : null} />
                     ))}
                   </div>
                 </div>
@@ -512,7 +553,7 @@ export default function ProfessionalApprovals() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {approvedUsers.filter(u => u.category === 'emult').map(user => (
-                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} />
+                      <UserCard key={user.id} user={user} categoryIcon={categoryIcon} categoryLabel={categoryLabel} categoryBarColor={categoryBarColor} categoryColorClass={categoryColorClass} categoryTextColor={categoryTextColor} onRemove={handleRemoveApproved} onSelect={() => setSelectedProfId(user.professional_id)} avatarUrl={user.professional_id ? avatarMap[user.professional_id] : null} />
                     ))}
                   </div>
                 </div>
@@ -521,11 +562,95 @@ export default function ProfessionalApprovals() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Professional Detail Dialog */}
+      <Dialog open={!!selectedProfId} onOpenChange={(open) => !open && setSelectedProfId(null)}>
+        <DialogContent className="max-w-md rounded-3xl p-6 overflow-hidden">
+          {selectedProfId && (() => {
+            const prof = professionals.find(p => p.id === selectedProfId);
+            if (!prof) return null;
+            const stats = getStats(prof.id, prof.name, prof.category);
+            const avatarUrl = avatarMap[prof.id];
+            const email = emailMap[prof.id];
+            const isNurse = prof.category === 'nurse';
+
+            return (
+              <div className="space-y-6">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      {avatarUrl && <AvatarImage src={avatarUrl} />}
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {prof.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p>{prof.name}</p>
+                      <p className="text-xs font-normal text-muted-foreground">{email || 'Sem e-mail'}</p>
+                    </div>
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/50 text-center">
+                    <TrendingUp className="w-4 h-4 mx-auto mb-1 text-accent" />
+                    <p className="text-2xl font-black text-accent">{stats.creditsGenerated}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ganhos</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/50 text-center">
+                    <TrendingDown className="w-4 h-4 mx-auto mb-1 text-destructive" />
+                    <p className="text-2xl font-black text-destructive">{stats.creditsUsed}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Usados</p>
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 text-center">
+                  <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mb-1">Saldo Atual</p>
+                  <p className={cn(
+                    "text-4xl font-black",
+                    stats.creditsBalance > 0 ? "text-accent" : stats.creditsBalance < 0 ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {stats.creditsBalance}
+                    <span className="text-lg font-bold ml-1">dias</span>
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Informações</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between py-2 border-b border-border/10">
+                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <Stethoscope className="w-3.5 h-3.5" /> Categoria
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        {isNurse ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-border/10">
+                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5" /> Carga Horária
+                      </div>
+                      <span className="text-xs font-bold">{prof.monthlyHours}h mensal</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full rounded-2xl h-12 font-bold"
+                  onClick={() => window.location.href = `/escalas-servicos/profissionais?id=${prof.id}`}
+                >
+                  Ver Histórico Completo
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categoryColorClass, categoryTextColor, onRemove }: {
+function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categoryColorClass, categoryTextColor, onRemove, onSelect, avatarUrl }: {
   user: ProfessionalUserRecord;
   categoryIcon: (cat: string) => React.ReactNode;
   categoryLabel: (cat: string, fn?: string | null) => string;
@@ -533,15 +658,26 @@ function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categor
   categoryColorClass: (cat: string) => string;
   categoryTextColor: (cat: string) => string;
   onRemove: (user: ProfessionalUserRecord) => void;
+  onSelect: () => void;
+  avatarUrl?: string | null;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden cursor-pointer hover:border-primary/40 transition-all" onClick={onSelect}>
       <div className={`h-1 w-full ${categoryBarColor(user.category)}`} />
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${categoryColorClass(user.category)}`}>
-            {categoryIcon(user.category)}
-          </div>
+          {avatarUrl ? (
+            <Avatar className="h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-border">
+              <AvatarImage src={avatarUrl} />
+              <AvatarFallback className={categoryColorClass(user.category)}>
+                {categoryIcon(user.category)}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${categoryColorClass(user.category)}`}>
+              {categoryIcon(user.category)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <h3 className="font-bold text-sm text-foreground truncate">{user.full_name}</h3>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
@@ -553,7 +689,7 @@ function UserCard({ user, categoryIcon, categoryLabel, categoryBarColor, categor
             size="icon"
             variant="ghost"
             className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-            onClick={() => onRemove(user)}
+            onClick={(e) => { e.stopPropagation(); onRemove(user); }}
             title="Remover profissional"
           >
             <Trash2 className="w-4 h-4" />

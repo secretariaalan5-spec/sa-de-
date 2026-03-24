@@ -673,9 +673,13 @@ export default function Portal() {
   const myLeaveRequestsFromAdmin = useMemo(() => { if (!professionalUser?.professional_id || !portalData?.service?.leaveRequests) return []; return (portalData.service.leaveRequests as LeaveRequest[]).filter(r => r.professionalId === professionalUser.professional_id); }, [portalData, professionalUser]);
 
   const myStats = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     const overallWorkedDays = new Set(myEntries.map(e => e.date)).size;
     const overallWeekendDays = new Set(myEntries.filter(e => e.isWeekend).map(e => e.date)).size;
-    const cg = overallWeekendDays * 2;
+    
+    // Credits only for weekends already worked (past or present)
+    const earnedOverallWeekendDays = new Set(myEntries.filter(e => e.isWeekend && e.date <= todayStr).map(e => e.date)).size;
+    const cg = earnedOverallWeekendDays * 2;
     const cu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
     
     const ms = startOfMonth(currentMonth); 
@@ -686,7 +690,10 @@ export default function Portal() {
     const monthEntries = myEntries.filter(e => e.date >= msStr && e.date <= meStr);
     const mwd = new Set(monthEntries.map(e => e.date)).size;
     const mwed = new Set(monthEntries.filter(e => e.isWeekend).map(e => e.date)).size;
-    const mcg = mwed * 2;
+    
+    // Monthly credits earned so far
+    const earnedMonthWeekendDays = new Set(monthEntries.filter(e => e.isWeekend && e.date <= todayStr).map(e => e.date)).size;
+    const mcg = earnedMonthWeekendDays * 2;
     
     const mcu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => { 
       if (!r.leaveDates?.length) return s; 

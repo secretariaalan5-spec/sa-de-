@@ -12,7 +12,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useServiceStats } from '@/hooks/useServiceStats';
 import { cn } from '@/lib/utils';
+import { Stethoscope, Syringe, Users, Check, X, CalendarOff, Trash2, AlertCircle, Clock, Calendar, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 
 interface ProfLeaveRequest {
     id: string;
@@ -37,6 +40,18 @@ export default function LeaveRequestsPage() {
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
     const [avatarMap, setAvatarMap] = useState<Record<string, string>>({});
+    const [emailMap, setEmailMap] = useState<Record<string, string>>({});
+    const [selectedProfId, setSelectedProfId] = useState<string | null>(null);
+
+    // Get all entries for stats
+    const { allEntries: nurseEntries } = useServiceSchedule('nurse');
+    const { allEntries: techEntries } = useServiceSchedule('tech');
+    const allEntries = useMemo(() => [...nurseEntries, ...techEntries], [nurseEntries, techEntries]);
+    
+    const { getStatsForProfessional: getStats } = useServiceStats({
+        allEntries,
+        getTotalCreditsUsedByProfessional,
+    });
 
     const fetchPortalLeaves = useCallback(async () => {
         if (!profile?.team_id) return;
@@ -48,17 +63,22 @@ export default function LeaveRequestsPage() {
             .order('created_at', { ascending: false }) as any);
         setPendingPortalLeaves((leaves || []) as ProfLeaveRequest[]);
 
-        // Fetch avatars for professionals
+        // Fetch avatars and emails for professionals
         const { data: profUsers } = await supabase
             .from('professional_users')
-            .select('professional_id, avatar_url')
+            .select('professional_id, avatar_url, email')
             .eq('team_id', profile.team_id);
         if (profUsers) {
-            const map: Record<string, string> = {};
+            const aMap: Record<string, string> = {};
+            const eMap: Record<string, string> = {};
             profUsers.forEach((pu: any) => {
-                if (pu.professional_id && pu.avatar_url) map[pu.professional_id] = pu.avatar_url;
+                if (pu.professional_id) {
+                    if (pu.avatar_url) aMap[pu.professional_id] = pu.avatar_url;
+                    if (pu.email) eMap[pu.professional_id] = pu.email;
+                }
             });
-            setAvatarMap(map);
+            setAvatarMap(aMap);
+            setEmailMap(eMap);
         }
     }, [profile?.team_id]);
 
@@ -180,7 +200,12 @@ export default function LeaveRequestsPage() {
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Profissional'}</span>
+                                                <span 
+                                                  className="font-bold text-sm text-foreground hover:text-primary cursor-pointer transition-colors"
+                                                  onClick={() => setSelectedProfId(leave.professional_id)}
+                                                >
+                                                  {prof?.name || 'Profissional'}
+                                                </span>
                                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary">
                                                     {leave.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
                                                 </Badge>
@@ -265,7 +290,12 @@ export default function LeaveRequestsPage() {
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-bold text-sm text-foreground">{prof?.name || 'Desconhecido'}</span>
+                                                <span 
+                                                  className="font-bold text-sm text-foreground hover:text-primary cursor-pointer transition-colors"
+                                                  onClick={() => setSelectedProfId(request.professionalId)}
+                                                >
+                                                  {prof?.name || 'Desconhecido'}
+                                                </span>
                                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-muted-foreground/30">
                                                     {request.category === 'nurse' ? 'Enfermeiro(a)' : 'Técnico(a)'}
                                                 </Badge>
@@ -314,6 +344,90 @@ export default function LeaveRequestsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Professional Detail Dialog */}
+            <Dialog open={!!selectedProfId} onOpenChange={(open) => !open && setSelectedProfId(null)}>
+                <DialogContent className="max-w-md rounded-3xl p-6 overflow-hidden">
+                    {selectedProfId && (() => {
+                        const prof = professionals.find(p => p.id === selectedProfId);
+                        if (!prof) return null;
+                        const stats = getStats(prof.id, prof.name, prof.category);
+                        const avatarUrl = avatarMap[prof.id];
+                        const email = emailMap[prof.id];
+                        const isNurse = prof.category === 'nurse';
+
+                        return (
+                            <div className="space-y-6">
+                                <DialogHeader>
+                                    <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            {avatarUrl && <AvatarImage src={avatarUrl} />}
+                                            <AvatarFallback className="bg-primary/10 text-primary">
+                                                {prof.name.slice(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p>{prof.name}</p>
+                                            <p className="text-xs font-normal text-muted-foreground">{email || 'Sem e-mail'}</p>
+                                        </div>
+                                    </DialogTitle>
+                                </DialogHeader>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/50 text-center">
+                                        <TrendingUp className="w-4 h-4 mx-auto mb-1 text-accent" />
+                                        <p className="text-2xl font-black text-accent">{stats.creditsGenerated}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ganhos</p>
+                                    </div>
+                                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/50 text-center">
+                                        <TrendingDown className="w-4 h-4 mx-auto mb-1 text-destructive" />
+                                        <p className="text-2xl font-black text-destructive">{stats.creditsUsed}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Usados</p>
+                                    </div>
+                                </div>
+
+                                <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 text-center">
+                                    <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mb-1">Saldo Atual</p>
+                                    <p className={cn(
+                                        "text-4xl font-black",
+                                        stats.creditsBalance > 0 ? "text-accent" : stats.creditsBalance < 0 ? "text-destructive" : "text-muted-foreground"
+                                    )}>
+                                        {stats.creditsBalance}
+                                        <span className="text-lg font-bold ml-1">dias</span>
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Informações</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between py-2 border-b border-border/10">
+                                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                            <Stethoscope className="w-3.5 h-3.5" /> Categoria
+                                          </div>
+                                          <Badge variant="outline" className="text-[10px]">
+                                            {isNurse ? 'Enfermeiro(a)' : 'Técnico(a)'}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center justify-between py-2 border-b border-border/10">
+                                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                            <Clock className="w-3.5 h-3.5" /> Carga Horária
+                                          </div>
+                                          <span className="text-xs font-bold">{prof.monthlyHours}h mensal</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Button 
+                                  className="w-full rounded-2xl h-12 font-bold"
+                                  onClick={() => window.location.href = `/escalas-servicos/profissionais?id=${prof.id}`}
+                                >
+                                  Ver Histórico Completo
+                                </Button>
+                            </div>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
