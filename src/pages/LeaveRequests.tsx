@@ -3,8 +3,9 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useServiceProfessionals } from '@/hooks/useServiceProfessionals';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 import { useProfile } from '@/hooks/useProfile';
+import { useServiceSchedule } from '@/hooks/useServiceSchedule';
+import { useServiceStats } from '@/hooks/useServiceStats';
 import { Button } from '@/components/ui/button';
-import { Trash2, AlertCircle, Stethoscope, Syringe, Users, Check, X, CalendarOff } from 'lucide-react';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
@@ -13,9 +14,11 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useServiceStats } from '@/hooks/useServiceStats';
 import { cn } from '@/lib/utils';
-import { Stethoscope, Syringe, Users, Check, X, CalendarOff, Trash2, AlertCircle, Clock, Calendar, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
+import { 
+    Stethoscope, Syringe, Users, Check, X, CalendarOff, Trash2, 
+    AlertCircle, Clock, Calendar, TrendingUp, TrendingDown, ChevronRight 
+} from 'lucide-react';
 
 interface ProfLeaveRequest {
     id: string;
@@ -35,7 +38,7 @@ interface ProfLeaveRequest {
 
 export default function LeaveRequestsPage() {
     const { professionals } = useServiceProfessionals();
-    const { requests, deleteRequest, addRequest, getConflictingDates } = useLeaveRequests();
+    const { requests, deleteRequest, addRequest, getConflictingDates, getTotalCreditsUsedByProfessional } = useLeaveRequests();
     const { profile, logActivity } = useProfile();
 
     const [pendingPortalLeaves, setPendingPortalLeaves] = useState<ProfLeaveRequest[]>([]);
