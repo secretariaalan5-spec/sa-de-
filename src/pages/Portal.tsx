@@ -560,28 +560,9 @@ export default function Portal() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<PortalTab>('schedule');
-  const [leaveForm, setLeaveForm] = useState({ leaveType: '' as LeaveType | '', startDate: '', endDate: '', observations: '' });
+  const [leaveForm, setLeaveForm] = useState({ leaveType: 'folga_credito' as LeaveType, startDate: '', endDate: '', observations: '' });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-
-  // ─── Find Next Shift ───
-  const upcomingShift = useMemo(() => {
-    if (!portalData) return null;
-    const entries = isEmultUser ? [] : myEntries; // Simplified for now
-    if (!entries.length) return null;
-
-    const sorted = [...entries]
-      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    if (!sorted.length) return null;
-
-    return {
-      date: sorted[0].date,
-      category: sorted[0].type,
-      isWeekend: sorted[0].isWeekend || false
-    };
-  }, [portalData, isEmultUser, myEntries]);
 
   const getTeamId = useCallback((): string | null => {
     const u = new URLSearchParams(window.location.search);
@@ -715,7 +696,7 @@ export default function Portal() {
     if (!leaveForm.leaveType || !leaveForm.startDate || !leaveForm.endDate || daysRequested < 1) { toast.error('Preencha todos os campos.'); return; }
     if (leaveForm.leaveType === 'folga_credito' && daysRequested > myStats.overall.creditsBalance) { toast.error(`Saldo insuficiente: ${myStats.overall.creditsBalance} dias`); return; }
     const ok = await submitLeaveRequest({ leave_type: leaveForm.leaveType, start_date: leaveForm.startDate, end_date: leaveForm.endDate, days_requested: daysRequested, observations: leaveForm.observations || undefined });
-    if (ok) { setLeaveForm({ leaveType: '', startDate: '', endDate: '', observations: '' }); setLeaveDialogOpen(false); }
+    if (ok) { setLeaveForm({ leaveType: 'folga_credito', startDate: '', endDate: '', observations: '' }); setLeaveDialogOpen(false); }
   };
 
   const handleAvatarUpload = () => {
@@ -833,6 +814,25 @@ export default function Portal() {
   const DAYS_LABELS: Record<string, string> = { segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta', sexta: 'Sexta' };
   const PERIOD_LABELS: Record<string, string> = { manha: 'Manhã', tarde: 'Tarde', integral: 'Integral' };
   const DAYS_ORDER = ['segunda', 'terca', 'quarta', 'quinta', 'sexta'];
+
+  // ─── Find Next Shift ───
+  const upcomingShift = useMemo(() => {
+    if (!portalData) return null;
+    const entries = isEmultUser ? [] : myEntries;
+    if (!entries.length) return null;
+
+    const sorted = [...entries]
+      .filter(e => isAfter(parseISO(e.date), startOfToday()) || isToday(parseISO(e.date)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!sorted.length) return null;
+
+    return {
+      date: sorted[0].date,
+      category: sorted[0].type,
+      isWeekend: sorted[0].isWeekend || false
+    };
+  }, [portalData, isEmultUser, myEntries]);
 
   // ─── Guards ───
   if (loading) return <div className="portal-native min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
@@ -1202,17 +1202,14 @@ export default function Portal() {
                               <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                               <p className="text-[11px] text-foreground/70 leading-relaxed font-medium">Solicite com mínimo <strong>10 dias de antecedência</strong>. Imprevistos serão analisados pela coordenação.</p>
                             </div>
-                            <div>
+                            <div className="space-y-1.5">
                               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tipo de afastamento</Label>
-                              <Select value={leaveForm.leaveType} onValueChange={(v) => setLeaveForm(p => ({ ...p, leaveType: v as LeaveType }))}>
-                                <SelectTrigger className="h-12 rounded-2xl text-[13px] font-medium border-2"><SelectValue placeholder="Selecione o tipo..." /></SelectTrigger>
-                                <SelectContent>{Object.entries(LEAVE_TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
-                              </Select>
-                              {leaveForm.leaveType === 'folga_credito' && (
-                                <p className="text-[11px] text-accent mt-1.5 font-bold flex items-center gap-1">
-                                  <Zap className="w-3 h-3" />Saldo disponível: {myStats.overall.creditsBalance} dias
-                                </p>
-                              )}
+                              <div className="h-12 flex items-center px-4 rounded-2xl bg-primary/5 border-2 border-primary/20 text-primary font-bold text-[13px]">
+                                {LEAVE_TYPE_LABELS.folga_credito}
+                              </div>
+                              <p className="text-[11px] text-accent mt-1.5 font-bold flex items-center gap-1">
+                                <Zap className="w-3 h-3" />Saldo disponível: {myStats.overall.creditsBalance} dias
+                              </p>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div>

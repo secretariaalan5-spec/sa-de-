@@ -76,7 +76,7 @@ export function useLeaveRequests() {
 
     const getTotalCreditsUsedByProfessional = useCallback((professionalId: string) => {
         return requests
-            .filter(r => r.professionalId === professionalId && r.status === 'approved' && r.leaveType === 'folga_credito')
+            .filter(r => r.professionalId === professionalId && r.status === 'approved')
             .reduce((sum, r) => sum + r.daysRequested, 0);
     }, [requests]);
 

@@ -18,17 +18,10 @@ export interface ServiceScheduleStats {
     creditsBalance: number;
 }
 
-export type LeaveType = 'folga_credito' | 'ferias' | 'licenca_medica' | 'atestado' | 'folga_feriado' | 'licenca' | 'capacitacao' | 'outros';
+export type LeaveType = 'folga_credito';
 
-export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-    folga_credito: 'Folga (Crédito FDS)',
-    ferias: 'Férias',
-    licenca_medica: 'Licença Médica',
-    atestado: 'Atestado',
-    folga_feriado: 'Folga Feriado',
-    licenca: 'Licença',
-    capacitacao: 'Capacitação',
-    outros: 'Outros',
+export const LEAVE_TYPE_LABELS: Record<string, string> = {
+    folga_credito: 'Pedido de Folga FDS',
 };
 
 export interface LeaveRequest {

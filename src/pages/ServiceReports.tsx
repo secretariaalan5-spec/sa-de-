@@ -14,6 +14,7 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
 
 type ReportTab = 'summary' | 'nurses' | 'techs' | 'leaves' | 'credits';
 
@@ -54,14 +55,7 @@ export default function ServiceReportsPage() {
     })
   );
 
-  const leaveTypeLabels: Record<string, string> = {
-    folga_credito: 'Folga por Crédito',
-    falta: 'Falta',
-    atestado: 'Atestado',
-    ferias: 'Férias',
-    licenca: 'Licença',
-    outro: 'Outro',
-  };
+  const leaveTypeLabels = LEAVE_TYPE_LABELS;
 
   // ── Summary stats ──
   const summaryData = useMemo(() => {
