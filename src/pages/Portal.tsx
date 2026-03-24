@@ -564,6 +564,8 @@ export default function Portal() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // ─── Find Next Shift ───
+  // upcomingShift is defined below after isEmultUser and myEntries are available
   const getTeamId = useCallback((): string | null => {
     const u = new URLSearchParams(window.location.search);
     const h = new URLSearchParams(window.location.hash.slice(1));
@@ -676,13 +678,13 @@ export default function Portal() {
     const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
     const overallWeekendDays = new Set(pastEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const cg = overallWeekendDays * 2;
-    const cu = myLeaveRequestsFromAdmin.filter(r => r.leaveType === 'folga_credito' && r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
+    const cu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
     const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
     const monthEntries = myEntries.filter(e => { const d = new Date(e.date); return d >= ms && d <= me && d <= today; });
     const mwd = new Set(monthEntries.map(e => e.date)).size;
     const mwed = new Set(monthEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const mcg = mwed * 2;
-    const mcu = myLeaveRequestsFromAdmin.filter(r => r.leaveType === 'folga_credito' && r.status === 'approved').reduce((s, r) => { if (!r.leaveDates?.length) return s; const f = new Date(r.leaveDates[0] + 'T00:00:00'); const l = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00'); if (l < ms || f > me) return s; return s + r.daysRequested; }, 0);
+    const mcu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => { if (!r.leaveDates?.length) return s; const f = new Date(r.leaveDates[0] + 'T00:00:00'); const l = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00'); if (l < ms || f > me) return s; return s + r.daysRequested; }, 0);
     return {
       overall: { workedDays: overallWorkedDays, weekendDays: overallWeekendDays, creditsGenerated: cg, creditsUsed: cu, creditsBalance: cg - cu },
       month: { workedDays: mwd, weekendDays: mwed, creditsGenerated: mcg, creditsUsed: mcu, creditsBalance: mcg - mcu },
@@ -802,6 +804,8 @@ export default function Portal() {
   }, [emultData, professionalUser]);
 
   const isEmultUser = professionalUser?.category === 'emult' || !!myEmultProfessional;
+
+
 
   const myEmultSchedule = useMemo(() => {
     if (!myEmultProfessional || !emultData?.schedule) return [];
