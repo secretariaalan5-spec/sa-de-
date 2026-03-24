@@ -673,18 +673,27 @@ export default function Portal() {
   const myLeaveRequestsFromAdmin = useMemo(() => { if (!professionalUser?.professional_id || !portalData?.service?.leaveRequests) return []; return (portalData.service.leaveRequests as LeaveRequest[]).filter(r => r.professionalId === professionalUser.professional_id); }, [portalData, professionalUser]);
 
   const myStats = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const pastEntries = myEntries.filter(e => new Date(e.date) <= today);
-    const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
-    const overallWeekendDays = new Set(pastEntries.filter(e => e.isWeekend).map(e => e.date)).size;
+    const overallWorkedDays = new Set(myEntries.map(e => e.date)).size;
+    const overallWeekendDays = new Set(myEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const cg = overallWeekendDays * 2;
     const cu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
-    const ms = startOfMonth(currentMonth); const me = endOfMonth(currentMonth);
-    const monthEntries = myEntries.filter(e => { const d = new Date(e.date); return d >= ms && d <= me && d <= today; });
+    
+    const ms = startOfMonth(currentMonth); 
+    const me = endOfMonth(currentMonth);
+    const msStr = format(ms, 'yyyy-MM-dd');
+    const meStr = format(me, 'yyyy-MM-dd');
+    
+    const monthEntries = myEntries.filter(e => e.date >= msStr && e.date <= meStr);
     const mwd = new Set(monthEntries.map(e => e.date)).size;
     const mwed = new Set(monthEntries.filter(e => e.isWeekend).map(e => e.date)).size;
     const mcg = mwed * 2;
-    const mcu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => { if (!r.leaveDates?.length) return s; const f = new Date(r.leaveDates[0] + 'T00:00:00'); const l = new Date(r.leaveDates[r.leaveDates.length - 1] + 'T00:00:00'); if (l < ms || f > me) return s; return s + r.daysRequested; }, 0);
+    
+    const mcu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => { 
+      if (!r.leaveDates?.length) return s; 
+      const overlappingDays = r.leaveDates.filter(d => d >= msStr && d <= meStr).length;
+      return s + overlappingDays;
+    }, 0);
+
     return {
       overall: { workedDays: overallWorkedDays, weekendDays: overallWeekendDays, creditsGenerated: cg, creditsUsed: cu, creditsBalance: cg - cu },
       month: { workedDays: mwd, weekendDays: mwed, creditsGenerated: mcg, creditsUsed: mcu, creditsBalance: mcg - mcu },
