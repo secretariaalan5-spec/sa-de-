@@ -672,29 +672,28 @@ export default function Portal() {
   const myEntries = useMemo(() => { if (!professionalUser?.professional_id || !portalData) return []; return [...(portalData.service.nurseEntries || []), ...(portalData.service.techEntries || [])].filter(e => e.professionalId === professionalUser.professional_id); }, [portalData, professionalUser]);
   const myLeaveRequestsFromAdmin = useMemo(() => { if (!professionalUser?.professional_id || !portalData?.service?.leaveRequests) return []; return (portalData.service.leaveRequests as LeaveRequest[]).filter(r => r.professionalId === professionalUser.professional_id); }, [portalData, professionalUser]);
 
+  // ── Stats calculation — mirrors useServiceStats exactly ──
   const myStats = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const overallWorkedDays = new Set(myEntries.map(e => e.date)).size;
-    const overallWeekendDays = new Set(myEntries.filter(e => e.isWeekend).map(e => e.date)).size;
-    
-    // Credits only for weekends already worked (past or present)
-    const earnedOverallWeekendDays = new Set(myEntries.filter(e => e.isWeekend && e.date <= todayStr).map(e => e.date)).size;
-    const cg = earnedOverallWeekendDays * 2;
+
+    // Overall: only past/today entries count (same as admin useServiceStats)
+    const pastEntries = myEntries.filter(e => e.date <= todayStr);
+    const overallWorkedDays = new Set(pastEntries.map(e => e.date)).size;
+    const overallWeekendDays = new Set(pastEntries.filter(e => e.isWeekend).map(e => e.date)).size;
+    const cg = overallWeekendDays * 2;
     const cu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => s + r.daysRequested, 0);
-    
+
+    // Monthly
     const ms = startOfMonth(currentMonth); 
     const me = endOfMonth(currentMonth);
     const msStr = format(ms, 'yyyy-MM-dd');
     const meStr = format(me, 'yyyy-MM-dd');
-    
-    const monthEntries = myEntries.filter(e => e.date >= msStr && e.date <= meStr);
+
+    const monthEntries = myEntries.filter(e => e.date >= msStr && e.date <= meStr && e.date <= todayStr);
     const mwd = new Set(monthEntries.map(e => e.date)).size;
     const mwed = new Set(monthEntries.filter(e => e.isWeekend).map(e => e.date)).size;
-    
-    // Monthly credits earned so far
-    const earnedMonthWeekendDays = new Set(monthEntries.filter(e => e.isWeekend && e.date <= todayStr).map(e => e.date)).size;
-    const mcg = earnedMonthWeekendDays * 2;
-    
+    const mcg = mwed * 2;
+
     const mcu = myLeaveRequestsFromAdmin.filter(r => r.status === 'approved').reduce((s, r) => { 
       if (!r.leaveDates?.length) return s; 
       const overlappingDays = r.leaveDates.filter(d => d >= msStr && d <= meStr).length;
