@@ -55,10 +55,6 @@ export default function ProfilePage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 2 MB');
-      return;
-    }
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'jpg';

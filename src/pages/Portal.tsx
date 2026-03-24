@@ -725,11 +725,6 @@ export default function Portal() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file || !session?.user) return;
 
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('Máximo 2 MB');
-        return;
-      }
-
       setAvatarUploading(true);
       try {
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
