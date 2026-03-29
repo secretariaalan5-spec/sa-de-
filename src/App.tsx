@@ -20,13 +20,13 @@ import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
 import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
-
 import ServiceReportsPage from "./pages/ServiceReports";
 import Login from "./pages/Login";
 import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
 import EmultProfessionals from "./pages/EmultProfessionals";
 import TeamManagement from "./pages/TeamManagement";
+import InvitePage from "./pages/InvitePage";
 import NotFound from "./pages/NotFound";
 
 import { AppDataProvider } from "./contexts/AppDataContext";
@@ -64,14 +64,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       setNeedsPassword(false);
       return;
     }
-
-    // Check if user only has Google provider (no email/password identity)
     const providers = session.user.app_metadata?.providers as string[] | undefined;
     const hasEmailProvider = session.user.identities?.some(
       id => id.provider === 'email'
     );
-
-    // If logged in via Google and never set a password
     const isGoogleOnly = providers?.includes('google') && !hasEmailProvider;
     setNeedsPassword(!!isGoogleOnly);
   };
@@ -94,6 +90,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/definir-senha" element={<SetPassword />} />
+              <Route path="/convite/:token" element={<InvitePage />} />
 
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
@@ -106,7 +103,6 @@ const App = () => (
                 <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
                 <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
-
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
                 <Route path="/aprovacoes" element={<ProfessionalApprovals />} />

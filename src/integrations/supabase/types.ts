@@ -84,6 +84,41 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          id: string
+          name: string
+          team_id: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          team_id: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -193,6 +228,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           category: string
+          category_id: string | null
           created_at: string
           days_requested: number
           end_date: string
@@ -209,6 +245,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           category?: string
+          category_id?: string | null
           created_at?: string
           days_requested?: number
           end_date: string
@@ -225,6 +262,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           category?: string
+          category_id?: string | null
           created_at?: string
           days_requested?: number
           end_date?: string
@@ -240,6 +278,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "professional_leave_requests_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "professional_leave_requests_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -252,6 +297,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           category: string
+          category_id: string | null
           created_at: string
           email: string
           full_name: string
@@ -268,6 +314,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           category?: string
+          category_id?: string | null
           created_at?: string
           email: string
           full_name?: string
@@ -284,6 +331,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           category?: string
+          category_id?: string | null
           created_at?: string
           email?: string
           full_name?: string
@@ -298,6 +346,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "professional_users_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "professional_users_team_id_fkey"
             columns: ["team_id"]
@@ -375,6 +430,7 @@ export type Database = {
       shift_entries: {
         Row: {
           category: string
+          category_id: string | null
           created_at: string
           created_by: string | null
           credits_earned: number
@@ -387,6 +443,7 @@ export type Database = {
         }
         Insert: {
           category?: string
+          category_id?: string | null
           created_at?: string
           created_by?: string | null
           credits_earned?: number
@@ -399,6 +456,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          category_id?: string | null
           created_at?: string
           created_by?: string | null
           credits_earned?: number
@@ -410,6 +468,13 @@ export type Database = {
           team_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shift_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shift_entries_professional_id_fkey"
             columns: ["professional_id"]
@@ -478,6 +543,7 @@ export type Database = {
         Row: {
           accepted_at: string | null
           id: string
+          invite_token: string | null
           invited_at: string | null
           member_email: string
           member_id: string | null
@@ -490,6 +556,7 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_at?: string | null
           member_email: string
           member_id?: string | null
@@ -502,6 +569,7 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           id?: string
+          invite_token?: string | null
           invited_at?: string | null
           member_email?: string
           member_id?: string | null
@@ -586,6 +654,7 @@ export type Database = {
       user_roles: {
         Row: {
           category: string | null
+          category_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
@@ -595,6 +664,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          category_id?: string | null
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
@@ -604,6 +674,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          category_id?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -612,6 +683,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_roles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_roles_team_id_fkey"
             columns: ["team_id"]
@@ -655,10 +733,12 @@ export type Database = {
     Functions: {
       get_member_permissions: { Args: { _user_id: string }; Returns: Json }
       get_user_category: { Args: { _user_id: string }; Returns: string }
+      get_user_category_id: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: {
           category: string | null
+          category_id: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
@@ -701,6 +781,7 @@ export type Database = {
         Returns: {
           avatar_url: string | null
           category: string
+          category_id: string | null
           created_at: string
           email: string
           full_name: string
