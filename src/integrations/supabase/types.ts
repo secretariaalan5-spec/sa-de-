@@ -654,6 +654,7 @@ export type Database = {
     }
     Functions: {
       get_member_permissions: { Args: { _user_id: string }; Returns: Json }
+      get_user_category: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: {
@@ -672,7 +673,12 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_user_role_in_team: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
+      get_user_unit_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -680,6 +686,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_category_chief: { Args: { _user_id: string }; Returns: boolean }
+      is_rh: { Args: { _user_id: string }; Returns: boolean }
+      is_unit_manager: { Args: { _user_id: string }; Returns: boolean }
       register_professional_via_portal: {
         Args: {
           _category: string
