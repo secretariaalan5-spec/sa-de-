@@ -54,6 +54,7 @@ export type Database = {
           emult_state: Json | null
           portal_codes: Json | null
           service_state: Json | null
+          team_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           emult_state?: Json | null
           portal_codes?: Json | null
           service_state?: Json | null
+          team_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -68,10 +70,19 @@ export type Database = {
           emult_state?: Json | null
           portal_codes?: Json | null
           service_state?: Json | null
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_states_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -250,6 +261,7 @@ export type Database = {
           professional_id: string | null
           status: string
           team_id: string | null
+          unit_id: string | null
           updated_at: string
           user_id: string
         }
@@ -265,6 +277,7 @@ export type Database = {
           professional_id?: string | null
           status?: string
           team_id?: string | null
+          unit_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -280,6 +293,7 @@ export type Database = {
           professional_id?: string | null
           status?: string
           team_id?: string | null
+          unit_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -357,6 +371,67 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      shift_entries: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          credits_earned: number
+          id: string
+          notes: string | null
+          professional_id: string
+          shift_date: string
+          shift_type: string
+          team_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          credits_earned?: number
+          id?: string
+          notes?: string | null
+          professional_id: string
+          shift_date: string
+          shift_type?: string
+          team_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          credits_earned?: number
+          id?: string
+          notes?: string | null
+          professional_id?: string
+          shift_date?: string
+          shift_type?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_entries_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professional_credits"
+            referencedColumns: ["professional_id"]
+          },
+          {
+            foreignKeyName: "shift_entries_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professional_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_entries_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_invites: {
         Row: {
@@ -472,6 +547,7 @@ export type Database = {
           active: boolean
           created_at: string
           id: string
+          manager_id: string | null
           name: string
           team_id: string
           type: string
@@ -481,6 +557,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           id?: string
+          manager_id?: string | null
           name: string
           team_id: string
           type?: string
@@ -490,6 +567,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           id?: string
+          manager_id?: string | null
           name?: string
           team_id?: string
           type?: string
@@ -505,76 +583,137 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          team_id: string | null
+          unit_id: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          team_id?: string | null
+          unit_id?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          team_id?: string | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      professional_credits: {
+        Row: {
+          available_credits: number | null
+          category: string | null
+          full_name: string | null
+          professional_id: string | null
+          team_id: string | null
+          total_credits: number | null
+          unit_id: string | null
+          used_credits: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_member_permissions: { Args: { _user_id: string }; Returns: Json }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: {
+          category: string | null
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          team_id: string | null
+          unit_id: string | null
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_roles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
-      register_professional_via_portal:
-        | {
-            Args: {
-              _category: string
-              _email: string
-              _full_name: string
-              _team_id: string
-            }
-            Returns: {
-              avatar_url: string | null
-              category: string
-              created_at: string
-              email: string
-              full_name: string
-              function_name: string | null
-              id: string
-              onesignal_player_id: string | null
-              professional_id: string | null
-              status: string
-              team_id: string | null
-              updated_at: string
-              user_id: string
-            }
-            SetofOptions: {
-              from: "*"
-              to: "professional_users"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
-        | {
-            Args: {
-              _category: string
-              _email: string
-              _full_name: string
-              _function_name?: string
-              _team_id: string
-            }
-            Returns: {
-              avatar_url: string | null
-              category: string
-              created_at: string
-              email: string
-              full_name: string
-              function_name: string | null
-              id: string
-              onesignal_player_id: string | null
-              professional_id: string | null
-              status: string
-              team_id: string | null
-              updated_at: string
-              user_id: string
-            }
-            SetofOptions: {
-              from: "*"
-              to: "professional_users"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      register_professional_via_portal: {
+        Args: {
+          _category: string
+          _email: string
+          _full_name: string
+          _function_name?: string
+          _team_id: string
+        }
+        Returns: {
+          avatar_url: string | null
+          category: string
+          created_at: string
+          email: string
+          full_name: string
+          function_name: string | null
+          id: string
+          onesignal_player_id: string | null
+          professional_id: string | null
+          status: string
+          team_id: string | null
+          unit_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "professional_users"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "category_chief" | "unit_manager" | "rh"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -701,6 +840,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "category_chief", "unit_manager", "rh"],
+    },
   },
 } as const
