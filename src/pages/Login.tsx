@@ -166,7 +166,7 @@ export default function Login() {
 
             <div className="pt-2 text-center border-t border-border italic">
               <p className="text-[10px] text-muted-foreground">
-                Acesso restrito a administradores autorizados.
+                Acesso restrito a usuários autorizados.
               </p>
             </div>
           </div>
