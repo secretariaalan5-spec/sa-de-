@@ -5,25 +5,24 @@ import {
   Stethoscope,
   Syringe,
   Settings,
-  Users,
+  CalendarOff,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
-const items = [
-  { to: "/", label: "Início", icon: LayoutDashboard },
-  { to: "/escala", label: "Escala", icon: Calendar },
-  { to: "/escalas-servicos/enfermeiros", label: "Enf.", icon: Stethoscope },
-  { to: "/escalas-servicos/tecnicos", label: "Tec.", icon: Syringe },
-  { to: "/escalas-servicos/aprovacoes", label: "Aprovações", icon: Users },
-  { to: "/configuracoes", label: "Config.", icon: Settings },
-] as const;
+import { useTeamPermissions } from "@/hooks/useTeamPermissions";
 
 export function MobileNavBar() {
   const location = useLocation();
+  const { can } = useTeamPermissions();
 
-  // Esconde barra no portal público
-  if (location.pathname.startsWith("/portal")) return null;
+  const items = [
+    { to: "/", label: "Início", icon: LayoutDashboard, show: true },
+    { to: "/escala", label: "Escala", icon: Calendar, show: can('escalas_emult') },
+    { to: "/escalas-servicos/enfermeiros", label: "Enf.", icon: Stethoscope, show: can('escalas_servicos') },
+    { to: "/escalas-servicos/tecnicos", label: "Tec.", icon: Syringe, show: can('escalas_servicos') },
+    { to: "/escalas-servicos/folgas", label: "Folgas", icon: CalendarOff, show: can('folgas') },
+    { to: "/configuracoes", label: "Config.", icon: Settings, show: can('configuracoes') },
+  ].filter(i => i.show);
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-lg shadow-inner lg:hidden safe-area-bottom no-print">
@@ -48,4 +47,3 @@ export function MobileNavBar() {
     </nav>
   );
 }
-
