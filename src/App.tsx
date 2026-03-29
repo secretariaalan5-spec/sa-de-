@@ -116,7 +116,6 @@ const App = () => (
                 <Route path="/equipe" element={<TeamManagement />} />
               </Route>
 
-              <Route path="/portal" element={<Portal />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ServiceStateProvider>
