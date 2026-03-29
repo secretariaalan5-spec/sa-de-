@@ -22,8 +22,6 @@ import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 
 import ServiceReportsPage from "./pages/ServiceReports";
-import Registration from "./pages/Registration";
-import Portal from "./pages/Portal";
 import Login from "./pages/Login";
 import SetPassword from "./pages/SetPassword";
 import ProfessionalApprovals from "./pages/ProfessionalApprovals";
