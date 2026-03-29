@@ -76,8 +76,8 @@ export default function Login() {
             <div className="bg-primary-foreground/20 p-3 rounded-xl backdrop-blur-sm inline-flex mb-4">
               <Stethoscope className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-primary-foreground mb-1">Área Administrativa</h1>
-            <p className="text-primary-foreground/80 text-sm">Escala eMulti & Serviços</p>
+            <h1 className="text-2xl font-bold text-primary-foreground mb-1">Saúde+ Escalas</h1>
+            <p className="text-primary-foreground/80 text-sm">Sistema de Gestão de Escalas</p>
           </div>
 
           {/* Login */}
@@ -166,7 +166,7 @@ export default function Login() {
 
             <div className="pt-2 text-center border-t border-border italic">
               <p className="text-[10px] text-muted-foreground">
-                Acesso restrito a administradores autorizados.
+                Acesso restrito a usuários autorizados.
               </p>
             </div>
           </div>
