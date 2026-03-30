@@ -7,6 +7,7 @@ export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'pro
 export interface UserRoleInfo {
   role: UserRole;
   category_id: string | null;
+  category_ids: string[];
   unit_id: string | null;
   team_id: string | null;
 }
