@@ -58,6 +58,7 @@ const App = () => (
               <Route path="/categorias" element={<Categories />} />
               <Route path="/convites" element={<Invites />} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/saldo" element={<BalancePanel />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

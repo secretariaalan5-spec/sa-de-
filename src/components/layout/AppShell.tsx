@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { to: '/transferencias', label: 'Transferências', icon: ArrowRightLeft, roles: ['admin', 'rh', 'category_chief'] },
   { to: '/unidades', label: 'Unidades', icon: Building2, roles: ['admin'] },
   { to: '/categorias', label: 'Categorias', icon: Tag, roles: ['admin'] },
+  { to: '/saldo', label: 'Saldo de Folgas', icon: Wallet, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
   { to: '/convites', label: 'Convites', icon: Mail, roles: ['admin'] },
 ];
 
