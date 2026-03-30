@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, CalendarOff, Check, X } from 'lucide-react';
+import { Plus, CalendarOff, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LeaveReq {
   id: string;
@@ -30,10 +32,9 @@ export default function LeaveRequests() {
   const [empId, setEmpId] = useState('');
   const [dates, setDates] = useState('');
   const [obs, setObs] = useState('');
+  const [activeTab, setActiveTab] = useState('pending');
 
-  // Manager and Admin can create leave requests
   const canRequest = isAdmin || isManager;
-  // Chief and Admin can approve/reject
   const canApprove = isAdmin || isChief;
 
   const load = async () => {
@@ -52,7 +53,6 @@ export default function LeaveRequests() {
     if (!empId || !dates) return;
 
     const leaveDates = dates.split(',').map(d => d.trim()).filter(Boolean);
-
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('leave_requests').insert({
       employee_id: empId,
@@ -65,7 +65,6 @@ export default function LeaveRequests() {
     });
 
     if (error) {
-      console.error('Leave request insert error');
       toast.error('Erro ao solicitar folga.');
       return;
     }
@@ -81,15 +80,10 @@ export default function LeaveRequests() {
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from('leave_requests')
-      .update({
-        status,
-        decided_by: user?.id ?? null,
-        decided_at: new Date().toISOString(),
-      } as any)
+      .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() } as any)
       .eq('id', id);
 
     if (error) {
-      console.error('Leave decision error');
       toast.error('Erro ao processar decisão.');
       return;
     }
@@ -99,10 +93,21 @@ export default function LeaveRequests() {
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
 
-  const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
-    pending: { label: 'Pendente', variant: 'secondary' },
-    approved: { label: 'Aprovado', variant: 'default' },
-    rejected: { label: 'Negado', variant: 'destructive' },
+  const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
+    pending: { label: 'Pendente', variant: 'secondary', icon: Clock },
+    approved: { label: 'Aprovado', variant: 'default', icon: CheckCircle2 },
+    rejected: { label: 'Negado', variant: 'destructive', icon: XCircle },
+  };
+
+  const filtered = requests.filter(r => {
+    if (activeTab === 'all') return true;
+    return r.status === activeTab;
+  });
+
+  const counts = {
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    rejected: requests.filter(r => r.status === 'rejected').length,
   };
 
   const roleDescription = isRH
@@ -114,8 +119,8 @@ export default function LeaveRequests() {
     : 'Todos os pedidos de folga';
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Pedidos de Folga</h1>
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
@@ -128,7 +133,7 @@ export default function LeaveRequests() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Solicitar Folga</DialogTitle>
-                <DialogDescription>Envie um pedido de folga para aprovação do chefe de categoria.</DialogDescription>
+                <DialogDescription>Envie um pedido para aprovação do chefe de categoria.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRequest} className="space-y-4">
                 <div className="space-y-1.5">
@@ -143,7 +148,7 @@ export default function LeaveRequests() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Datas (separadas por vírgula, ex: 2026-04-01, 2026-04-02)</Label>
+                  <Label>Datas (separadas por vírgula)</Label>
                   <Input value={dates} onChange={e => setDates(e.target.value)} placeholder="2026-04-01, 2026-04-02" required />
                 </div>
                 <div className="space-y-1.5">
@@ -157,55 +162,83 @@ export default function LeaveRequests() {
         )}
       </div>
 
-      {requests.length === 0 ? (
-        <div className="empty-state">
-          <CalendarOff className="mx-auto mb-3 text-muted-foreground" size={40} />
-          <p className="text-muted-foreground">Nenhum pedido de folga</p>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card rounded-xl border border-border p-4 text-center">
+          <p className="text-2xl font-bold text-warning-foreground">{counts.pending}</p>
+          <p className="text-xs text-muted-foreground">Pendentes</p>
         </div>
-      ) : (
-        <div className="page-card overflow-x-auto">
-          <table className="schedule-table">
-            <thead>
-              <tr>
-                <th className="text-left">Funcionário</th>
-                <th className="text-left">Datas</th>
-                <th className="text-left">Dias</th>
-                <th className="text-left">Status</th>
-                {canApprove && <th className="text-right">Ações</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map(r => {
+        <div className="bg-card rounded-xl border border-border p-4 text-center">
+          <p className="text-2xl font-bold text-accent">{counts.approved}</p>
+          <p className="text-xs text-muted-foreground">Aprovados</p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-4 text-center">
+          <p className="text-2xl font-bold text-destructive">{counts.rejected}</p>
+          <p className="text-xs text-muted-foreground">Negados</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full grid grid-cols-4">
+          <TabsTrigger value="pending">Pendentes ({counts.pending})</TabsTrigger>
+          <TabsTrigger value="approved">Aprovados</TabsTrigger>
+          <TabsTrigger value="rejected">Negados</TabsTrigger>
+          <TabsTrigger value="all">Todos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={activeTab} className="mt-4">
+          {filtered.length === 0 ? (
+            <div className="empty-state">
+              <CalendarOff className="mx-auto mb-3 text-muted-foreground" size={40} />
+              <p className="text-muted-foreground">Nenhum pedido nesta categoria</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map(r => {
                 const cfg = statusConfig[r.status] ?? statusConfig.pending;
+                const StatusIcon = cfg.icon;
                 return (
-                  <tr key={r.id}>
-                    <td className="font-medium">{getEmpName(r.employee_id)}</td>
-                    <td className="text-xs">
-                      {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ')}
-                    </td>
-                    <td>{r.days_requested}</td>
-                    <td><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
-                    {canApprove && (
-                      <td className="text-right space-x-1">
-                        {r.status === 'pending' && (
-                          <>
-                            <Button variant="ghost" size="icon" onClick={() => handleDecision(r.id, 'approved')}>
-                              <Check size={16} className="text-accent" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDecision(r.id, 'rejected')}>
-                              <X size={16} className="text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </td>
-                    )}
-                  </tr>
+                  <div key={r.id} className="page-card flex items-center gap-4 p-4">
+                    <div className={cn(
+                      'p-2 rounded-lg',
+                      r.status === 'pending' && 'bg-warning/15',
+                      r.status === 'approved' && 'bg-accent/15',
+                      r.status === 'rejected' && 'bg-destructive/15',
+                    )}>
+                      <StatusIcon size={18} className={cn(
+                        r.status === 'pending' && 'text-warning-foreground',
+                        r.status === 'approved' && 'text-accent',
+                        r.status === 'rejected' && 'text-destructive',
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{getEmpName(r.employee_id)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
+                      </p>
+                      {r.observations && <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      {canApprove && r.status === 'pending' && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDecision(r.id, 'approved')}>
+                            <Check size={16} className="text-accent" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDecision(r.id, 'rejected')}>
+                            <X size={16} className="text-destructive" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

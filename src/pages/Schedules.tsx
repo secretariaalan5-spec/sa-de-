@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2 } from 'lucide-react';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Schedule {
   id: string;
@@ -27,15 +27,20 @@ export default function Schedules() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
-  const [date, setDate] = useState('');
   const [type, setType] = useState('normal');
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
-  // Only admin and chief can create/delete schedules
+  // Current month navigation
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
   const canCreate = isAdmin || isChief;
 
   const load = async () => {
     const [s, e] = await Promise.all([
-      supabase.from('schedules').select('*').order('date', { ascending: false }).limit(100),
+      supabase.from('schedules').select('*').order('date', { ascending: false }).limit(500),
       supabase.from('employees').select('id, name, category_id').eq('active', true).order('name'),
     ]);
     setSchedules(s.data ?? []);
@@ -44,29 +49,60 @@ export default function Schedules() {
 
   useEffect(() => { load(); }, []);
 
-  const handleAdd = async (ev: React.FormEvent) => {
-    ev.preventDefault();
-    if (!empId || !date) return;
+  // Calendar helpers
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const monthLabel = new Date(year, month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const calendarDays = useMemo(() => {
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDayOfWeek; i++) days.push(null);
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    return days;
+  }, [firstDayOfWeek, daysInMonth]);
+
+  const getDateStr = (day: number) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  const schedulesForDay = (day: number) => {
+    const dateStr = getDateStr(day);
+    return schedules.filter(s => s.date === dateStr);
+  };
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goToday = () => setCurrentDate(new Date());
+
+  const toggleDate = (dateStr: string) => {
+    setSelectedDates(prev =>
+      prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+    );
+  };
+
+  const handleAdd = async () => {
+    if (!empId || selectedDates.length === 0) {
+      toast.error('Selecione funcionário e datas.');
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('schedules').insert({
+    const inserts = selectedDates.map(date => ({
       employee_id: empId,
       date,
       type,
       team_id: roleInfo?.team_id,
       created_by: user?.id ?? null,
-    });
+    }));
 
+    const { error } = await supabase.from('schedules').insert(inserts);
     if (error) {
-      console.error('Schedule insert error');
-      toast.error('Erro ao criar escala.');
+      toast.error('Erro ao criar escala(s).');
       return;
     }
 
-    toast.success(type === 'extra' ? 'Escala extra criada! +2 créditos gerados.' : 'Escala criada!');
+    toast.success(`${selectedDates.length} escala(s) criada(s)!${type === 'extra' ? ' +2 créditos por escala.' : ''}`);
     setOpen(false);
     setEmpId('');
-    setDate('');
+    setSelectedDates([]);
     setType('normal');
     load();
   };
@@ -74,7 +110,6 @@ export default function Schedules() {
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('schedules').delete().eq('id', id);
     if (error) {
-      console.error('Schedule delete error');
       toast.error('Erro ao remover escala.');
       return;
     }
@@ -83,6 +118,10 @@ export default function Schedules() {
   };
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
+  const today = new Date();
+  const isToday = (day: number) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   const roleDescription = isRH
     ? 'Visualização de todas as escalas'
@@ -92,95 +131,240 @@ export default function Schedules() {
     ? 'Escalas da sua categoria'
     : 'Todas as escalas';
 
+  // Filtered schedules for current month (list view)
+  const monthSchedules = schedules.filter(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    return d.getMonth() === month && d.getFullYear() === year;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Escalas</h1>
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
-        {canCreate && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus size={16} /> Nova Escala</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar Escala</DialogTitle>
-                <DialogDescription>Crie uma escala normal ou extra.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAdd} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Funcionário</Label>
-                  <Select value={empId} onValueChange={setEmpId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {employees.map(e => (
-                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data</Label>
-                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Tipo</Label>
-                  <Select value={type} onValueChange={setType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="extra">Extra (+2 créditos)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" className="w-full">Criar Escala</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex bg-muted rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'calendar' && 'active')}
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'list' && 'active')}
+            >
+              <List size={14} />
+            </button>
+          </div>
+          {canCreate && (
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <Plus size={16} /> Nova Escala
+            </Button>
+          )}
+        </div>
       </div>
 
-      {schedules.length === 0 ? (
-        <div className="empty-state">
-          <CalendarDays className="mx-auto mb-3 text-muted-foreground" size={40} />
-          <p className="text-muted-foreground">Nenhuma escala cadastrada</p>
+      {/* Month navigation */}
+      <div className="flex items-center justify-between bg-card rounded-xl border border-border px-4 py-3">
+        <Button variant="ghost" size="icon" onClick={prevMonth}>
+          <ChevronLeft size={18} />
+        </Button>
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold capitalize">{monthLabel}</h2>
+          <Button variant="outline" size="sm" onClick={goToday} className="text-xs h-7">
+            Hoje
+          </Button>
+        </div>
+        <Button variant="ghost" size="icon" onClick={nextMonth}>
+          <ChevronRight size={18} />
+        </Button>
+      </div>
+
+      {viewMode === 'calendar' ? (
+        /* Calendar View */
+        <div className="page-card p-3">
+          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+            {/* Week day headers */}
+            {weekDays.map(d => (
+              <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">
+                {d}
+              </div>
+            ))}
+            {/* Calendar cells */}
+            {calendarDays.map((day, i) => {
+              if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
+              const daySchedules = schedulesForDay(day);
+              return (
+                <div
+                  key={day}
+                  className={cn(
+                    'bg-card min-h-[80px] p-1.5 relative transition-colors',
+                    isToday(day) && 'ring-2 ring-primary ring-inset',
+                  )}
+                >
+                  <span className={cn(
+                    'text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full',
+                    isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                  )}>
+                    {day}
+                  </span>
+                  <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
+                    {daySchedules.slice(0, 3).map(s => (
+                      <div
+                        key={s.id}
+                        className={cn(
+                          'text-[10px] px-1.5 py-0.5 rounded truncate',
+                          s.type === 'extra'
+                            ? 'bg-accent/15 text-accent'
+                            : 'bg-primary/10 text-primary'
+                        )}
+                        title={`${getEmpName(s.employee_id)} (${s.type})`}
+                      >
+                        {getEmpName(s.employee_id)}
+                      </div>
+                    ))}
+                    {daySchedules.length > 3 && (
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        +{daySchedules.length - 3} mais
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <div className="page-card overflow-x-auto">
-          <table className="schedule-table">
-            <thead>
-              <tr>
-                <th className="text-left">Funcionário</th>
-                <th className="text-left">Data</th>
-                <th className="text-left">Tipo</th>
-                {canCreate && <th className="text-right">Ações</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {schedules.map(s => (
-                <tr key={s.id}>
-                  <td className="font-medium">{getEmpName(s.employee_id)}</td>
-                  <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                  <td>
-                    <Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>
-                      {s.type === 'extra' ? 'Extra' : 'Normal'}
-                    </Badge>
-                  </td>
-                  {canCreate && (
-                    <td className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
-                        <Trash2 size={16} className="text-destructive" />
-                      </Button>
-                    </td>
-                  )}
+        /* List View */
+        monthSchedules.length === 0 ? (
+          <div className="empty-state">
+            <CalendarDays className="mx-auto mb-3 text-muted-foreground" size={40} />
+            <p className="text-muted-foreground">Nenhuma escala neste mês</p>
+          </div>
+        ) : (
+          <div className="page-card overflow-x-auto">
+            <table className="schedule-table">
+              <thead>
+                <tr>
+                  <th className="text-left">Funcionário</th>
+                  <th className="text-left">Data</th>
+                  <th className="text-left">Tipo</th>
+                  {canCreate && <th className="text-right">Ações</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {monthSchedules.map(s => (
+                  <tr key={s.id}>
+                    <td className="font-medium">{getEmpName(s.employee_id)}</td>
+                    <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td>
+                      <Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>
+                        {s.type === 'extra' ? 'Extra' : 'Normal'}
+                      </Badge>
+                    </td>
+                    {canCreate && (
+                      <td className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
+                          <Trash2 size={16} className="text-destructive" />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
+
+      {/* Create Schedule Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Criar Escala</DialogTitle>
+            <DialogDescription>Selecione o funcionário, tipo e clique nos dias do calendário.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Funcionário</Label>
+                <Select value={empId} onValueChange={setEmpId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="extra">Extra (+2 créditos)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Mini calendar for date selection */}
+            <div>
+              <Label className="mb-2 block">Selecione os dias ({selectedDates.length} selecionado{selectedDates.length !== 1 ? 's' : ''})</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft size={14} /></Button>
+                <span className="text-sm font-medium capitalize">{monthLabel}</span>
+                <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight size={14} /></Button>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {weekDays.map(d => (
+                  <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
+                ))}
+                {calendarDays.map((day, i) => {
+                  if (day === null) return <div key={`e-${i}`} />;
+                  const dateStr = getDateStr(day);
+                  const selected = selectedDates.includes(dateStr);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDate(dateStr)}
+                      className={cn(
+                        'h-8 rounded-md text-sm font-medium transition-all',
+                        selected
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'hover:bg-muted text-foreground',
+                        isToday(day) && !selected && 'ring-1 ring-primary'
+                      )}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {selectedDates.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedDates.sort().map(d => (
+                  <Badge key={d} variant="secondary" className="text-xs cursor-pointer" onClick={() => toggleDate(d)}>
+                    {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ✕
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={handleAdd} className="w-full" disabled={!empId || selectedDates.length === 0}>
+              Criar {selectedDates.length} Escala{selectedDates.length !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

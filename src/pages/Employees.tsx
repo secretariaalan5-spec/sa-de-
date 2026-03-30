@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Users, Pencil } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Employee {
   id: string;
@@ -18,7 +20,7 @@ interface Employee {
   team_id: string;
 }
 
-interface Category { id: string; name: string; }
+interface Category { id: string; name: string; color: string; }
 interface Unit { id: string; name: string; }
 
 export default function Employees() {
@@ -32,16 +34,18 @@ export default function Employees() {
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [unitId, setUnitId] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState('all');
+  const [filterUnit, setFilterUnit] = useState('all');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
-  // Admin and Manager can add employees
   const canAdd = isAdmin || isManager;
-  // Admin, Chief, and Manager (own unit) can edit
   const canEdit = isAdmin || isChief || isManager;
 
   const load = async () => {
     const [e, c, u] = await Promise.all([
       supabase.from('employees').select('*').eq('active', true).order('name'),
-      supabase.from('categories').select('id, name').eq('active', true),
+      supabase.from('categories').select('id, name, color').eq('active', true),
       supabase.from('units').select('id, name').eq('active', true),
     ]);
     setEmployees(e.data ?? []);
@@ -55,25 +59,19 @@ export default function Employees() {
     ev.preventDefault();
     if (!name.trim()) return;
 
-    const insertData: any = {
+    const { error } = await supabase.from('employees').insert({
       name: name.trim(),
       category_id: categoryId || null,
       unit_id: isManager ? (roleInfo?.unit_id ?? null) : (unitId || null),
       team_id: roleInfo?.team_id,
-    };
-
-    const { error } = await supabase.from('employees').insert(insertData);
+    });
 
     if (error) {
-      console.error('Employee insert error');
       toast.error('Erro ao cadastrar funcionário.');
       return;
     }
-
     toast.success('Funcionário cadastrado!');
-    setName('');
-    setCategoryId('');
-    setUnitId('');
+    setName(''); setCategoryId(''); setUnitId('');
     setOpen(false);
     load();
   };
@@ -97,49 +95,48 @@ export default function Employees() {
     }
 
     const { error } = await supabase.from('employees').update(updateData).eq('id', editEmp.id);
-
     if (error) {
-      console.error('Employee update error');
       toast.error('Erro ao atualizar funcionário.');
       return;
     }
-
     toast.success('Funcionário atualizado!');
-    setEditOpen(false);
-    setEditEmp(null);
-    setName('');
-    setCategoryId('');
-    setUnitId('');
+    setEditOpen(false); setEditEmp(null);
+    setName(''); setCategoryId(''); setUnitId('');
     load();
   };
 
-  const getCategoryName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '—';
+  const getCat = (id: string | null) => categories.find(c => c.id === id);
   const getUnitName = (id: string | null) => units.find(u => u.id === id)?.name ?? '—';
+
+  const filtered = employees.filter(e => {
+    if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterCat !== 'all' && e.category_id !== filterCat) return false;
+    if (filterUnit !== 'all' && e.unit_id !== filterUnit) return false;
+    return true;
+  });
 
   const roleDescription = isRH
     ? 'Visualização de todos os profissionais'
-    : isChief
-    ? 'Profissionais da sua categoria'
-    : isManager
-    ? 'Profissionais da sua unidade'
+    : isChief ? 'Profissionais da sua categoria'
+    : isManager ? 'Profissionais da sua unidade'
     : 'Todos os profissionais';
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Funcionários</h1>
+          <h1 className="text-2xl font-bold">Profissionais</h1>
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         {canAdd && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2"><Plus size={16} /> Novo</Button>
+              <Button className="gap-2"><Plus size={16} /> Novo Profissional</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Cadastrar Funcionário</DialogTitle>
-                <DialogDescription>Adicione um novo funcionário ao sistema.</DialogDescription>
+                <DialogTitle>Cadastrar Profissional</DialogTitle>
+                <DialogDescription>Adicione um novo profissional ao sistema.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="space-y-1.5">
@@ -177,12 +174,53 @@ export default function Employees() {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 bg-card rounded-xl border border-border p-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar profissional..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        {(isAdmin || isRH) && (
+          <>
+            <Select value={filterCat} onValueChange={setFilterCat}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Categorias</SelectItem>
+                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterUnit} onValueChange={setFilterUnit}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Unidades</SelectItem>
+                {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        <div className="flex bg-muted rounded-lg p-0.5">
+          <button onClick={() => setViewMode('cards')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'cards' && 'active')}>
+            <LayoutGrid size={14} />
+          </button>
+          <button onClick={() => setViewMode('table')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'table' && 'active')}>
+            <List size={14} />
+          </button>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">{filtered.length} profissional(is) encontrado(s)</p>
+
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Funcionário</DialogTitle>
-            <DialogDescription>Atualize os dados do funcionário.</DialogDescription>
+            <DialogTitle>Editar Profissional</DialogTitle>
+            <DialogDescription>Atualize os dados do profissional.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-1.5">
@@ -196,9 +234,7 @@ export default function Employees() {
                   <Select value={categoryId} onValueChange={setCategoryId}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -207,9 +243,7 @@ export default function Employees() {
                   <Select value={unitId} onValueChange={setUnitId}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {units.map(u => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
+                      {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -220,10 +254,40 @@ export default function Employees() {
         </DialogContent>
       </Dialog>
 
-      {employees.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="empty-state">
           <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
-          <p className="text-muted-foreground">Nenhum funcionário cadastrado</p>
+          <p className="text-muted-foreground">Nenhum profissional encontrado</p>
+        </div>
+      ) : viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(emp => {
+            const cat = getCat(emp.category_id);
+            return (
+              <div key={emp.id} className="prof-card group">
+                <div className="h-1 rounded-full mb-3" style={{ backgroundColor: cat?.color ?? 'hsl(var(--muted))' }} />
+                <p className="font-semibold text-sm">{emp.name}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  {cat && (
+                    <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>
+                      {cat.name}
+                    </Badge>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(emp)}
+                    className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 text-xs gap-1"
+                  >
+                    <Pencil size={12} /> Editar
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="page-card overflow-x-auto">
@@ -237,10 +301,10 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody>
-              {employees.map(emp => (
+              {filtered.map(emp => (
                 <tr key={emp.id}>
                   <td className="font-medium">{emp.name}</td>
-                  <td>{getCategoryName(emp.category_id)}</td>
+                  <td>{getCat(emp.category_id)?.name ?? '—'}</td>
                   <td>{getUnitName(emp.unit_id)}</td>
                   {canEdit && (
                     <td className="text-right">
