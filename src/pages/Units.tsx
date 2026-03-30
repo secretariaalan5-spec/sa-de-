@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Plus, Pencil, Trash2, Users, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAppData } from '@/hooks/useAppData';
 import { cn } from '@/lib/utils';
 import { useTeamPermissions } from '@/hooks/useTeamPermissions';

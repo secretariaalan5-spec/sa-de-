@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { LeaveRequest } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
 import { generateId } from '@/lib/uuid';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 
 export function useLeaveRequests() {
     const { state, updateServiceState, loading } = useServiceState();

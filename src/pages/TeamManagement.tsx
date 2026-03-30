@@ -12,7 +12,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { Users, Plus, Pencil, Trash2, Mail, Shield, Clock, UserPlus, Building2, Stethoscope, Copy, Link, Tag } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { UserRole } from '@/hooks/useTeamPermissions';
 import { cn } from '@/lib/utils';
 import { generateId } from '@/lib/uuid';

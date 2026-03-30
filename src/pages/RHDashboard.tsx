@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarOff, Search, Filter, Users, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { useProfile } from '@/hooks/useProfile';
 import { LEAVE_TYPE_LABELS, LeaveType } from '@/types/serviceSchedule';
 import { cn } from '@/lib/utils';

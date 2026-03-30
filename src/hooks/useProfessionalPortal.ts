@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 

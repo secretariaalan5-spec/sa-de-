@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Professional, Unit, ProfessionalFunction, ScheduleEntry, Restriction, PERIODS } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { toast } from 'sonner';
 import { generateId } from '@/lib/uuid';
 

@@ -3,7 +3,7 @@
  * Centraliza operações destrutivas para facilitar manutenção e rastreamento.
  */
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAppData } from './useAppData';
 import { useServiceState } from './useServiceState';
 import { toast } from 'sonner';
