@@ -102,7 +102,7 @@ export function useTeamPermissions() {
       // Fetch user role from user_roles table
       const { data: roleData } = await supabase
         .from('user_roles')
-        .select('role, category, unit_id, team_id')
+        .select('role, category, category_id, unit_id, team_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
