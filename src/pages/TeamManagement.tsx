@@ -475,7 +475,7 @@ export default function TeamManagement() {
               </div>
             </div>
 
-            {selectedRole === 'category_chief' && (
+            {(selectedRole === 'category_chief' || selectedRole === 'professional') && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Categoria</Label>
                 {categories.length === 0 ? (
@@ -498,7 +498,7 @@ export default function TeamManagement() {
               </div>
             )}
 
-            {selectedRole === 'unit_manager' && (
+            {(selectedRole === 'unit_manager' || selectedRole === 'professional') && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Unidade</Label>
                 <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
