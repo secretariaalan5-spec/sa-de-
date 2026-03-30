@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle,
+  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle, Wallet,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
