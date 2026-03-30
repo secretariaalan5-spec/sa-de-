@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh';
+export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'professional';
 
 export interface TeamPermissions {
   escalas_servicos: boolean;
@@ -19,6 +19,7 @@ export interface TeamPermissions {
 export interface UserRoleInfo {
   role: UserRole;
   category: string | null;
+  category_id: string | null;
   unit_id: string | null;
   team_id: string | null;
 }
@@ -75,6 +76,19 @@ const MANAGER_PERMISSIONS: TeamPermissions = {
   is_owner: false,
 };
 
+const PROFESSIONAL_PERMISSIONS: TeamPermissions = {
+  escalas_servicos: false,
+  escalas_emult: false,
+  profissionais: false,
+  unidades: false,
+  folgas: false,
+  relatorios: false,
+  publicar: false,
+  configuracoes: false,
+  gerenciar_membros: false,
+  is_owner: false,
+};
+
 export function useTeamPermissions() {
   const [permissions, setPermissions] = useState<TeamPermissions>(ALL_PERMISSIONS);
   const [roleInfo, setRoleInfo] = useState<UserRoleInfo | null>(null);
@@ -88,7 +102,7 @@ export function useTeamPermissions() {
       // Fetch user role from user_roles table
       const { data: roleData } = await supabase
         .from('user_roles')
-        .select('role, category, unit_id, team_id')
+        .select('role, category, category_id, unit_id, team_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -96,6 +110,7 @@ export function useTeamPermissions() {
         const info: UserRoleInfo = {
           role: roleData.role as UserRole,
           category: roleData.category,
+          category_id: roleData.category_id,
           unit_id: roleData.unit_id,
           team_id: roleData.team_id,
         };
@@ -114,6 +129,9 @@ export function useTeamPermissions() {
           case 'unit_manager':
             setPermissions(MANAGER_PERMISSIONS);
             break;
+          case 'professional':
+            setPermissions(PROFESSIONAL_PERMISSIONS);
+            break;
           default:
             setPermissions(ALL_PERMISSIONS);
         }
@@ -128,7 +146,7 @@ export function useTeamPermissions() {
         } else {
           setPermissions(ALL_PERMISSIONS);
         }
-        setRoleInfo({ role: 'admin', category: null, unit_id: null, team_id: null });
+        setRoleInfo({ role: 'admin', category: null, category_id: null, unit_id: null, team_id: null });
       }
     } catch {
       setPermissions(ALL_PERMISSIONS);

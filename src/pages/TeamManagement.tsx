@@ -36,6 +36,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string; description: string; icon:
   { value: 'rh', label: 'RH', description: 'Leitura total, sem edição', icon: Users },
   { value: 'category_chief', label: 'Chefe de Categoria', description: 'Gerencia escalas e folgas da sua categoria', icon: Stethoscope },
   { value: 'unit_manager', label: 'Gerente de Unidade', description: 'Cadastra profissionais da sua unidade', icon: Building2 },
+  { value: 'professional', label: 'Profissional', description: 'Visualiza suas escalas e solicita folgas', icon: Users },
 ];
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -43,6 +44,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   rh: 'bg-blue-500/10 text-blue-600 border-blue-200',
   category_chief: 'bg-amber-500/10 text-amber-600 border-amber-200',
   unit_manager: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+  professional: 'bg-muted text-muted-foreground border-border',
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -50,6 +52,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   rh: 'RH',
   category_chief: 'Chefe de Categoria',
   unit_manager: 'Gerente de Unidade',
+  professional: 'Profissional',
 };
 
 export default function TeamManagement() {
@@ -178,13 +181,27 @@ export default function TeamManagement() {
   const handleSave = async () => {
     if (!teamId) return;
 
+    // Validate required fields per role
+    if (selectedRole === 'category_chief' && !selectedCategoryId) {
+      toast.error('Selecione a categoria para o Chefe de Categoria.');
+      return;
+    }
+    if (selectedRole === 'unit_manager' && !selectedUnitId) {
+      toast.error('Selecione a unidade para o Gerente de Unidade.');
+      return;
+    }
+    if (selectedRole === 'professional' && (!selectedCategoryId || !selectedUnitId)) {
+      toast.error('Profissional deve ter categoria e unidade definidas.');
+      return;
+    }
+
     try {
       if (editingMember && !editingMember.status) {
         // Update existing user_role
         const roleData: any = {
           role: selectedRole,
-          category_id: selectedRole === 'category_chief' ? selectedCategoryId || null : null,
-          unit_id: selectedRole === 'unit_manager' ? selectedUnitId || null : null,
+          category_id: ['category_chief', 'professional'].includes(selectedRole) ? selectedCategoryId || null : null,
+          unit_id: ['unit_manager', 'professional'].includes(selectedRole) ? selectedUnitId || null : null,
         };
         const { error } = await supabase
           .from('user_roles')
@@ -212,8 +229,8 @@ export default function TeamManagement() {
             role: selectedRole,
             invite_token: inviteToken,
             permissions: {
-              pending_category_id: selectedRole === 'category_chief' ? selectedCategoryId : null,
-              pending_unit_id: selectedRole === 'unit_manager' ? selectedUnitId : null,
+              pending_category_id: ['category_chief', 'professional'].includes(selectedRole) ? selectedCategoryId : null,
+              pending_unit_id: ['unit_manager', 'professional'].includes(selectedRole) ? selectedUnitId : null,
             },
             status: 'pending',
           } as any) as any;
@@ -395,10 +412,10 @@ export default function TeamManagement() {
                           <Badge variant="outline" className={cn('text-[10px]', ROLE_COLORS[member.role])}>
                             {ROLE_LABELS[member.role]}
                           </Badge>
-                          {member.role === 'category_chief' && member.category_name && (
+                          {(member.role === 'category_chief' || member.role === 'professional') && member.category_name && (
                             <Badge variant="secondary" className="text-[10px]">{member.category_name}</Badge>
                           )}
-                          {member.role === 'unit_manager' && member.unit_name && (
+                          {(member.role === 'unit_manager' || member.role === 'professional') && member.unit_name && (
                             <Badge variant="secondary" className="text-[10px]">{member.unit_name}</Badge>
                           )}
                         </div>
@@ -472,7 +489,7 @@ export default function TeamManagement() {
               </div>
             </div>
 
-            {selectedRole === 'category_chief' && (
+            {(selectedRole === 'category_chief' || selectedRole === 'professional') && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Categoria</Label>
                 {categories.length === 0 ? (
@@ -495,7 +512,7 @@ export default function TeamManagement() {
               </div>
             )}
 
-            {selectedRole === 'unit_manager' && (
+            {(selectedRole === 'unit_manager' || selectedRole === 'professional') && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Unidade</Label>
                 <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
