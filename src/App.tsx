@@ -16,6 +16,7 @@ import Units from "./pages/Units";
 import Categories from "./pages/Categories";
 import Invites from "./pages/Invites";
 import Profile from "./pages/Profile";
+import BalancePanel from "./pages/BalancePanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
