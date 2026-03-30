@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Check, RefreshCw, Link2, Users, Stethoscope, Syringe, Clock, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { useLeaveRequests } from '@/hooks/useLeaveRequests';
 
 interface ProfessionalUserRecord {

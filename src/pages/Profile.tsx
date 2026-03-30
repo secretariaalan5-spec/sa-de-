@@ -8,7 +8,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 
 const ACTION_LABELS: Record<string, string> = {
   leave_request_created: '📋 Registrou pedido de folga',

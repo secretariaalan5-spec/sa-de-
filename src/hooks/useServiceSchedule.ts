@@ -4,7 +4,7 @@ import { isWeekend, parseISO, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useServiceState } from './useServiceState';
 import { generateId } from '@/lib/uuid';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 
 /** Send push to a professional when they are scheduled */
 async function notifyProfessionalScheduled(professionalId: string, professionalName: string, date: string, type: string) {

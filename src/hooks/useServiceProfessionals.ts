@@ -12,7 +12,7 @@ import { ServiceProfessional } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
 import { useTeamPermissions } from './useTeamPermissions';
 import { generateId } from '@/lib/uuid';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 
 export function useServiceProfessionals() {
     const { state, updateServiceState, deleteProfessional: contextDeleteProfessional, loading } = useServiceState();

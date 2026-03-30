@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { format, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { LeaveType, LEAVE_TYPE_LABELS } from '@/types/serviceSchedule';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/untyped-client';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
