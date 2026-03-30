@@ -22,7 +22,7 @@ interface Schedule {
 interface Employee { id: string; name: string; category_id: string | null; }
 
 export default function Schedules() {
-  const { roleInfo, isAdmin, isChief, isRH } = useAuthContext();
+  const { roleInfo, isAdmin, isChief, isRH, isManager } = useAuthContext();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [open, setOpen] = useState(false);
@@ -30,6 +30,7 @@ export default function Schedules() {
   const [date, setDate] = useState('');
   const [type, setType] = useState('normal');
 
+  // Only admin and chief can create/delete schedules
   const canCreate = isAdmin || isChief;
 
   const load = async () => {
@@ -58,7 +59,7 @@ export default function Schedules() {
 
     if (error) {
       console.error('Schedule insert error');
-      toast.error('Erro ao criar escala. Verifique os dados e tente novamente.');
+      toast.error('Erro ao criar escala.');
       return;
     }
 
@@ -83,14 +84,20 @@ export default function Schedules() {
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
 
+  const roleDescription = isRH
+    ? 'Visualização de todas as escalas'
+    : isManager
+    ? 'Escalas da sua unidade (somente visualização)'
+    : isChief
+    ? 'Escalas da sua categoria'
+    : 'Todas as escalas';
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Escalas</h1>
-          <p className="text-muted-foreground text-sm">
-            {isRH ? 'Visualização' : 'Gerencie escalas normais e extras'}
-          </p>
+          <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         {canCreate && (
           <Dialog open={open} onOpenChange={setOpen}>
@@ -99,7 +106,8 @@ export default function Schedules() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Criar Escala</DialogTitle><DialogDescription>Crie uma escala normal ou extra.</DialogDescription>
+                <DialogTitle>Criar Escala</DialogTitle>
+                <DialogDescription>Crie uma escala normal ou extra.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="space-y-1.5">

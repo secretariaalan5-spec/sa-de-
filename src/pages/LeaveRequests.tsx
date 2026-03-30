@@ -31,7 +31,9 @@ export default function LeaveRequests() {
   const [dates, setDates] = useState('');
   const [obs, setObs] = useState('');
 
+  // Manager and Admin can create leave requests
   const canRequest = isAdmin || isManager;
+  // Chief and Admin can approve/reject
   const canApprove = isAdmin || isChief;
 
   const load = async () => {
@@ -64,7 +66,7 @@ export default function LeaveRequests() {
 
     if (error) {
       console.error('Leave request insert error');
-      toast.error('Erro ao solicitar folga. Verifique os dados.');
+      toast.error('Erro ao solicitar folga.');
       return;
     }
     toast.success('Pedido de folga enviado!');
@@ -91,7 +93,7 @@ export default function LeaveRequests() {
       toast.error('Erro ao processar decisão.');
       return;
     }
-    toast.success(status === 'approved' ? 'Folga aprovada! -1 crédito deduzido.' : 'Folga negada.');
+    toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
     load();
   };
 
@@ -103,14 +105,20 @@ export default function LeaveRequests() {
     rejected: { label: 'Negado', variant: 'destructive' },
   };
 
+  const roleDescription = isRH
+    ? 'Visualização de todos os pedidos'
+    : isManager
+    ? 'Solicite folgas para profissionais da sua unidade'
+    : isChief
+    ? 'Aprove ou recuse pedidos da sua categoria'
+    : 'Todos os pedidos de folga';
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Pedidos de Folga</h1>
-          <p className="text-muted-foreground text-sm">
-            {isRH ? 'Visualização' : isManager ? 'Solicite folgas' : isChief ? 'Aprove ou recuse pedidos' : 'Gerencie pedidos'}
-          </p>
+          <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         {canRequest && (
           <Dialog open={open} onOpenChange={setOpen}>
@@ -119,7 +127,8 @@ export default function LeaveRequests() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Solicitar Folga</DialogTitle><DialogDescription>Envie um pedido de folga para aprovação.</DialogDescription>
+                <DialogTitle>Solicitar Folga</DialogTitle>
+                <DialogDescription>Envie um pedido de folga para aprovação do chefe de categoria.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRequest} className="space-y-4">
                 <div className="space-y-1.5">

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Session } from '@supabase/supabase-js';
 
-export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh';
+export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'professional';
 
 export interface UserRoleInfo {
   role: UserRole;
@@ -64,6 +64,7 @@ export function useAuth() {
   const isRH = roleInfo?.role === 'rh';
   const isChief = roleInfo?.role === 'category_chief';
   const isManager = roleInfo?.role === 'unit_manager';
+  const isProfessional = roleInfo?.role === 'professional';
 
   return {
     session,
@@ -75,5 +76,6 @@ export function useAuth() {
     isRH,
     isChief,
     isManager,
+    isProfessional,
   };
 }

@@ -12,6 +12,7 @@ interface AuthContextType {
   isRH: boolean;
   isChief: boolean;
   isManager: boolean;
+  isProfessional: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
