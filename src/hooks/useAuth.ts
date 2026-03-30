@@ -57,16 +57,30 @@ export function useAuth() {
         return;
       }
 
+      // For category_chief, allow adding new category even if user already has a role
       const { data: existingRole } = await supabase
         .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .select('id, role, category_id')
+        .eq('user_id', userId);
 
-      if (existingRole) {
+      const hasExactRole = (existingRole ?? []).some((r: any) =>
+        r.role === invite.role && r.category_id === invite.category_id
+      );
+
+      if (hasExactRole) {
         localStorage.removeItem('pending_invite_token');
         await fetchRole(userId);
         return;
+      }
+
+      // If user has a different role (not category_chief adding category), skip
+      if (existingRole && existingRole.length > 0 && invite.role !== 'category_chief') {
+        const hasOtherRole = existingRole.some((r: any) => r.role !== invite.role);
+        if (hasOtherRole) {
+          localStorage.removeItem('pending_invite_token');
+          await fetchRole(userId);
+          return;
+        }
       }
 
       await supabase.from('user_roles').insert({
