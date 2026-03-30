@@ -20,16 +20,21 @@ interface LeaveReq {
   leave_dates: string[];
   observations: string | null;
   created_at: string;
+  requested_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
 }
 
 interface Employee { id: string; name: string; }
 interface Schedule { employee_id: string; date: string; }
+interface Credit { employee_id: string; amount: number; }
 
 export default function LeaveRequests() {
   const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
   const [requests, setRequests] = useState<LeaveReq[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [credits, setCredits] = useState<Credit[]>([]);
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
   const [dates, setDates] = useState('');
@@ -39,15 +44,21 @@ export default function LeaveRequests() {
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
 
+  const getBalance = (employeeId: string) => {
+    return credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
+  };
+
   const load = async () => {
-    const [r, e, s] = await Promise.all([
+    const [r, e, s, c] = await Promise.all([
       supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('employees').select('id, name').eq('active', true).order('name'),
       supabase.from('schedules').select('employee_id, date'),
+      supabase.from('leave_credits').select('employee_id, amount'),
     ]);
     setRequests(r.data ?? []);
     setEmployees(e.data ?? []);
     setSchedules(s.data ?? []);
+    setCredits(c.data ?? []);
   };
 
   useEffect(() => { load(); }, []);
@@ -58,11 +69,28 @@ export default function LeaveRequests() {
 
     const leaveDates = dates.split(',').map(d => d.trim()).filter(Boolean);
 
-    // Check for schedule conflicts
+    // 1. Check schedule conflicts (folga + escala no mesmo dia)
     const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
     if (conflictDates.length > 0) {
       const formatted = conflictDates.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
-      toast.error(`Conflito: o profissional tem escala em ${formatted}. Remova a escala antes de solicitar folga.`);
+      toast.error(`Conflito: o profissional tem escala em ${formatted}. Remova a escala antes.`);
+      return;
+    }
+
+    // 2. Check duplicate leave dates (duas folgas no mesmo dia)
+    const existingLeaves = requests.filter(r => r.employee_id === empId && (r.status === 'pending' || r.status === 'approved'));
+    const allExistingDates = existingLeaves.flatMap(r => r.leave_dates ?? []);
+    const duplicateDates = leaveDates.filter(d => allExistingDates.includes(d));
+    if (duplicateDates.length > 0) {
+      const formatted = duplicateDates.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
+      toast.error(`Já existe folga (pendente ou aprovada) em ${formatted}.`);
+      return;
+    }
+
+    // 3. Check balance (saldo < dias solicitados)
+    const balance = getBalance(empId);
+    if (balance < leaveDates.length) {
+      toast.error(`Saldo insuficiente. Saldo atual: ${balance} crédito(s), solicitado: ${leaveDates.length} dia(s).`);
       return;
     }
 
@@ -84,6 +112,17 @@ export default function LeaveRequests() {
   };
 
   const handleDecision = async (id: string, status: 'approved' | 'rejected') => {
+    if (status === 'approved') {
+      const req = requests.find(r => r.id === id);
+      if (req) {
+        const balance = getBalance(req.employee_id);
+        if (balance < req.days_requested) {
+          toast.error(`Não é possível aprovar: saldo insuficiente (${balance} crédito(s), necessário: ${req.days_requested}).`);
+          return;
+        }
+      }
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from('leave_requests')
@@ -143,6 +182,11 @@ export default function LeaveRequests() {
                       {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
+                  {empId && (
+                    <p className="text-xs text-muted-foreground">
+                      Saldo atual: <span className={cn('font-bold', getBalance(empId) > 0 ? 'text-primary' : 'text-destructive')}>{getBalance(empId)} crédito(s)</span>
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Datas (separadas por vírgula, formato AAAA-MM-DD)</Label>
@@ -193,6 +237,7 @@ export default function LeaveRequests() {
               {filtered.map(r => {
                 const cfg = statusConfig[r.status] ?? statusConfig.pending;
                 const StatusIcon = cfg.icon;
+                const empBalance = getBalance(r.employee_id);
                 return (
                   <div key={r.id} className="page-card flex items-center gap-4 p-4">
                     <div className={cn('p-2 rounded-lg',
@@ -212,13 +257,22 @@ export default function LeaveRequests() {
                         {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                       </p>
                       {r.observations && <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>}
+                      {r.status === 'pending' && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Saldo: <span className={cn('font-semibold', empBalance >= r.days_requested ? 'text-primary' : 'text-destructive')}>{empBalance}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
                       {canApprove && r.status === 'pending' && (
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDecision(r.id, 'approved')}>
-                            <Check size={16} className="text-accent" />
+                          <Button
+                            variant="ghost" size="icon" className="h-8 w-8"
+                            onClick={() => handleDecision(r.id, 'approved')}
+                            title={empBalance < r.days_requested ? 'Saldo insuficiente para aprovar' : 'Aprovar'}
+                          >
+                            <Check size={16} className={cn(empBalance < r.days_requested ? 'text-muted-foreground' : 'text-accent')} />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDecision(r.id, 'rejected')}>
                             <X size={16} className="text-destructive" />
