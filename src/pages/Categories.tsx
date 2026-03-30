@@ -35,7 +35,11 @@ export default function Categories() {
       team_id: roleInfo?.team_id,
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Category insert error');
+      toast.error('Erro ao criar categoria.');
+      return;
+    }
     toast.success('Categoria criada!');
     setName('');
     setOpen(false);

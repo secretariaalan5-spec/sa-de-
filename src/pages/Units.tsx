@@ -32,7 +32,11 @@ export default function Units() {
       team_id: roleInfo?.team_id,
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Unit insert error');
+      toast.error('Erro ao criar unidade.');
+      return;
+    }
     toast.success('Unidade criada!');
     setName('');
     setOpen(false);

@@ -51,17 +51,22 @@ export default function LeaveRequests() {
 
     const leaveDates = dates.split(',').map(d => d.trim()).filter(Boolean);
 
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('leave_requests').insert({
       employee_id: empId,
       leave_dates: leaveDates,
       days_requested: leaveDates.length,
       observations: obs || null,
       team_id: roleInfo?.team_id,
-      requested_by: null, // will be set by auth context
+      requested_by: user?.id ?? null,
       status: 'pending',
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Leave request insert error');
+      toast.error('Erro ao solicitar folga. Verifique os dados.');
+      return;
+    }
     toast.success('Pedido de folga enviado!');
     setOpen(false);
     setEmpId('');
@@ -71,16 +76,21 @@ export default function LeaveRequests() {
   };
 
   const handleDecision = async (id: string, status: 'approved' | 'rejected') => {
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from('leave_requests')
       .update({
         status,
-        decided_by: null, // RLS ensures only chiefs/admins
+        decided_by: user?.id ?? null,
         decided_at: new Date().toISOString(),
       } as any)
       .eq('id', id);
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Leave decision error');
+      toast.error('Erro ao processar decisão.');
+      return;
+    }
     toast.success(status === 'approved' ? 'Folga aprovada! -1 crédito deduzido.' : 'Folga negada.');
     load();
   };
