@@ -72,7 +72,11 @@ export default function Schedules() {
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('schedules').delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Schedule delete error');
+      toast.error('Erro ao remover escala.');
+      return;
+    }
     toast.success('Escala removida');
     load();
   };

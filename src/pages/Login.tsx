@@ -62,7 +62,8 @@ export default function Login() {
       if (error) throw error;
       localStorage.setItem('password_set', 'true');
     } catch (error: any) {
-      toast.error('Erro no login: ' + (error.message || 'Verifique seus dados.'));
+      console.error('Email login error');
+      toast.error('Erro no login. Verifique seus dados e tente novamente.');
     } finally {
       setEmailLoading(false);
     }

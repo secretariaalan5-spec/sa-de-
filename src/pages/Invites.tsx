@@ -48,15 +48,20 @@ export default function Invites() {
   const handleCreate = async (ev: React.FormEvent) => {
     ev.preventDefault();
 
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('invites').insert({
       role,
       team_id: roleInfo?.team_id,
       category_id: role === 'category_chief' ? categoryId || null : null,
       unit_id: role === 'unit_manager' ? unitId || null : null,
-      created_by: null,
+      created_by: user?.id ?? null,
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Invite insert error');
+      toast.error('Erro ao criar convite.');
+      return;
+    }
     toast.success('Convite criado!');
     setOpen(false);
     setRole('unit_manager');

@@ -50,15 +50,19 @@ export default function Transfers() {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
 
-    // Insert transfer history
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: thErr } = await supabase.from('transfer_history').insert({
       employee_id: empId,
       from_unit_id: emp.unit_id,
       to_unit_id: toUnitId,
       team_id: roleInfo?.team_id,
-      transferred_by: null,
+      transferred_by: user?.id ?? null,
     });
-    if (thErr) { toast.error(thErr.message); return; }
+    if (thErr) {
+      console.error('Transfer insert error');
+      toast.error('Erro ao registrar transferência.');
+      return;
+    }
 
     // Update employee unit
     await supabase.from('employees').update({ unit_id: toUnitId } as any).eq('id', empId);

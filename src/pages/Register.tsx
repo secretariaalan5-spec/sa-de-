@@ -81,7 +81,8 @@ export default function Register() {
       toast.success('Cadastro realizado! Faça login para acessar.');
       navigate('/login');
     } catch (err: any) {
-      toast.error(err.message || 'Erro no cadastro');
+      console.error('Registration error');
+      toast.error('Erro no cadastro. Tente novamente.');
     } finally {
       setSubmitting(false);
     }

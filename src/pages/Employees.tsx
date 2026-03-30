@@ -58,7 +58,8 @@ export default function Employees() {
     });
 
     if (error) {
-      toast.error('Erro ao cadastrar: ' + error.message);
+      console.error('Employee insert error');
+      toast.error('Erro ao cadastrar funcionário. Verifique os dados.');
       return;
     }
 

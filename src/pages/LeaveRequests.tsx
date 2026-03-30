@@ -76,16 +76,21 @@ export default function LeaveRequests() {
   };
 
   const handleDecision = async (id: string, status: 'approved' | 'rejected') => {
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase
       .from('leave_requests')
       .update({
         status,
-        decided_by: null, // RLS ensures only chiefs/admins
+        decided_by: user?.id ?? null,
         decided_at: new Date().toISOString(),
       } as any)
       .eq('id', id);
 
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      console.error('Leave decision error');
+      toast.error('Erro ao processar decisão.');
+      return;
+    }
     toast.success(status === 'approved' ? 'Folga aprovada! -1 crédito deduzido.' : 'Folga negada.');
     load();
   };
