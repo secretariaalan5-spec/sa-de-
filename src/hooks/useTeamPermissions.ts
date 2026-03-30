@@ -129,6 +129,9 @@ export function useTeamPermissions() {
           case 'unit_manager':
             setPermissions(MANAGER_PERMISSIONS);
             break;
+          case 'professional':
+            setPermissions(PROFESSIONAL_PERMISSIONS);
+            break;
           default:
             setPermissions(ALL_PERMISSIONS);
         }
