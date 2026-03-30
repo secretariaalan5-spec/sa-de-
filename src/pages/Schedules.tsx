@@ -39,17 +39,18 @@ export default function Schedules() {
   const canCreate = isAdmin || isChief;
 
   const load = async () => {
-    const [s, e, lr] = await Promise.all([
+    const [s, e, lr, pendingLr] = await Promise.all([
       supabase.from('schedules').select('*').order('date', { ascending: false }).limit(500),
       supabase.from('employees').select('id, name, category_id').eq('active', true).order('name'),
       supabase.from('leave_requests').select('employee_id, leave_dates').eq('status', 'approved'),
+      supabase.from('leave_requests').select('employee_id, leave_dates').eq('status', 'pending'),
     ]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
 
-    // Build a map of employee_id -> approved leave dates
+    // Build a map of employee_id -> approved + pending leave dates
     const leaveMap: Record<string, string[]> = {};
-    (lr.data ?? []).forEach((r: any) => {
+    [...(lr.data ?? []), ...(pendingLr.data ?? [])].forEach((r: any) => {
       if (!leaveMap[r.employee_id]) leaveMap[r.employee_id] = [];
       leaveMap[r.employee_id].push(...(r.leave_dates ?? []));
     });

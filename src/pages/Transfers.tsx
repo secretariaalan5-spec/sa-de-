@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowRightLeft, Plus } from 'lucide-react';
+import { ArrowRightLeft, Plus, AlertTriangle } from 'lucide-react';
 
 interface Transfer {
   id: string;
@@ -14,41 +14,81 @@ interface Transfer {
   from_unit_id: string | null;
   to_unit_id: string | null;
   transferred_at: string;
+  transferred_by: string | null;
 }
 
 interface Employee { id: string; name: string; unit_id: string | null; }
 interface Unit { id: string; name: string; }
+interface Schedule { employee_id: string; date: string; }
+interface LeaveReq { employee_id: string; status: string; }
 
 export default function Transfers() {
-  const { roleInfo, isAdmin, isChief, isRH } = useAuthContext();
+  const { roleInfo, isAdmin, isChief } = useAuthContext();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveReq[]>([]);
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
   const [toUnitId, setToUnitId] = useState('');
+  const [blockReason, setBlockReason] = useState('');
 
   const canTransfer = isAdmin || isChief;
+  const today = new Date().toISOString().split('T')[0];
 
   const load = async () => {
-    const [t, e, u] = await Promise.all([
+    const [t, e, u, s, lr] = await Promise.all([
       supabase.from('transfer_history').select('*').order('transferred_at', { ascending: false }),
       supabase.from('employees').select('id, name, unit_id').eq('active', true).order('name'),
       supabase.from('units').select('id, name').eq('active', true),
+      supabase.from('schedules').select('employee_id, date'),
+      supabase.from('leave_requests').select('employee_id, status').eq('status', 'pending'),
     ]);
     setTransfers(t.data ?? []);
     setEmployees(e.data ?? []);
     setUnits(u.data ?? []);
+    setSchedules(s.data ?? []);
+    setLeaveRequests(lr.data ?? []);
   };
 
   useEffect(() => { load(); }, []);
 
+  // Check transfer blocking when employee changes
+  useEffect(() => {
+    if (!empId) { setBlockReason(''); return; }
+
+    const futureSchedules = schedules.filter(s => s.employee_id === empId && s.date >= today);
+    if (futureSchedules.length > 0) {
+      const formatted = futureSchedules.slice(0, 3).map(s => new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
+      setBlockReason(`Profissional tem ${futureSchedules.length} escala(s) futura(s) (${formatted}${futureSchedules.length > 3 ? '...' : ''}). Remova antes de transferir.`);
+      return;
+    }
+
+    const pendingLeaves = leaveRequests.filter(lr => lr.employee_id === empId);
+    if (pendingLeaves.length > 0) {
+      setBlockReason(`Profissional tem ${pendingLeaves.length} pedido(s) de folga pendente(s). Resolva antes de transferir.`);
+      return;
+    }
+
+    setBlockReason('');
+  }, [empId, schedules, leaveRequests, today]);
+
   const handleTransfer = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!empId || !toUnitId) return;
+    if (blockReason) {
+      toast.error(blockReason);
+      return;
+    }
 
     const emp = employees.find(e => e.id === empId);
     if (!emp) return;
+
+    if (emp.unit_id === toUnitId) {
+      toast.error('O profissional já está nessa unidade.');
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     const { error: thErr } = await supabase.from('transfer_history').insert({
@@ -59,12 +99,10 @@ export default function Transfers() {
       transferred_by: user?.id ?? null,
     });
     if (thErr) {
-      console.error('Transfer insert error');
       toast.error('Erro ao registrar transferência.');
       return;
     }
 
-    // Update employee unit
     await supabase.from('employees').update({ unit_id: toUnitId } as any).eq('id', empId);
 
     toast.success('Transferência realizada!');
@@ -91,7 +129,8 @@ export default function Transfers() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Transferir Funcionário</DialogTitle><DialogDescription>Mova um funcionário para outra unidade.</DialogDescription>
+                <DialogTitle>Transferir Funcionário</DialogTitle>
+                <DialogDescription>Mova um funcionário para outra unidade.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleTransfer} className="space-y-4">
                 <div className="space-y-1.5">
@@ -105,6 +144,14 @@ export default function Transfers() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {blockReason && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <AlertTriangle size={16} className="text-destructive mt-0.5 shrink-0" />
+                    <p className="text-xs text-destructive">{blockReason}</p>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label>Unidade de destino</Label>
                   <Select value={toUnitId} onValueChange={setToUnitId}>
@@ -116,7 +163,7 @@ export default function Transfers() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full">Confirmar Transferência</Button>
+                <Button type="submit" className="w-full" disabled={!!blockReason}>Confirmar Transferência</Button>
               </form>
             </DialogContent>
           </Dialog>
