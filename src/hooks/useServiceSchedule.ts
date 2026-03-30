@@ -7,7 +7,7 @@ import { generateId } from '@/lib/uuid';
 import { supabase } from '@/integrations/supabase/client';
 
 /** Send push to a professional when they are scheduled */
-async function notifyProfessionalScheduled(professionalId: string, professionalName: string, date: string, type: 'nurse' | 'tech') {
+async function notifyProfessionalScheduled(professionalId: string, professionalName: string, date: string, type: string) {
     try {
         const { data: profUser } = await (supabase
             .from('professional_users' as any)
