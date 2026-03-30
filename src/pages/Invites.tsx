@@ -453,7 +453,7 @@ export default function Invites() {
                   {filteredUsers.map((userRole) => {
                     const name = getProfileName(userRole.user_id);
                     return (
-                      <tr key={userRole.id}>
+                      <tr key={userRole.user_id}>
                         <td>
                           <div className="flex items-center gap-2">
                             <UserCircle size={18} className="text-muted-foreground" />
@@ -461,7 +461,15 @@ export default function Invites() {
                           </div>
                         </td>
                         <td><Badge variant="secondary">{roleLabels[userRole.role] || userRole.role}</Badge></td>
-                        <td className="text-sm text-muted-foreground">{getCatName(userRole.category_id)}</td>
+                        <td className="text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-1">
+                            {userRole.category_ids.length > 0
+                              ? userRole.category_ids.map(cid => (
+                                  <Badge key={cid} variant="outline" className="text-xs">{getCatName(cid)}</Badge>
+                                ))
+                              : '—'}
+                          </div>
+                        </td>
                         <td className="text-sm text-muted-foreground">{getUnitName(userRole.unit_id)}</td>
                         <td className="text-sm">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="text-right">
