@@ -16,6 +16,7 @@ import Units from "./pages/Units";
 import Categories from "./pages/Categories";
 import Invites from "./pages/Invites";
 import Profile from "./pages/Profile";
+import BalancePanel from "./pages/BalancePanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/categorias" element={<Categories />} />
               <Route path="/convites" element={<Invites />} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/saldo" element={<BalancePanel />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

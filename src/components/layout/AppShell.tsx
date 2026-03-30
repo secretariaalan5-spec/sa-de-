@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle,
+  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle, Wallet,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { to: '/transferencias', label: 'Transferências', icon: ArrowRightLeft, roles: ['admin', 'rh', 'category_chief'] },
   { to: '/unidades', label: 'Unidades', icon: Building2, roles: ['admin'] },
   { to: '/categorias', label: 'Categorias', icon: Tag, roles: ['admin'] },
+  { to: '/saldo', label: 'Saldo de Folgas', icon: Wallet, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
   { to: '/convites', label: 'Convites', icon: Mail, roles: ['admin'] },
 ];
 
