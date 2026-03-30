@@ -194,6 +194,8 @@ export default function TeamManagement() {
       toast.error('Profissional deve ter categoria e unidade definidas.');
       return;
     }
+
+    try {
       if (editingMember && !editingMember.status) {
         // Update existing user_role
         const roleData: any = {
