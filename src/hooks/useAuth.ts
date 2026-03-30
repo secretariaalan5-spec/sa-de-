@@ -94,20 +94,30 @@ export function useAuth() {
   }, [fetchRole]);
 
   useEffect(() => {
-    // Set up listener FIRST — no awaits inside callback
+    let initialSessionHandled = false;
+
+    // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        // Fire and forget — don't block auth state
         setTimeout(() => {
           fetchRole(session.user.id).then(hasRole => {
             if (!hasRole) {
               processPendingInvite(session.user.id);
             }
+            // If getSession hasn't resolved yet, mark loading done here
+            if (!initialSessionHandled) {
+              initialSessionHandled = true;
+              setLoading(false);
+            }
           });
         }, 0);
       } else {
         setRoleInfo(null);
+        if (!initialSessionHandled) {
+          initialSessionHandled = true;
+          setLoading(false);
+        }
       }
     });
 
@@ -119,10 +129,16 @@ export function useAuth() {
           if (!hasRole) {
             processPendingInvite(session.user.id);
           }
-          setLoading(false);
+          if (!initialSessionHandled) {
+            initialSessionHandled = true;
+            setLoading(false);
+          }
         });
       } else {
-        setLoading(false);
+        if (!initialSessionHandled) {
+          initialSessionHandled = true;
+          setLoading(false);
+        }
       }
     });
 
