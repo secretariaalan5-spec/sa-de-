@@ -17,7 +17,9 @@ import Categories from "./pages/Categories";
 import Invites from "./pages/Invites";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthContext();
