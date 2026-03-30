@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh';
+export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'professional';
 
 export interface TeamPermissions {
   escalas_servicos: boolean;
