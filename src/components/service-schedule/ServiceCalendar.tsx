@@ -163,14 +163,16 @@ export function ServiceCalendar({
                                             <span className="ml-1 text-xs font-normal">(FDS)</span>
                                         )}
                                     </span>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleOpenDialog(dateStr)}
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                    </Button>
+                                    {!readOnly && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => handleOpenDialog(dateStr)}
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                        </Button>
+                                    )}
                                 </div>
 
                 <div className="space-y-1">
