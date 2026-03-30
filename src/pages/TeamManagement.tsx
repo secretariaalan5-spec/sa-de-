@@ -36,6 +36,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string; description: string; icon:
   { value: 'rh', label: 'RH', description: 'Leitura total, sem edição', icon: Users },
   { value: 'category_chief', label: 'Chefe de Categoria', description: 'Gerencia escalas e folgas da sua categoria', icon: Stethoscope },
   { value: 'unit_manager', label: 'Gerente de Unidade', description: 'Cadastra profissionais da sua unidade', icon: Building2 },
+  { value: 'professional', label: 'Profissional', description: 'Visualiza suas escalas e solicita folgas', icon: Users },
 ];
 
 const ROLE_COLORS: Record<UserRole, string> = {
