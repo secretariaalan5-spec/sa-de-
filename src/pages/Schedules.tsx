@@ -47,16 +47,18 @@ export default function Schedules() {
     ev.preventDefault();
     if (!empId || !date) return;
 
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('schedules').insert({
       employee_id: empId,
       date,
       type,
       team_id: roleInfo?.team_id,
-      created_by: roleInfo ? undefined : undefined,
+      created_by: user?.id ?? null,
     });
 
     if (error) {
-      toast.error('Erro: ' + error.message);
+      console.error('Schedule insert error');
+      toast.error('Erro ao criar escala. Verifique os dados e tente novamente.');
       return;
     }
 
