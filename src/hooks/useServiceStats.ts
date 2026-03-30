@@ -85,7 +85,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
     const getMonthlyStatsForProfessional = useCallback((
         professionalId: string,
         professionalName: string,
-        category: 'nurse' | 'tech',
+        category: string,
         monthStart: Date,
         monthEnd: Date
     ): ServiceScheduleStats => {

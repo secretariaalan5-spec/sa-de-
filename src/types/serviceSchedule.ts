@@ -2,7 +2,7 @@ export interface ServiceScheduleEntry {
     id: string;
     professionalId: string;
     date: string; // ISO date string
-    type: 'nurse' | 'tech';
+    type: string; // category slug (e.g. 'nurse', 'tech', or any dynamic category)
     status?: 'vacation' | 'pregnant' | 'normal';
     isWeekend?: boolean;
 }
@@ -10,7 +10,7 @@ export interface ServiceScheduleEntry {
 export interface ServiceScheduleStats {
     professionalId: string;
     professionalName: string;
-    category: 'nurse' | 'tech';
+    category: string;
     workedDays: number;
     weekendDays: number;
     creditsGenerated: number; // weekendDays * 2
@@ -27,12 +27,12 @@ export const LEAVE_TYPE_LABELS: Record<string, string> = {
 export interface LeaveRequest {
     id: string;
     professionalId: string;
-    category: 'nurse' | 'tech';
+    category: string;
     leaveType: LeaveType;
     requestDate: string;
     leaveDates: string[];
     daysRequested: number;
-    absenceType?: 'folga' | 'ferias' | 'licenca' | 'atestado'; // Tipo de ausência
+    absenceType?: 'folga' | 'ferias' | 'licenca' | 'atestado';
     observations?: string;
     status: 'pending' | 'approved' | 'rejected';
     createdAt: string;
@@ -43,7 +43,7 @@ export interface LeaveRequest {
 export interface ServiceProfessional {
     id: string;
     name: string;
-    category: 'nurse' | 'tech';
+    category: string; // dynamic category slug
     monthlyHours: number;
     active: boolean;
 }
