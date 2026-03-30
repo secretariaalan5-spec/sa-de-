@@ -398,10 +398,10 @@ export default function TeamManagement() {
                           <Badge variant="outline" className={cn('text-[10px]', ROLE_COLORS[member.role])}>
                             {ROLE_LABELS[member.role]}
                           </Badge>
-                          {member.role === 'category_chief' && member.category_name && (
+                          {(member.role === 'category_chief' || member.role === 'professional') && member.category_name && (
                             <Badge variant="secondary" className="text-[10px]">{member.category_name}</Badge>
                           )}
-                          {member.role === 'unit_manager' && member.unit_name && (
+                          {(member.role === 'unit_manager' || member.role === 'professional') && member.unit_name && (
                             <Badge variant="secondary" className="text-[10px]">{member.unit_name}</Badge>
                           )}
                         </div>
