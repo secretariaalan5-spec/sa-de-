@@ -44,6 +44,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   rh: 'bg-blue-500/10 text-blue-600 border-blue-200',
   category_chief: 'bg-amber-500/10 text-amber-600 border-amber-200',
   unit_manager: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+  professional: 'bg-muted text-muted-foreground border-border',
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
