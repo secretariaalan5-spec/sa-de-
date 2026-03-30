@@ -119,7 +119,7 @@ export default function LeaveRequests() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Solicitar Folga</DialogTitle>
+                <DialogTitle>Solicitar Folga</DialogTitle><DialogDescription>Envie um pedido de folga para aprovação.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRequest} className="space-y-4">
                 <div className="space-y-1.5">

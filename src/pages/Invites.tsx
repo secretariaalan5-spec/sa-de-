@@ -92,7 +92,7 @@ export default function Invites() {
             <Button className="gap-2"><Plus size={16} /> Novo Convite</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Criar Convite</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Criar Convite</DialogTitle><DialogDescription>Gere um link de convite para novo usuário.</DialogDescription></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Nível de acesso</Label>

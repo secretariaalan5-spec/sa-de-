@@ -90,7 +90,7 @@ export default function Employees() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Cadastrar Funcionário</DialogTitle>
+                <DialogTitle>Cadastrar Funcionário</DialogTitle><DialogDescription>Adicione um novo funcionário ao sistema.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="space-y-1.5">

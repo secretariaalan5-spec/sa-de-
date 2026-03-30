@@ -52,7 +52,7 @@ export default function Units() {
             <Button className="gap-2"><Plus size={16} /> Nova Unidade</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Nova Unidade</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Nova Unidade</DialogTitle><DialogDescription>Cadastre uma nova unidade no sistema.</DialogDescription></DialogHeader>
             <form onSubmit={handleAdd} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Nome</Label>

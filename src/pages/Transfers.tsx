@@ -91,7 +91,7 @@ export default function Transfers() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Transferir Funcionário</DialogTitle>
+                <DialogTitle>Transferir Funcionário</DialogTitle><DialogDescription>Mova um funcionário para outra unidade.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleTransfer} className="space-y-4">
                 <div className="space-y-1.5">

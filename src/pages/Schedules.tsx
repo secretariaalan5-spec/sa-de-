@@ -99,7 +99,7 @@ export default function Schedules() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Criar Escala</DialogTitle>
+                <DialogTitle>Criar Escala</DialogTitle><DialogDescription>Crie uma escala normal ou extra.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="space-y-1.5">
