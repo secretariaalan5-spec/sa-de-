@@ -186,8 +186,8 @@ export default function TeamManagement() {
         // Update existing user_role
         const roleData: any = {
           role: selectedRole,
-          category_id: selectedRole === 'category_chief' ? selectedCategoryId || null : null,
-          unit_id: selectedRole === 'unit_manager' ? selectedUnitId || null : null,
+          category_id: ['category_chief', 'professional'].includes(selectedRole) ? selectedCategoryId || null : null,
+          unit_id: ['unit_manager', 'professional'].includes(selectedRole) ? selectedUnitId || null : null,
         };
         const { error } = await supabase
           .from('user_roles')
