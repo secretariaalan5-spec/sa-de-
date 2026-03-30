@@ -19,6 +19,7 @@ export interface TeamPermissions {
 export interface UserRoleInfo {
   role: UserRole;
   category: string | null;
+  category_id: string | null;
   unit_id: string | null;
   team_id: string | null;
 }
