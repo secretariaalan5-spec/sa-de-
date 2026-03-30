@@ -76,6 +76,19 @@ const MANAGER_PERMISSIONS: TeamPermissions = {
   is_owner: false,
 };
 
+const PROFESSIONAL_PERMISSIONS: TeamPermissions = {
+  escalas_servicos: false,
+  escalas_emult: false,
+  profissionais: false,
+  unidades: false,
+  folgas: false,
+  relatorios: false,
+  publicar: false,
+  configuracoes: false,
+  gerenciar_membros: false,
+  is_owner: false,
+};
+
 export function useTeamPermissions() {
   const [permissions, setPermissions] = useState<TeamPermissions>(ALL_PERMISSIONS);
   const [roleInfo, setRoleInfo] = useState<UserRoleInfo | null>(null);
