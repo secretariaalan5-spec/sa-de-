@@ -332,7 +332,7 @@ export default function Invites() {
           <p className="text-xs text-muted-foreground">Usados</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-accent-foreground">{userRoles.length}</p>
+          <p className="text-2xl font-bold text-accent-foreground">{groupedUsers.length}</p>
           <p className="text-xs text-muted-foreground">Participantes</p>
         </div>
       </div>
