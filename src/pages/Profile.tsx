@@ -1,0 +1,147 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/untyped-client';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { toast } from 'sonner';
+import { Camera, User, Mail, Shield, Save } from 'lucide-react';
+
+export default function Profile() {
+  const { user, roleInfo } = useAuthContext();
+  const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrador',
+    rh: 'RH',
+    category_chief: 'Chefe de Categoria',
+    unit_manager: 'Gerente de Unidade',
+    professional: 'Profissional',
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) {
+        setDisplayName(data.display_name || '');
+        setAvatarUrl(data.avatar_url);
+      }
+    };
+    load();
+  }, [user]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Imagem deve ter no máximo 2MB.');
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const path = `${user.id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error('Erro ao enviar imagem.');
+      setUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = `${publicUrl}?t=${Date.now()}`;
+
+    await supabase.from('profiles').update({ avatar_url: url }).eq('user_id', user.id);
+    setAvatarUrl(url);
+    setUploading(false);
+    toast.success('Foto atualizada!');
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: displayName.trim() })
+      .eq('user_id', user.id);
+    setSaving(false);
+    if (error) {
+      toast.error('Erro ao salvar perfil.');
+      return;
+    }
+    toast.success('Perfil salvo!');
+  };
+
+  const initials = (displayName || user?.email || 'U').substring(0, 2).toUpperCase();
+
+  return (
+    <div className="max-w-lg mx-auto space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold">Meu Perfil</h1>
+
+      <div className="page-card flex flex-col items-center gap-4 py-8">
+        <div className="relative group">
+          <Avatar className="h-24 w-24 border-4 border-primary/20">
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt="Avatar" />
+            ) : null}
+            <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Camera size={24} className="text-white" />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleUpload}
+          />
+        </div>
+        {uploading && <p className="text-xs text-muted-foreground">Enviando...</p>}
+        <p className="text-sm font-medium">{roleLabels[roleInfo?.role ?? 'professional']}</p>
+      </div>
+
+      <div className="page-card space-y-4">
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-2"><User size={14} /> Nome de exibição</Label>
+          <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Seu nome" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-2"><Mail size={14} /> E-mail</Label>
+          <Input value={user?.email ?? ''} disabled className="bg-muted" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-2"><Shield size={14} /> Função</Label>
+          <Input value={roleLabels[roleInfo?.role ?? 'professional']} disabled className="bg-muted" />
+        </div>
+
+        <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+          <Save size={16} /> {saving ? 'Salvando...' : 'Salvar Perfil'}
+        </Button>
+      </div>
+    </div>
+  );
+}

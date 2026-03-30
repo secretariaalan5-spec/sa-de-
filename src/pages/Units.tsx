@@ -6,14 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, Pencil, Trash2 } from 'lucide-react';
 
 interface Unit { id: string; name: string; active: boolean; }
 
 export default function Units() {
-  const { roleInfo } = useAuthContext();
+  const { roleInfo, isAdmin } = useAuthContext();
   const [units, setUnits] = useState<Unit[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editUnit, setEditUnit] = useState<Unit | null>(null);
   const [name, setName] = useState('');
 
   const load = async () => {
@@ -26,43 +28,62 @@ export default function Units() {
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!name.trim()) return;
-
-    const { error } = await supabase.from('units').insert({
-      name: name.trim(),
-      team_id: roleInfo?.team_id,
-    });
-
-    if (error) {
-      console.error('Unit insert error');
-      toast.error('Erro ao criar unidade.');
-      return;
-    }
+    const { error } = await supabase.from('units').insert({ name: name.trim(), team_id: roleInfo?.team_id });
+    if (error) { toast.error('Erro ao criar unidade.'); return; }
     toast.success('Unidade criada!');
-    setName('');
-    setOpen(false);
-    load();
+    setName(''); setOpen(false); load();
+  };
+
+  const openEditDialog = (u: Unit) => {
+    setEditUnit(u); setName(u.name); setEditOpen(true);
+  };
+
+  const handleEdit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!editUnit || !name.trim()) return;
+    const { error } = await supabase.from('units').update({ name: name.trim() }).eq('id', editUnit.id);
+    if (error) { toast.error('Erro ao atualizar unidade.'); return; }
+    toast.success('Unidade atualizada!');
+    setEditOpen(false); setEditUnit(null); setName(''); load();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja remover esta unidade?')) return;
+    const { error } = await supabase.from('units').delete().eq('id', id);
+    if (error) { toast.error('Erro ao remover unidade. Verifique se não há profissionais vinculados.'); return; }
+    toast.success('Unidade removida!'); load();
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Unidades</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus size={16} /> Nova Unidade</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Nova Unidade</DialogTitle><DialogDescription>Cadastre uma nova unidade no sistema.</DialogDescription></DialogHeader>
-            <form onSubmit={handleAdd} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>Nome</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} required />
-              </div>
-              <Button type="submit" className="w-full">Criar</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {isAdmin && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus size={16} /> Nova Unidade</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Nova Unidade</DialogTitle><DialogDescription>Cadastre uma nova unidade no sistema.</DialogDescription></DialogHeader>
+              <form onSubmit={handleAdd} className="space-y-4">
+                <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                <Button type="submit" className="w-full">Criar</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Unidade</DialogTitle><DialogDescription>Atualize o nome da unidade.</DialogDescription></DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <Button type="submit" className="w-full">Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {units.length === 0 ? (
         <div className="empty-state">
@@ -74,7 +95,17 @@ export default function Units() {
           {units.map(u => (
             <div key={u.id} className="page-card flex items-center gap-3">
               <Building2 size={20} className="text-primary" />
-              <span className="font-medium">{u.name}</span>
+              <span className="font-medium flex-1">{u.name}</span>
+              {isAdmin && (
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(u)}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(u.id)}>
+                    <Trash2 size={14} className="text-destructive" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>

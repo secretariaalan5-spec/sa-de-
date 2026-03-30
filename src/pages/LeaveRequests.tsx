@@ -23,11 +23,13 @@ interface LeaveReq {
 }
 
 interface Employee { id: string; name: string; }
+interface Schedule { employee_id: string; date: string; }
 
 export default function LeaveRequests() {
   const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
   const [requests, setRequests] = useState<LeaveReq[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
   const [dates, setDates] = useState('');
@@ -38,12 +40,14 @@ export default function LeaveRequests() {
   const canApprove = isAdmin || isChief;
 
   const load = async () => {
-    const [r, e] = await Promise.all([
+    const [r, e, s] = await Promise.all([
       supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('employees').select('id, name').eq('active', true).order('name'),
+      supabase.from('schedules').select('employee_id, date'),
     ]);
     setRequests(r.data ?? []);
     setEmployees(e.data ?? []);
+    setSchedules(s.data ?? []);
   };
 
   useEffect(() => { load(); }, []);
@@ -53,6 +57,15 @@ export default function LeaveRequests() {
     if (!empId || !dates) return;
 
     const leaveDates = dates.split(',').map(d => d.trim()).filter(Boolean);
+
+    // Check for schedule conflicts
+    const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
+    if (conflictDates.length > 0) {
+      const formatted = conflictDates.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
+      toast.error(`Conflito: o profissional tem escala em ${formatted}. Remova a escala antes de solicitar folga.`);
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('leave_requests').insert({
       employee_id: empId,
@@ -64,15 +77,9 @@ export default function LeaveRequests() {
       status: 'pending',
     });
 
-    if (error) {
-      toast.error('Erro ao solicitar folga.');
-      return;
-    }
+    if (error) { toast.error('Erro ao solicitar folga.'); return; }
     toast.success('Pedido de folga enviado!');
-    setOpen(false);
-    setEmpId('');
-    setDates('');
-    setObs('');
+    setOpen(false); setEmpId(''); setDates(''); setObs('');
     load();
   };
 
@@ -83,10 +90,7 @@ export default function LeaveRequests() {
       .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() } as any)
       .eq('id', id);
 
-    if (error) {
-      toast.error('Erro ao processar decisão.');
-      return;
-    }
+    if (error) { toast.error('Erro ao processar decisão.'); return; }
     toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
     load();
   };
@@ -99,10 +103,7 @@ export default function LeaveRequests() {
     rejected: { label: 'Negado', variant: 'destructive', icon: XCircle },
   };
 
-  const filtered = requests.filter(r => {
-    if (activeTab === 'all') return true;
-    return r.status === activeTab;
-  });
+  const filtered = requests.filter(r => activeTab === 'all' ? true : r.status === activeTab);
 
   const counts = {
     pending: requests.filter(r => r.status === 'pending').length,
@@ -112,10 +113,8 @@ export default function LeaveRequests() {
 
   const roleDescription = isRH
     ? 'Visualização de todos os pedidos'
-    : isManager
-    ? 'Solicite folgas para profissionais da sua unidade'
-    : isChief
-    ? 'Aprove ou recuse pedidos da sua categoria'
+    : isManager ? 'Solicite folgas para profissionais da sua unidade'
+    : isChief ? 'Aprove ou recuse pedidos da sua categoria'
     : 'Todos os pedidos de folga';
 
   return (
@@ -141,14 +140,12 @@ export default function LeaveRequests() {
                   <Select value={empId} onValueChange={setEmpId}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {employees.map(e => (
-                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                      ))}
+                      {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Datas (separadas por vírgula)</Label>
+                  <Label>Datas (separadas por vírgula, formato AAAA-MM-DD)</Label>
                   <Input value={dates} onChange={e => setDates(e.target.value)} placeholder="2026-04-01, 2026-04-02" required />
                 </div>
                 <div className="space-y-1.5">
@@ -178,7 +175,6 @@ export default function LeaveRequests() {
         </div>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="pending">Pendentes ({counts.pending})</TabsTrigger>
@@ -186,7 +182,6 @@ export default function LeaveRequests() {
           <TabsTrigger value="rejected">Negados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
-
         <TabsContent value={activeTab} className="mt-4">
           {filtered.length === 0 ? (
             <div className="empty-state">
@@ -200,8 +195,7 @@ export default function LeaveRequests() {
                 const StatusIcon = cfg.icon;
                 return (
                   <div key={r.id} className="page-card flex items-center gap-4 p-4">
-                    <div className={cn(
-                      'p-2 rounded-lg',
+                    <div className={cn('p-2 rounded-lg',
                       r.status === 'pending' && 'bg-warning/15',
                       r.status === 'approved' && 'bg-accent/15',
                       r.status === 'rejected' && 'bg-destructive/15',

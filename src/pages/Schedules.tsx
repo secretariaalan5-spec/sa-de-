@@ -25,13 +25,13 @@ export default function Schedules() {
   const { roleInfo, isAdmin, isChief, isRH, isManager } = useAuthContext();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
   const [type, setType] = useState('normal');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
-  // Current month navigation
   const [currentDate, setCurrentDate] = useState(new Date());
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -39,17 +39,25 @@ export default function Schedules() {
   const canCreate = isAdmin || isChief;
 
   const load = async () => {
-    const [s, e] = await Promise.all([
+    const [s, e, lr] = await Promise.all([
       supabase.from('schedules').select('*').order('date', { ascending: false }).limit(500),
       supabase.from('employees').select('id, name, category_id').eq('active', true).order('name'),
+      supabase.from('leave_requests').select('employee_id, leave_dates').eq('status', 'approved'),
     ]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
+
+    // Build a map of employee_id -> approved leave dates
+    const leaveMap: Record<string, string[]> = {};
+    (lr.data ?? []).forEach((r: any) => {
+      if (!leaveMap[r.employee_id]) leaveMap[r.employee_id] = [];
+      leaveMap[r.employee_id].push(...(r.leave_dates ?? []));
+    });
+    setApprovedLeaveDates(leaveMap);
   };
 
   useEffect(() => { load(); }, []);
 
-  // Calendar helpers
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const monthLabel = new Date(year, month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -72,6 +80,14 @@ export default function Schedules() {
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const goToday = () => setCurrentDate(new Date());
 
+  const isLeaveDay = (empId: string, dateStr: string) => {
+    return approvedLeaveDates[empId]?.includes(dateStr) ?? false;
+  };
+
+  const isAlreadyScheduled = (empId: string, dateStr: string) => {
+    return schedules.some(s => s.employee_id === empId && s.date === dateStr);
+  };
+
   const toggleDate = (dateStr: string) => {
     setSelectedDates(prev =>
       prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
@@ -81,6 +97,21 @@ export default function Schedules() {
   const handleAdd = async () => {
     if (!empId || selectedDates.length === 0) {
       toast.error('Selecione funcionário e datas.');
+      return;
+    }
+
+    // Check for conflicts
+    const conflictLeave = selectedDates.filter(d => isLeaveDay(empId, d));
+    if (conflictLeave.length > 0) {
+      const formatted = conflictLeave.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
+      toast.error(`Conflito: o profissional tem folga aprovada em ${formatted}`);
+      return;
+    }
+
+    const conflictSchedule = selectedDates.filter(d => isAlreadyScheduled(empId, d));
+    if (conflictSchedule.length > 0) {
+      const formatted = conflictSchedule.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
+      toast.error(`Conflito: já existe escala em ${formatted}`);
       return;
     }
 
@@ -109,10 +140,7 @@ export default function Schedules() {
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('schedules').delete().eq('id', id);
-    if (error) {
-      toast.error('Erro ao remover escala.');
-      return;
-    }
+    if (error) { toast.error('Erro ao remover escala.'); return; }
     toast.success('Escala removida');
     load();
   };
@@ -131,11 +159,21 @@ export default function Schedules() {
     ? 'Escalas da sua categoria'
     : 'Todas as escalas';
 
-  // Filtered schedules for current month (list view)
   const monthSchedules = schedules.filter(s => {
     const d = new Date(s.date + 'T12:00:00');
     return d.getMonth() === month && d.getFullYear() === year;
   }).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Check if a day has a leave for the selected employee (dialog mini calendar)
+  const isDayLeaveForSelected = (day: number) => {
+    if (!empId) return false;
+    return isLeaveDay(empId, getDateStr(day));
+  };
+
+  const isDayScheduledForSelected = (day: number) => {
+    if (!empId) return false;
+    return isAlreadyScheduled(empId, getDateStr(day));
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -145,18 +183,11 @@ export default function Schedules() {
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="flex bg-muted rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'calendar' && 'active')}
-            >
+            <button onClick={() => setViewMode('calendar')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'calendar' && 'active')}>
               <LayoutGrid size={14} />
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'list' && 'active')}
-            >
+            <button onClick={() => setViewMode('list')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'list' && 'active')}>
               <List size={14} />
             </button>
           </div>
@@ -170,68 +201,33 @@ export default function Schedules() {
 
       {/* Month navigation */}
       <div className="flex items-center justify-between bg-card rounded-xl border border-border px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={prevMonth}>
-          <ChevronLeft size={18} />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft size={18} /></Button>
         <div className="flex items-center gap-3">
           <h2 className="font-semibold capitalize">{monthLabel}</h2>
-          <Button variant="outline" size="sm" onClick={goToday} className="text-xs h-7">
-            Hoje
-          </Button>
+          <Button variant="outline" size="sm" onClick={goToday} className="text-xs h-7">Hoje</Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={nextMonth}>
-          <ChevronRight size={18} />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight size={18} /></Button>
       </div>
 
       {viewMode === 'calendar' ? (
-        /* Calendar View */
         <div className="page-card p-3">
           <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-            {/* Week day headers */}
             {weekDays.map(d => (
-              <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">
-                {d}
-              </div>
+              <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">{d}</div>
             ))}
-            {/* Calendar cells */}
             {calendarDays.map((day, i) => {
               if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
               const daySchedules = schedulesForDay(day);
               return (
-                <div
-                  key={day}
-                  className={cn(
-                    'bg-card min-h-[80px] p-1.5 relative transition-colors',
-                    isToday(day) && 'ring-2 ring-primary ring-inset',
-                  )}
-                >
-                  <span className={cn(
-                    'text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full',
-                    isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground'
-                  )}>
-                    {day}
-                  </span>
+                <div key={day} className={cn('bg-card min-h-[80px] p-1.5 relative transition-colors', isToday(day) && 'ring-2 ring-primary ring-inset')}>
+                  <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
                   <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
                     {daySchedules.slice(0, 3).map(s => (
-                      <div
-                        key={s.id}
-                        className={cn(
-                          'text-[10px] px-1.5 py-0.5 rounded truncate',
-                          s.type === 'extra'
-                            ? 'bg-accent/15 text-accent'
-                            : 'bg-primary/10 text-primary'
-                        )}
-                        title={`${getEmpName(s.employee_id)} (${s.type})`}
-                      >
+                      <div key={s.id} className={cn('text-[10px] px-1.5 py-0.5 rounded truncate', s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary')} title={`${getEmpName(s.employee_id)} (${s.type})`}>
                         {getEmpName(s.employee_id)}
                       </div>
                     ))}
-                    {daySchedules.length > 3 && (
-                      <p className="text-[10px] text-muted-foreground text-center">
-                        +{daySchedules.length - 3} mais
-                      </p>
-                    )}
+                    {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
                   </div>
                 </div>
               );
@@ -239,7 +235,6 @@ export default function Schedules() {
           </div>
         </div>
       ) : (
-        /* List View */
         monthSchedules.length === 0 ? (
           <div className="empty-state">
             <CalendarDays className="mx-auto mb-3 text-muted-foreground" size={40} />
@@ -248,29 +243,16 @@ export default function Schedules() {
         ) : (
           <div className="page-card overflow-x-auto">
             <table className="schedule-table">
-              <thead>
-                <tr>
-                  <th className="text-left">Funcionário</th>
-                  <th className="text-left">Data</th>
-                  <th className="text-left">Tipo</th>
-                  {canCreate && <th className="text-right">Ações</th>}
-                </tr>
-              </thead>
+              <thead><tr><th className="text-left">Funcionário</th><th className="text-left">Data</th><th className="text-left">Tipo</th>{canCreate && <th className="text-right">Ações</th>}</tr></thead>
               <tbody>
                 {monthSchedules.map(s => (
                   <tr key={s.id}>
                     <td className="font-medium">{getEmpName(s.employee_id)}</td>
                     <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td>
-                      <Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>
-                        {s.type === 'extra' ? 'Extra' : 'Normal'}
-                      </Badge>
-                    </td>
+                    <td><Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>{s.type === 'extra' ? 'Extra' : 'Normal'}</Badge></td>
                     {canCreate && (
                       <td className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
-                          <Trash2 size={16} className="text-destructive" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}><Trash2 size={16} className="text-destructive" /></Button>
                       </td>
                     )}
                   </tr>
@@ -292,12 +274,10 @@ export default function Schedules() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Funcionário</Label>
-                <Select value={empId} onValueChange={setEmpId}>
+                <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {employees.map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
+                    {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
@@ -313,7 +293,7 @@ export default function Schedules() {
               </div>
             </div>
 
-            {/* Mini calendar for date selection */}
+            {/* Mini calendar */}
             <div>
               <Label className="mb-2 block">Selecione os dias ({selectedDates.length} selecionado{selectedDates.length !== 1 ? 's' : ''})</Label>
               <div className="flex items-center justify-between mb-2">
@@ -329,17 +309,24 @@ export default function Schedules() {
                   if (day === null) return <div key={`e-${i}`} />;
                   const dateStr = getDateStr(day);
                   const selected = selectedDates.includes(dateStr);
+                  const hasLeave = isDayLeaveForSelected(day);
+                  const hasSchedule = isDayScheduledForSelected(day);
+                  const blocked = hasLeave || hasSchedule;
                   return (
                     <button
                       key={day}
                       type="button"
-                      onClick={() => toggleDate(dateStr)}
+                      onClick={() => !blocked && toggleDate(dateStr)}
+                      disabled={blocked}
+                      title={hasLeave ? 'Folga aprovada neste dia' : hasSchedule ? 'Já escalado neste dia' : ''}
                       className={cn(
                         'h-8 rounded-md text-sm font-medium transition-all',
-                        selected
+                        blocked
+                          ? 'bg-destructive/15 text-destructive/50 cursor-not-allowed line-through'
+                          : selected
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'hover:bg-muted text-foreground',
-                        isToday(day) && !selected && 'ring-1 ring-primary'
+                        isToday(day) && !selected && !blocked && 'ring-1 ring-primary'
                       )}
                     >
                       {day}
@@ -347,6 +334,12 @@ export default function Schedules() {
                   );
                 })}
               </div>
+              {empId && (
+                <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/15 inline-block" /> Folga / Já escalado</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-primary inline-block" /> Selecionado</span>
+                </div>
+              )}
             </div>
 
             {selectedDates.length > 0 && (
