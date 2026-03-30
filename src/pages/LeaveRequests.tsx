@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, CalendarOff, Check, X } from 'lucide-react';
@@ -119,7 +119,7 @@ export default function LeaveRequests() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Solicitar Folga</DialogTitle>
+                <DialogTitle>Solicitar Folga</DialogTitle><DialogDescription>Envie um pedido de folga para aprovação.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRequest} className="space-y-4">
                 <div className="space-y-1.5">

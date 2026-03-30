@@ -4,7 +4,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Tag } from 'lucide-react';
 
@@ -55,7 +55,7 @@ export default function Categories() {
             <Button className="gap-2"><Plus size={16} /> Nova Categoria</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Nova Categoria</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Nova Categoria</DialogTitle><DialogDescription>Cadastre uma nova categoria profissional.</DialogDescription></DialogHeader>
             <form onSubmit={handleAdd} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Nome</Label>
