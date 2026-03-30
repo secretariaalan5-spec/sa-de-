@@ -22,15 +22,17 @@ export function useAuth() {
     const { data } = await supabase
       .from('user_roles')
       .select('role, category_id, unit_id, team_id')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
 
-    if (data) {
+    if (data && data.length > 0) {
+      const first = data[0];
+      const categoryIds = data.map((r: any) => r.category_id).filter(Boolean) as string[];
       setRoleInfo({
-        role: data.role as UserRole,
-        category_id: data.category_id,
-        unit_id: data.unit_id,
-        team_id: data.team_id,
+        role: first.role as UserRole,
+        category_id: first.category_id,
+        category_ids: categoryIds,
+        unit_id: first.unit_id,
+        team_id: first.team_id,
       });
       return true;
     }
