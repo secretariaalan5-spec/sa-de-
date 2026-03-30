@@ -52,6 +52,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   rh: 'RH',
   category_chief: 'Chefe de Categoria',
   unit_manager: 'Gerente de Unidade',
+  professional: 'Profissional',
 };
 
 export default function TeamManagement() {
