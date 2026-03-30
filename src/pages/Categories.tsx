@@ -6,19 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Tag } from 'lucide-react';
 
-interface Unit { id: string; name: string; active: boolean; }
+interface Category { id: string; name: string; slug: string; }
 
-export default function Units() {
+export default function Categories() {
   const { roleInfo } = useAuthContext();
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
 
   const load = async () => {
-    const { data } = await supabase.from('units').select('*').order('name');
-    setUnits(data ?? []);
+    const { data } = await supabase.from('categories').select('*').order('name');
+    setCategories(data ?? []);
   };
 
   useEffect(() => { load(); }, []);
@@ -27,13 +27,16 @@ export default function Units() {
     ev.preventDefault();
     if (!name.trim()) return;
 
-    const { error } = await supabase.from('units').insert({
+    const slug = name.trim().toLowerCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const { error } = await supabase.from('categories').insert({
       name: name.trim(),
+      slug,
       team_id: roleInfo?.team_id,
     });
 
     if (error) { toast.error(error.message); return; }
-    toast.success('Unidade criada!');
+    toast.success('Categoria criada!');
     setName('');
     setOpen(false);
     load();
@@ -42,17 +45,17 @@ export default function Units() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Unidades</h1>
+        <h1 className="text-2xl font-bold">Categorias</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus size={16} /> Nova Unidade</Button>
+            <Button className="gap-2"><Plus size={16} /> Nova Categoria</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Nova Unidade</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Nova Categoria</DialogTitle></DialogHeader>
             <form onSubmit={handleAdd} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Nome</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} required />
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Enfermeiros" required />
               </div>
               <Button type="submit" className="w-full">Criar</Button>
             </form>
@@ -60,17 +63,17 @@ export default function Units() {
         </Dialog>
       </div>
 
-      {units.length === 0 ? (
+      {categories.length === 0 ? (
         <div className="empty-state">
-          <Building2 className="mx-auto mb-3 text-muted-foreground" size={40} />
-          <p className="text-muted-foreground">Nenhuma unidade cadastrada</p>
+          <Tag className="mx-auto mb-3 text-muted-foreground" size={40} />
+          <p className="text-muted-foreground">Nenhuma categoria cadastrada</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {units.map(u => (
-            <div key={u.id} className="page-card flex items-center gap-3">
-              <Building2 size={20} className="text-primary" />
-              <span className="font-medium">{u.name}</span>
+          {categories.map(c => (
+            <div key={c.id} className="page-card flex items-center gap-3">
+              <Tag size={20} className="text-primary" />
+              <span className="font-medium">{c.name}</span>
             </div>
           ))}
         </div>

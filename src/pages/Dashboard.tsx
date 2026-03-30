@@ -1,185 +1,66 @@
-/**
- * Dashboard — Visão geral do sistema de escalas.
- *
- * Exibe cards de estatísticas, distribuição por função/unidade e carga horária.
- * Todos os cards usam a classe padronizada .stat-card e .page-card do design system.
- */
-
-import { PageHeader } from '@/components/shared/PageHeader';
-import { useAppData } from '@/hooks/useAppData';
-import { Users, Building2, Calendar, Briefcase, AlertTriangle, Clock } from 'lucide-react';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/untyped-client';
+import { Users, CalendarDays, CalendarOff, Building2 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { data, getWeeklyHoursUsed } = useAppData();
-  
-  const activeProfessionals = data.professionals.filter(p => p.active);
-  const activeUnits = data.units.filter(u => u.active);
+  const { roleInfo, isAdmin, isRH } = useAuthContext();
+  const [stats, setStats] = useState({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0 });
 
-  /** Estatísticas por função */
-  const statsByFunction = data.functions.map(func => ({
-    name: func.name,
-    color: func.color,
-    count: activeProfessionals.filter(p => p.functionId === func.id).length,
-  })).filter(s => s.count > 0);
-
-  /** Estatísticas por unidade (top 8) */
-  const statsByUnit = activeUnits.map(unit => ({
-    name: unit.name,
-    count: new Set(data.schedule.filter(s => s.unitId === unit.id).map(e => e.professionalId)).size,
-  })).sort((a, b) => b.count - a.count).slice(0, 8);
-
-  /** Carga horária dos profissionais */
-  const workloadIssues = activeProfessionals.map(prof => {
-    const used = getWeeklyHoursUsed(prof.id);
-    return {
-      name: prof.name,
-      used,
-      total: prof.weeklyHours,
-      remaining: prof.weeklyHours - used,
-      percentage: Math.round((used / prof.weeklyHours) * 100),
+  useEffect(() => {
+    const load = async () => {
+      const [emp, sch, leaves, units] = await Promise.all([
+        supabase.from('employees').select('id', { count: 'exact', head: true }),
+        supabase.from('schedules').select('id', { count: 'exact', head: true }),
+        supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('units').select('id', { count: 'exact', head: true }),
+      ]);
+      setStats({
+        employees: emp.count ?? 0,
+        schedules: sch.count ?? 0,
+        pendingLeaves: leaves.count ?? 0,
+        units: units.count ?? 0,
+      });
     };
-  }).filter(p => p.used > 0 || p.total > 0);
+    load();
+  }, []);
+
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrador',
+    rh: 'RH (Leitura)',
+    category_chief: 'Chefe de Categoria',
+    unit_manager: 'Gerente de Unidade',
+  };
+
+  const cards = [
+    { label: 'Funcionários', value: stats.employees, icon: Users, color: 'text-primary' },
+    { label: 'Escalas (mês)', value: stats.schedules, icon: CalendarDays, color: 'text-accent' },
+    { label: 'Folgas Pendentes', value: stats.pendingLeaves, icon: CalendarOff, color: 'text-warning' },
+    ...(isAdmin || isRH ? [{ label: 'Unidades', value: stats.units, icon: Building2, color: 'text-muted-foreground' }] : []),
+  ];
 
   return (
-    <div className="animate-fade-in">
-      <PageHeader 
-        title="Dashboard" 
-        description="Visão geral do sistema de escalas"
-      />
-
-      {/* ── Cards de resumo ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {/* Profissionais */}
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{activeProfessionals.length}</p>
-              <p className="text-sm text-muted-foreground">Profissionais</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Unidades */}
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent/10">
-              <Building2 className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{activeUnits.length}</p>
-              <p className="text-sm text-muted-foreground">Unidades</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Escalas */}
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-success/10">
-              <Calendar className="w-5 h-5 text-success" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.schedule.length}</p>
-              <p className="text-sm text-muted-foreground">Escalas</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Restrições */}
-        <div className="stat-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-warning/10">
-              <AlertTriangle className="w-5 h-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.restrictions.length}</p>
-              <p className="text-sm text-muted-foreground">Restrições</p>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground text-sm">
+          {roleLabels[roleInfo?.role ?? 'admin']}
+          {isRH && ' — somente visualização'}
+        </p>
       </div>
 
-      {/* ── Detalhamento ── */}
-      <div className="grid lg:grid-cols-2 gap-6">
-
-        {/* Por Função */}
-        <div className="page-card">
-          <h2 className="mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-primary" />
-            Profissionais por Função
-          </h2>
-          {statsByFunction.length > 0 ? (
-            <div className="space-y-3">
-              {statsByFunction.map((stat, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stat.color }} />
-                    <span className="text-sm">{stat.name}</span>
-                  </div>
-                  <span className="font-semibold">{stat.count}</span>
-                </div>
-              ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map(card => (
+          <div key={card.label} className="stat-card flex items-center gap-4">
+            <div className={`p-3 rounded-xl bg-muted ${card.color}`}>
+              <card.icon size={24} />
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhum profissional cadastrado</p>
-          )}
-        </div>
-
-        {/* Por Unidade */}
-        <div className="page-card">
-          <h2 className="mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" />
-            Profissionais por Unidade
-          </h2>
-          {statsByUnit.length > 0 ? (
-            <div className="space-y-3">
-              {statsByUnit.map((stat, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm truncate flex-1">{stat.name}</span>
-                  <span className="font-semibold ml-2">{stat.count}</span>
-                </div>
-              ))}
+            <div>
+              <p className="text-2xl font-bold">{card.value}</p>
+              <p className="text-xs text-muted-foreground">{card.label}</p>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhuma unidade cadastrada</p>
-          )}
-        </div>
-
-        {/* Carga Horária */}
-        <div className="page-card lg:col-span-2">
-          <h2 className="mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" />
-            Carga Horária Semanal
-          </h2>
-          {workloadIssues.length > 0 ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {workloadIssues.slice(0, 9).map((prof, i) => (
-                <div key={i} className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm font-medium truncate">{prof.name}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all ${
-                          prof.percentage > 100 ? 'bg-destructive' :
-                          prof.percentage > 80 ? 'bg-warning' : 'bg-success'
-                        }`}
-                        style={{ width: `${Math.min(prof.percentage, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {prof.used}h / {prof.total}h
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhuma escala cadastrada</p>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
