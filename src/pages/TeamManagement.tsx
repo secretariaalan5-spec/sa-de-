@@ -181,7 +181,19 @@ export default function TeamManagement() {
   const handleSave = async () => {
     if (!teamId) return;
 
-    try {
+    // Validate required fields per role
+    if (selectedRole === 'category_chief' && !selectedCategoryId) {
+      toast.error('Selecione a categoria para o Chefe de Categoria.');
+      return;
+    }
+    if (selectedRole === 'unit_manager' && !selectedUnitId) {
+      toast.error('Selecione a unidade para o Gerente de Unidade.');
+      return;
+    }
+    if (selectedRole === 'professional' && (!selectedCategoryId || !selectedUnitId)) {
+      toast.error('Profissional deve ter categoria e unidade definidas.');
+      return;
+    }
       if (editingMember && !editingMember.status) {
         // Update existing user_role
         const roleData: any = {
