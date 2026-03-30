@@ -56,13 +56,17 @@ export default function Employees() {
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!name.trim()) return;
+    if (!roleInfo?.team_id) {
+      toast.error('Permissões ainda não carregadas. Recarregue a página e tente novamente.');
+      return;
+    }
     const { error } = await supabase.from('employees').insert({
       name: name.trim(),
       category_id: categoryId || null,
-      unit_id: isManager ? (roleInfo?.unit_id ?? null) : (unitId || null),
-      team_id: roleInfo?.team_id,
+      unit_id: isManager ? (roleInfo.unit_id ?? null) : (unitId || null),
+      team_id: roleInfo.team_id,
     });
-    if (error) { toast.error('Erro ao cadastrar funcionário.'); return; }
+    if (error) { toast.error(error.message || 'Erro ao cadastrar funcionário.'); return; }
     toast.success('Funcionário cadastrado!');
     setName(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
   };
