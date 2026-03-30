@@ -21,7 +21,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
     const getStatsForProfessional = useCallback((
         professionalId: string,
         professionalName: string,
-        category: 'nurse' | 'tech'
+        category: string
     ): ServiceScheduleStats => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -54,7 +54,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
     }, [allEntries, getTotalCreditsUsedByProfessional]);
 
     const getStatsForProfessionals = useCallback((
-        professionals: Array<{ id: string; name: string; category: 'nurse' | 'tech' }>
+        professionals: Array<{ id: string; name: string; category: string }>
     ): ServiceScheduleStats[] => {
         return professionals.map(p => getStatsForProfessional(p.id, p.name, p.category));
     }, [getStatsForProfessional]);
@@ -85,7 +85,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
     const getMonthlyStatsForProfessional = useCallback((
         professionalId: string,
         professionalName: string,
-        category: 'nurse' | 'tech',
+        category: string,
         monthStart: Date,
         monthEnd: Date
     ): ServiceScheduleStats => {

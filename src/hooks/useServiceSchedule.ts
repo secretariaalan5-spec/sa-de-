@@ -7,7 +7,7 @@ import { generateId } from '@/lib/uuid';
 import { supabase } from '@/integrations/supabase/client';
 
 /** Send push to a professional when they are scheduled */
-async function notifyProfessionalScheduled(professionalId: string, professionalName: string, date: string, type: 'nurse' | 'tech') {
+async function notifyProfessionalScheduled(professionalId: string, professionalName: string, date: string, type: string) {
     try {
         const { data: profUser } = await (supabase
             .from('professional_users' as any)
@@ -20,13 +20,12 @@ async function notifyProfessionalScheduled(professionalId: string, professionalN
         if (!playerId) return;
 
         const dateFormatted = format(parseISO(date), "dd 'de' MMMM", { locale: ptBR });
-        const categoryLabel = type === 'nurse' ? 'Enfermagem' : 'Técnico';
 
         await supabase.functions.invoke('send-push-notification', {
             body: {
                 player_ids: [playerId],
                 title: '📋 Nova Escala',
-                message: `Você foi escalado(a) para ${dateFormatted} (${categoryLabel})`,
+                message: `Você foi escalado(a) para ${dateFormatted}`,
                 data: { type: 'schedule_added', date, professionalId },
             },
         });
@@ -35,7 +34,7 @@ async function notifyProfessionalScheduled(professionalId: string, professionalN
     }
 }
 
-export function useServiceSchedule(type: 'nurse' | 'tech') {
+export function useServiceSchedule(type: string) {
     const { state, updateServiceState, loading } = useServiceState();
     const allEntries = useMemo(() => state?.entries || [], [state?.entries]);
     const professionals = useMemo(() => state?.professionals || [], [state?.professionals]);

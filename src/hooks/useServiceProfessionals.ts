@@ -94,6 +94,11 @@ export function useServiceProfessionals() {
         }
     }, [contextDeleteProfessional, professionals]);
 
+    /** Retorna profissionais ativos por categoria (slug). */
+    const getProfessionalsByCategory = useCallback((categorySlug: string) =>
+        professionals.filter(p => p.category === categorySlug && p.active),
+        [professionals]);
+
     /** Retorna apenas os enfermeiros ativos. */
     const getNurses = useCallback(() =>
         professionals.filter(p => p.category === 'nurse' && p.active),
@@ -110,6 +115,7 @@ export function useServiceProfessionals() {
         addProfessional,
         updateProfessional,
         deleteProfessional,
+        getProfessionalsByCategory,
         getNurses,
         getTechs,
     };
