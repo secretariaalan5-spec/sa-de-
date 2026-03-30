@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -49,7 +50,7 @@ export default function Invites() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState('unit_manager');
-  const [categoryId, setCategoryId] = useState('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [unitId, setUnitId] = useState('');
   const [activeTab, setActiveTab] = useState('invites');
   const [searchUsers, setSearchUsers] = useState('');
@@ -113,8 +114,8 @@ export default function Invites() {
       return;
     }
 
-    if (role === 'category_chief' && !categoryId) {
-      toast.error('Selecione uma categoria para o chefe de categoria.');
+    if (role === 'category_chief' && selectedCategoryIds.length === 0) {
+      toast.error('Selecione pelo menos uma categoria para o chefe de categoria.');
       return;
     }
 
@@ -124,23 +125,40 @@ export default function Invites() {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('invites').insert({
-      role,
-      team_id: roleInfo.team_id,
-      category_id: role === 'category_chief' ? categoryId || null : null,
-      unit_id: role === 'unit_manager' ? unitId || null : null,
-      created_by: user?.id ?? null,
-    });
 
-    if (error) {
-      toast.error(error.message || 'Erro ao criar convite.');
-      return;
+    if (role === 'category_chief') {
+      // Create one invite per selected category
+      const inserts = selectedCategoryIds.map(catId => ({
+        role,
+        team_id: roleInfo.team_id!,
+        category_id: catId,
+        unit_id: null,
+        created_by: user?.id ?? null,
+      }));
+      const { error } = await supabase.from('invites').insert(inserts);
+      if (error) {
+        toast.error(error.message || 'Erro ao criar convites.');
+        return;
+      }
+      toast.success(`${selectedCategoryIds.length} convite(s) criado(s)!`);
+    } else {
+      const { error } = await supabase.from('invites').insert({
+        role,
+        team_id: roleInfo.team_id,
+        category_id: null,
+        unit_id: role === 'unit_manager' ? unitId || null : null,
+        created_by: user?.id ?? null,
+      });
+      if (error) {
+        toast.error(error.message || 'Erro ao criar convite.');
+        return;
+      }
+      toast.success('Convite criado!');
     }
 
-    toast.success('Convite criado!');
     setOpen(false);
     setRole('unit_manager');
-    setCategoryId('');
+    setSelectedCategoryIds([]);
     setUnitId('');
     load();
   };
@@ -193,14 +211,36 @@ export default function Invites() {
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
   const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
-  const filteredUsers = userRoles.filter((userRole) => {
-    const name = getProfileName(userRole.user_id).toLowerCase();
-    const roleName = (roleLabels[userRole.role] ?? userRole.role).toLowerCase();
+  // Group user_roles by user_id for display (chiefs may have multiple rows)
+  const groupedUsers = useMemo(() => {
+    const map = new Map<string, { user_id: string; role: string; category_ids: string[]; unit_id: string | null; created_at: string }>();
+    for (const ur of userRoles) {
+      const existing = map.get(ur.user_id);
+      if (existing) {
+        if (ur.category_id && !existing.category_ids.includes(ur.category_id)) {
+          existing.category_ids.push(ur.category_id);
+        }
+      } else {
+        map.set(ur.user_id, {
+          user_id: ur.user_id,
+          role: ur.role,
+          category_ids: ur.category_id ? [ur.category_id] : [],
+          unit_id: ur.unit_id,
+          created_at: ur.created_at,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [userRoles]);
+
+  const filteredUsers = groupedUsers.filter((u) => {
+    const name = getProfileName(u.user_id).toLowerCase();
+    const roleName = (roleLabels[u.role] ?? u.role).toLowerCase();
     const searchTerm = searchUsers.toLowerCase();
 
     if (searchUsers && !name.includes(searchTerm) && !roleName.includes(searchTerm)) return false;
-    if (userUnitFilter !== 'all' && userRole.unit_id !== userUnitFilter) return false;
-    if (userCategoryFilter !== 'all' && userRole.category_id !== userCategoryFilter) return false;
+    if (userUnitFilter !== 'all' && u.unit_id !== userUnitFilter) return false;
+    if (userCategoryFilter !== 'all' && !u.category_ids.includes(userCategoryFilter)) return false;
 
     return true;
   });
@@ -236,16 +276,29 @@ export default function Invites() {
               </div>
 
               {role === 'category_chief' && (
-                <div className="space-y-1.5">
-                  <Label>Categoria</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <Label>Categorias (pode selecionar várias)</Label>
+                  <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                    {categories.map((category) => (
+                      <div key={category.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cat-${category.id}`}
+                          checked={selectedCategoryIds.includes(category.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCategoryIds(prev =>
+                              checked
+                                ? [...prev, category.id]
+                                : prev.filter(id => id !== category.id)
+                            );
+                          }}
+                        />
+                        <label htmlFor={`cat-${category.id}`} className="text-sm cursor-pointer">{category.name}</label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedCategoryIds.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{selectedCategoryIds.length} categoria(s) selecionada(s)</p>
+                  )}
                 </div>
               )}
 
@@ -279,7 +332,7 @@ export default function Invites() {
           <p className="text-xs text-muted-foreground">Usados</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-accent-foreground">{userRoles.length}</p>
+          <p className="text-2xl font-bold text-accent-foreground">{groupedUsers.length}</p>
           <p className="text-xs text-muted-foreground">Participantes</p>
         </div>
       </div>
@@ -287,7 +340,7 @@ export default function Invites() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({userRoles.length})</TabsTrigger>
+          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({groupedUsers.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="invites" className="mt-4">
@@ -400,7 +453,7 @@ export default function Invites() {
                   {filteredUsers.map((userRole) => {
                     const name = getProfileName(userRole.user_id);
                     return (
-                      <tr key={userRole.id}>
+                      <tr key={userRole.user_id}>
                         <td>
                           <div className="flex items-center gap-2">
                             <UserCircle size={18} className="text-muted-foreground" />
@@ -408,7 +461,15 @@ export default function Invites() {
                           </div>
                         </td>
                         <td><Badge variant="secondary">{roleLabels[userRole.role] || userRole.role}</Badge></td>
-                        <td className="text-sm text-muted-foreground">{getCatName(userRole.category_id)}</td>
+                        <td className="text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-1">
+                            {userRole.category_ids.length > 0
+                              ? userRole.category_ids.map(cid => (
+                                  <Badge key={cid} variant="outline" className="text-xs">{getCatName(cid)}</Badge>
+                                ))
+                              : '—'}
+                          </div>
+                        </td>
                         <td className="text-sm text-muted-foreground">{getUnitName(userRole.unit_id)}</td>
                         <td className="text-sm">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="text-right">

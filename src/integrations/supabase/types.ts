@@ -633,6 +633,7 @@ export type Database = {
     Functions: {
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       user_category_id: { Args: never; Returns: string }
+      user_category_ids: { Args: never; Returns: string[] }
       user_is: { Args: { _role: string }; Returns: boolean }
       user_is_any: { Args: { _roles: string[] }; Returns: boolean }
       user_unit_id: { Args: never; Returns: string }

@@ -7,6 +7,7 @@ export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'pro
 export interface UserRoleInfo {
   role: UserRole;
   category_id: string | null;
+  category_ids: string[];
   unit_id: string | null;
   team_id: string | null;
 }
@@ -21,15 +22,17 @@ export function useAuth() {
     const { data } = await supabase
       .from('user_roles')
       .select('role, category_id, unit_id, team_id')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
 
-    if (data) {
+    if (data && data.length > 0) {
+      const first = data[0];
+      const categoryIds = data.map((r: any) => r.category_id).filter(Boolean) as string[];
       setRoleInfo({
-        role: data.role as UserRole,
-        category_id: data.category_id,
-        unit_id: data.unit_id,
-        team_id: data.team_id,
+        role: first.role as UserRole,
+        category_id: first.category_id,
+        category_ids: categoryIds,
+        unit_id: first.unit_id,
+        team_id: first.team_id,
       });
       return true;
     }
@@ -54,16 +57,30 @@ export function useAuth() {
         return;
       }
 
+      // For category_chief, allow adding new category even if user already has a role
       const { data: existingRole } = await supabase
         .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .select('id, role, category_id')
+        .eq('user_id', userId);
 
-      if (existingRole) {
+      const hasExactRole = (existingRole ?? []).some((r: any) =>
+        r.role === invite.role && r.category_id === invite.category_id
+      );
+
+      if (hasExactRole) {
         localStorage.removeItem('pending_invite_token');
         await fetchRole(userId);
         return;
+      }
+
+      // If user has a different role (not category_chief adding category), skip
+      if (existingRole && existingRole.length > 0 && invite.role !== 'category_chief') {
+        const hasOtherRole = existingRole.some((r: any) => r.role !== invite.role);
+        if (hasOtherRole) {
+          localStorage.removeItem('pending_invite_token');
+          await fetchRole(userId);
+          return;
+        }
       }
 
       await supabase.from('user_roles').insert({
