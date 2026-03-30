@@ -211,14 +211,36 @@ export default function Invites() {
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
   const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
-  const filteredUsers = userRoles.filter((userRole) => {
-    const name = getProfileName(userRole.user_id).toLowerCase();
-    const roleName = (roleLabels[userRole.role] ?? userRole.role).toLowerCase();
+  // Group user_roles by user_id for display (chiefs may have multiple rows)
+  const groupedUsers = useMemo(() => {
+    const map = new Map<string, { user_id: string; role: string; category_ids: string[]; unit_id: string | null; created_at: string }>();
+    for (const ur of userRoles) {
+      const existing = map.get(ur.user_id);
+      if (existing) {
+        if (ur.category_id && !existing.category_ids.includes(ur.category_id)) {
+          existing.category_ids.push(ur.category_id);
+        }
+      } else {
+        map.set(ur.user_id, {
+          user_id: ur.user_id,
+          role: ur.role,
+          category_ids: ur.category_id ? [ur.category_id] : [],
+          unit_id: ur.unit_id,
+          created_at: ur.created_at,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [userRoles]);
+
+  const filteredUsers = groupedUsers.filter((u) => {
+    const name = getProfileName(u.user_id).toLowerCase();
+    const roleName = (roleLabels[u.role] ?? u.role).toLowerCase();
     const searchTerm = searchUsers.toLowerCase();
 
     if (searchUsers && !name.includes(searchTerm) && !roleName.includes(searchTerm)) return false;
-    if (userUnitFilter !== 'all' && userRole.unit_id !== userUnitFilter) return false;
-    if (userCategoryFilter !== 'all' && userRole.category_id !== userCategoryFilter) return false;
+    if (userUnitFilter !== 'all' && u.unit_id !== userUnitFilter) return false;
+    if (userCategoryFilter !== 'all' && !u.category_ids.includes(userCategoryFilter)) return false;
 
     return true;
   });
