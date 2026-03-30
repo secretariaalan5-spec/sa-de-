@@ -1,15 +1,64 @@
 /**
- * Hook para gerenciar profissionais de serviço (enfermeiros e técnicos).
- * Todas as mutações são automaticamente persistidas na nuvem via ServiceStateContext.
+ * Hook para gerenciar profissionais de serviço.
+ * Filtra automaticamente por role via RLS na tabela professional_users.
+ *
+ * - Admin/RH: veem todos
+ * - Chefe: vê apenas da sua categoria
+ * - Gerente: vê apenas da sua unidade
+ * - Profissional: vê apenas a si mesmo
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';
 import { useServiceState } from './useServiceState';
+import { useTeamPermissions } from './useTeamPermissions';
 import { generateId } from '@/lib/uuid';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useServiceProfessionals() {
     const { state, updateServiceState, deleteProfessional: contextDeleteProfessional, loading } = useServiceState();
-    const professionals = useMemo(() => state?.professionals || [], [state?.professionals]);
+    const { roleInfo } = useTeamPermissions();
+    const allProfessionals = useMemo(() => state?.professionals || [], [state?.professionals]);
+
+    // Set of professional IDs the current user is allowed to see (via RLS)
+    const [allowedIds, setAllowedIds] = useState<Set<string> | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function fetchAllowed() {
+            // Admin and RH see everything — skip the filter
+            if (roleInfo?.role === 'admin' || roleInfo?.role === 'rh') {
+                setAllowedIds(null); // null = no filter
+                return;
+            }
+
+            // For other roles, RLS on professional_users limits visibility
+            const { data } = await supabase
+                .from('professional_users')
+                .select('professional_id');
+
+            if (!cancelled && data) {
+                const ids = new Set(
+                    data
+                        .map((r: any) => r.professional_id)
+                        .filter(Boolean) as string[]
+                );
+                setAllowedIds(ids);
+            }
+        }
+
+        if (roleInfo) {
+            fetchAllowed();
+        }
+
+        return () => { cancelled = true; };
+    }, [roleInfo]);
+
+    // Filtered professionals based on role
+    const professionals = useMemo(() => {
+        if (allowedIds === null) return allProfessionals; // admin/rh: no filter
+        return allProfessionals.filter(p => allowedIds.has(p.id));
+    }, [allProfessionals, allowedIds]);
 
     /** Adiciona um novo profissional, mantendo a lista ordenada por nome. */
     const addProfessional = useCallback((professional: Omit<ServiceProfessional, 'id'>) => {
