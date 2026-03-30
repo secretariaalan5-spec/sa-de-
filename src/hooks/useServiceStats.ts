@@ -21,7 +21,7 @@ export function useServiceStats({ allEntries, getTotalCreditsUsedByProfessional 
     const getStatsForProfessional = useCallback((
         professionalId: string,
         professionalName: string,
-        category: 'nurse' | 'tech'
+        category: string
     ): ServiceScheduleStats => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
