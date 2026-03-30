@@ -110,6 +110,7 @@ export function useTeamPermissions() {
         const info: UserRoleInfo = {
           role: roleData.role as UserRole,
           category: roleData.category,
+          category_id: roleData.category_id,
           unit_id: roleData.unit_id,
           team_id: roleData.team_id,
         };
