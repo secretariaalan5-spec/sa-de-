@@ -114,8 +114,8 @@ export default function Invites() {
       return;
     }
 
-    if (role === 'category_chief' && !categoryId) {
-      toast.error('Selecione uma categoria para o chefe de categoria.');
+    if (role === 'category_chief' && selectedCategoryIds.length === 0) {
+      toast.error('Selecione pelo menos uma categoria para o chefe de categoria.');
       return;
     }
 
@@ -125,23 +125,40 @@ export default function Invites() {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('invites').insert({
-      role,
-      team_id: roleInfo.team_id,
-      category_id: role === 'category_chief' ? categoryId || null : null,
-      unit_id: role === 'unit_manager' ? unitId || null : null,
-      created_by: user?.id ?? null,
-    });
 
-    if (error) {
-      toast.error(error.message || 'Erro ao criar convite.');
-      return;
+    if (role === 'category_chief') {
+      // Create one invite per selected category
+      const inserts = selectedCategoryIds.map(catId => ({
+        role,
+        team_id: roleInfo.team_id!,
+        category_id: catId,
+        unit_id: null,
+        created_by: user?.id ?? null,
+      }));
+      const { error } = await supabase.from('invites').insert(inserts);
+      if (error) {
+        toast.error(error.message || 'Erro ao criar convites.');
+        return;
+      }
+      toast.success(`${selectedCategoryIds.length} convite(s) criado(s)!`);
+    } else {
+      const { error } = await supabase.from('invites').insert({
+        role,
+        team_id: roleInfo.team_id,
+        category_id: null,
+        unit_id: role === 'unit_manager' ? unitId || null : null,
+        created_by: user?.id ?? null,
+      });
+      if (error) {
+        toast.error(error.message || 'Erro ao criar convite.');
+        return;
+      }
+      toast.success('Convite criado!');
     }
 
-    toast.success('Convite criado!');
     setOpen(false);
     setRole('unit_manager');
-    setCategoryId('');
+    setSelectedCategoryIds([]);
     setUnitId('');
     load();
   };
