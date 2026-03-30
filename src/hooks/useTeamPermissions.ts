@@ -146,7 +146,7 @@ export function useTeamPermissions() {
         } else {
           setPermissions(ALL_PERMISSIONS);
         }
-        setRoleInfo({ role: 'admin', category: null, unit_id: null, team_id: null });
+        setRoleInfo({ role: 'admin', category: null, category_id: null, unit_id: null, team_id: null });
       }
     } catch {
       setPermissions(ALL_PERMISSIONS);
