@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Session } from '@supabase/supabase-js';
 
@@ -15,8 +15,9 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [roleInfo, setRoleInfo] = useState<UserRoleInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const processingRef = useRef(false);
 
-  const fetchRole = useCallback(async (userId: string) => {
+  const fetchRole = useCallback(async (userId: string): Promise<boolean> => {
     const { data } = await supabase
       .from('user_roles')
       .select('role, category_id, unit_id, team_id')
@@ -35,16 +36,12 @@ export function useAuth() {
     return false;
   }, []);
 
-  /**
-   * Process a pending invite token stored in localStorage.
-   * This happens after a Google OAuth redirect from the /registro page.
-   */
   const processPendingInvite = useCallback(async (userId: string) => {
     const token = localStorage.getItem('pending_invite_token');
-    if (!token) return;
+    if (!token || processingRef.current) return;
+    processingRef.current = true;
 
     try {
-      // Fetch the invite
       const { data: invite } = await supabase
         .from('invites')
         .select('*')
@@ -57,7 +54,6 @@ export function useAuth() {
         return;
       }
 
-      // Check if user already has a role
       const { data: existingRole } = await supabase
         .from('user_roles')
         .select('id')
@@ -65,12 +61,11 @@ export function useAuth() {
         .maybeSingle();
 
       if (existingRole) {
-        // User already has a role, just clean up
         localStorage.removeItem('pending_invite_token');
+        await fetchRole(userId);
         return;
       }
 
-      // Create user_role from invite
       await supabase.from('user_roles').insert({
         user_id: userId,
         role: invite.role,
@@ -79,50 +74,56 @@ export function useAuth() {
         unit_id: invite.unit_id,
       });
 
-      // Update profile team_id
       await supabase
         .from('profiles')
         .update({ team_id: invite.team_id } as any)
         .eq('user_id', userId);
 
-      // Mark invite as used
       await supabase
         .from('invites')
         .update({ used: true, used_by: userId } as any)
         .eq('id', invite.id);
 
-      // Re-fetch role
       await fetchRole(userId);
     } catch (err) {
       console.error('Error processing invite:', err);
     } finally {
       localStorage.removeItem('pending_invite_token');
+      processingRef.current = false;
     }
   }, [fetchRole]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Set up listener FIRST — no awaits inside callback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        const hasRole = await fetchRole(session.user.id);
-        if (!hasRole) {
-          // No role found — check for pending invite
-          await processPendingInvite(session.user.id);
-        }
+        // Fire and forget — don't block auth state
+        setTimeout(() => {
+          fetchRole(session.user.id).then(hasRole => {
+            if (!hasRole) {
+              processPendingInvite(session.user.id);
+            }
+          });
+        }, 0);
       } else {
         setRoleInfo(null);
       }
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Then check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        const hasRole = await fetchRole(session.user.id);
-        if (!hasRole) {
-          await processPendingInvite(session.user.id);
-        }
+        fetchRole(session.user.id).then(hasRole => {
+          if (!hasRole) {
+            processPendingInvite(session.user.id);
+          }
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
