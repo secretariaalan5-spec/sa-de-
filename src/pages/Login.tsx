@@ -33,7 +33,8 @@ export default function Login() {
       });
       if (error) throw error;
     } catch (error: any) {
-      toast.error('Erro ao entrar com Google: ' + (error.message || 'Tente novamente.'));
+      console.error('Google login error');
+      toast.error('Erro ao entrar com Google. Tente novamente.');
       setGoogleLoading(false);
     }
   };
