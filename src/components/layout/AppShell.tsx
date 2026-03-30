@@ -28,7 +28,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
   { to: '/funcionarios', label: 'Funcionários', icon: Users, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
-  { to: '/escalas', label: 'Escalas', icon: CalendarDays, roles: ['admin', 'rh', 'category_chief'] },
+  { to: '/escalas', label: 'Escalas', icon: CalendarDays, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
   { to: '/folgas', label: 'Pedidos de Folga', icon: CalendarOff, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
   { to: '/transferencias', label: 'Transferências', icon: ArrowRightLeft, roles: ['admin', 'rh', 'category_chief'] },
   { to: '/unidades', label: 'Unidades', icon: Building2, roles: ['admin'] },
@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
 ];
 
 export function AppShell() {
-  const { roleInfo, signOut, user } = useAuthContext();
+  const { roleInfo, signOut, user, isRH } = useAuthContext();
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -54,6 +54,7 @@ export function AppShell() {
     rh: 'RH (Leitura)',
     category_chief: 'Chefe de Categoria',
     unit_manager: 'Gerente de Unidade',
+    professional: 'Profissional',
   };
 
   return (
@@ -92,7 +93,7 @@ export function AppShell() {
             >
               <item.icon size={18} />
               <span>{item.label}</span>
-              {role === 'rh' && (
+              {isRH && (
                 <Eye size={14} className="ml-auto opacity-50" />
               )}
             </NavLink>
