@@ -19,6 +19,7 @@ interface ServiceCalendarProps {
     onRemoveEntry: (entryId: string) => void;
     getEntriesForDate: (date: string) => ServiceScheduleEntry[];
     leaveRequests?: LeaveRequest[];
+    readOnly?: boolean;
 }
 
 export function ServiceCalendar({
@@ -30,6 +31,7 @@ export function ServiceCalendar({
     onRemoveEntry,
     getEntriesForDate,
     leaveRequests = [],
+    readOnly = false,
 }: ServiceCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -161,14 +163,16 @@ export function ServiceCalendar({
                                             <span className="ml-1 text-xs font-normal">(FDS)</span>
                                         )}
                                     </span>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleOpenDialog(dateStr)}
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                    </Button>
+                                    {!readOnly && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => handleOpenDialog(dateStr)}
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                        </Button>
+                                    )}
                                 </div>
 
                 <div className="space-y-1">
@@ -193,12 +197,14 @@ export function ServiceCalendar({
                                                 )}>
                                                     {professional?.name}
                                                 </span>
-                                                <button
-                                                    onClick={() => onRemoveEntry(entry.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
+                                                {!readOnly && (
+                                                    <button
+                                                        onClick={() => onRemoveEntry(entry.id)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                )}
                                             </div>
                                         );
                                     })}
