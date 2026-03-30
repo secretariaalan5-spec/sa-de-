@@ -30,29 +30,103 @@ export function useAuth() {
         unit_id: data.unit_id,
         team_id: data.team_id,
       });
+      return true;
     }
+    return false;
   }, []);
 
+  /**
+   * Process a pending invite token stored in localStorage.
+   * This happens after a Google OAuth redirect from the /registro page.
+   */
+  const processPendingInvite = useCallback(async (userId: string) => {
+    const token = localStorage.getItem('pending_invite_token');
+    if (!token) return;
+
+    try {
+      // Fetch the invite
+      const { data: invite } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('token', token)
+        .eq('used', false)
+        .maybeSingle();
+
+      if (!invite) {
+        localStorage.removeItem('pending_invite_token');
+        return;
+      }
+
+      // Check if user already has a role
+      const { data: existingRole } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingRole) {
+        // User already has a role, just clean up
+        localStorage.removeItem('pending_invite_token');
+        return;
+      }
+
+      // Create user_role from invite
+      await supabase.from('user_roles').insert({
+        user_id: userId,
+        role: invite.role,
+        team_id: invite.team_id,
+        category_id: invite.category_id,
+        unit_id: invite.unit_id,
+      });
+
+      // Update profile team_id
+      await supabase
+        .from('profiles')
+        .update({ team_id: invite.team_id } as any)
+        .eq('user_id', userId);
+
+      // Mark invite as used
+      await supabase
+        .from('invites')
+        .update({ used: true, used_by: userId } as any)
+        .eq('id', invite.id);
+
+      // Re-fetch role
+      await fetchRole(userId);
+    } catch (err) {
+      console.error('Error processing invite:', err);
+    } finally {
+      localStorage.removeItem('pending_invite_token');
+    }
+  }, [fetchRole]);
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session?.user) {
-        fetchRole(session.user.id);
+        const hasRole = await fetchRole(session.user.id);
+        if (!hasRole) {
+          // No role found — check for pending invite
+          await processPendingInvite(session.user.id);
+        }
       } else {
         setRoleInfo(null);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchRole(session.user.id);
+        const hasRole = await fetchRole(session.user.id);
+        if (!hasRole) {
+          await processPendingInvite(session.user.id);
+        }
       }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchRole]);
+  }, [fetchRole, processPendingInvite]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
