@@ -19,6 +19,7 @@ interface ServiceCalendarProps {
     onRemoveEntry: (entryId: string) => void;
     getEntriesForDate: (date: string) => ServiceScheduleEntry[];
     leaveRequests?: LeaveRequest[];
+    readOnly?: boolean;
 }
 
 export function ServiceCalendar({
