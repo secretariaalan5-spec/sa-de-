@@ -1,6 +1,6 @@
 /**
- * Re-exports the Supabase client without Database generic typing.
- * Use this when the auto-generated types.ts doesn't include your tables yet.
+ * Supabase client without strict Database typing.
+ * Used because auto-generated types.ts has empty Tables.
  * 
  * import { supabase } from "@/integrations/supabase/untyped-client";
  */

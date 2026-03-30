@@ -1,11 +1,6 @@
 /**
  * Hook para gerenciar profissionais de serviço.
  * Filtra automaticamente por role via RLS na tabela professional_users.
- *
- * - Admin/RH: veem todos
- * - Chefe: vê apenas da sua categoria
- * - Gerente: vê apenas da sua unidade
- * - Profissional: vê apenas a si mesmo
  */
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { ServiceProfessional } from '@/types/serviceSchedule';

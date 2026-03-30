@@ -1,6 +1,5 @@
 /**
  * Hook com ações de configuração que afetam dados globais (eMult + Serviços).
- * Centraliza operações destrutivas para facilitar manutenção e rastreamento.
  */
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
