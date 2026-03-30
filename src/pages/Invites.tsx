@@ -53,6 +53,8 @@ export default function Invites() {
   const [unitId, setUnitId] = useState('');
   const [activeTab, setActiveTab] = useState('invites');
   const [searchUsers, setSearchUsers] = useState('');
+  const [userUnitFilter, setUserUnitFilter] = useState('all');
+  const [userCategoryFilter, setUserCategoryFilter] = useState('all');
 
   const load = async () => {
     const [i, c, u] = await Promise.all([
@@ -60,41 +62,81 @@ export default function Invites() {
       supabase.from('categories').select('id, name'),
       supabase.from('units').select('id, name'),
     ]);
+
     setInvites(i.data ?? []);
     setCategories(c.data ?? []);
     setUnits(u.data ?? []);
 
-    // Load all users with roles (admin only)
-    if (isAdmin) {
-      const { data: roles } = await supabase.from('user_roles').select('*').order('created_at', { ascending: false });
-      setUserRoles(roles ?? []);
-
-      if (roles && roles.length > 0) {
-        const userIds = roles.map((r: any) => r.user_id);
-        const { data: profs } = await supabase.from('profiles').select('user_id, display_name, avatar_url').in('user_id', userIds);
-        setProfiles(profs ?? []);
-      }
+    if (!isAdmin) {
+      setUserRoles([]);
+      setProfiles([]);
+      return;
     }
+
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (rolesError) {
+      toast.error('Erro ao carregar participantes.');
+      setUserRoles([]);
+      setProfiles([]);
+      return;
+    }
+
+    setUserRoles(roles ?? []);
+
+    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean)));
+    if (userIds.length === 0) {
+      setProfiles([]);
+      return;
+    }
+
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, avatar_url')
+      .in('user_id', userIds);
+
+    setProfiles(profs ?? []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, [isAdmin]);
 
   const handleCreate = async (ev: React.FormEvent) => {
     ev.preventDefault();
 
+    if (!roleInfo?.team_id) {
+      toast.error('Permissões ainda não carregadas. Recarregue a página e tente novamente.');
+      return;
+    }
+
+    if (role === 'category_chief' && !categoryId) {
+      toast.error('Selecione uma categoria para o chefe de categoria.');
+      return;
+    }
+
+    if (role === 'unit_manager' && !unitId) {
+      toast.error('Selecione uma unidade para o gerente.');
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from('invites').insert({
       role,
-      team_id: roleInfo?.team_id,
+      team_id: roleInfo.team_id,
       category_id: role === 'category_chief' ? categoryId || null : null,
       unit_id: role === 'unit_manager' ? unitId || null : null,
       created_by: user?.id ?? null,
     });
 
     if (error) {
-      toast.error('Erro ao criar convite.');
+      toast.error(error.message || 'Erro ao criar convite.');
       return;
     }
+
     toast.success('Convite criado!');
     setOpen(false);
     setRole('unit_manager');
@@ -105,29 +147,33 @@ export default function Invites() {
 
   const handleDeleteInvite = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este convite?')) return;
+
     const { error } = await supabase.from('invites').delete().eq('id', id);
     if (error) {
-      toast.error('Erro ao excluir convite.');
+      toast.error(error.message || 'Erro ao excluir convite.');
       return;
     }
+
     toast.success('Convite excluído!');
     load();
   };
 
   const handleRemoveUser = async (userId: string, userName: string) => {
     if (!confirm(`Tem certeza que deseja remover o acesso de "${userName}"? O usuário não poderá mais acessar o sistema.`)) return;
+
     const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
     if (error) {
-      toast.error('Erro ao remover usuário.');
+      toast.error(error.message || 'Erro ao remover usuário.');
       return;
     }
+
     toast.success('Acesso removido!');
     load();
   };
 
-  const copyLink = (token: string) => {
+  const copyLink = async (token: string) => {
     const url = `${window.location.origin}/registro?token=${token}`;
-    navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };
 
@@ -140,22 +186,27 @@ export default function Invites() {
   };
 
   const getProfileName = (userId: string) => {
-    const p = profiles.find(p => p.user_id === userId);
+    const p = profiles.find((profile) => profile.user_id === userId);
     return p?.display_name || userId.substring(0, 8) + '...';
   };
 
-  const getCatName = (id: string | null) => categories.find(c => c.id === id)?.name ?? '';
-  const getUnitName = (id: string | null) => units.find(u => u.id === id)?.name ?? '';
+  const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
+  const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
-  const filteredUsers = userRoles.filter(ur => {
-    if (!searchUsers) return true;
-    const name = getProfileName(ur.user_id).toLowerCase();
-    const roleName = (roleLabels[ur.role] ?? ur.role).toLowerCase();
-    return name.includes(searchUsers.toLowerCase()) || roleName.includes(searchUsers.toLowerCase());
+  const filteredUsers = userRoles.filter((userRole) => {
+    const name = getProfileName(userRole.user_id).toLowerCase();
+    const roleName = (roleLabels[userRole.role] ?? userRole.role).toLowerCase();
+    const searchTerm = searchUsers.toLowerCase();
+
+    if (searchUsers && !name.includes(searchTerm) && !roleName.includes(searchTerm)) return false;
+    if (userUnitFilter !== 'all' && userRole.unit_id !== userUnitFilter) return false;
+    if (userCategoryFilter !== 'all' && userRole.category_id !== userCategoryFilter) return false;
+
+    return true;
   });
 
-  const usedInvites = invites.filter(i => i.used).length;
-  const availableInvites = invites.filter(i => !i.used).length;
+  const usedInvites = invites.filter((invite) => invite.used).length;
+  const availableInvites = invites.filter((invite) => !invite.used).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -166,7 +217,10 @@ export default function Invites() {
             <Button className="gap-2"><Plus size={16} /> Novo Convite</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Criar Convite</DialogTitle><DialogDescription>Gere um link de convite para novo usuário.</DialogDescription></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Criar Convite</DialogTitle>
+              <DialogDescription>Gere um link de convite para novo usuário.</DialogDescription>
+            </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Nível de acesso</Label>
@@ -187,8 +241,8 @@ export default function Invites() {
                   <Select value={categoryId} onValueChange={setCategoryId}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -201,8 +255,8 @@ export default function Invites() {
                   <Select value={unitId} onValueChange={setUnitId}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {units.map(u => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      {units.map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -215,7 +269,6 @@ export default function Invites() {
         </Dialog>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-card rounded-xl border border-border p-4 text-center">
           <p className="text-2xl font-bold text-primary">{availableInvites}</p>
@@ -256,26 +309,26 @@ export default function Invites() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invites.map(inv => (
-                    <tr key={inv.id}>
-                      <td><Badge variant="secondary">{roleLabels[inv.role] || inv.role}</Badge></td>
+                  {invites.map((invite) => (
+                    <tr key={invite.id}>
+                      <td><Badge variant="secondary">{roleLabels[invite.role] || invite.role}</Badge></td>
                       <td className="text-sm text-muted-foreground">
-                        {inv.category_id ? getCatName(inv.category_id) : inv.unit_id ? getUnitName(inv.unit_id) : '—'}
+                        {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : '—'}
                       </td>
                       <td>
-                        <Badge variant={inv.used ? 'default' : 'secondary'}>
-                          {inv.used ? 'Usado' : 'Disponível'}
+                        <Badge variant={invite.used ? 'default' : 'secondary'}>
+                          {invite.used ? 'Usado' : 'Disponível'}
                         </Badge>
                       </td>
-                      <td className="text-sm">{new Date(inv.created_at).toLocaleDateString('pt-BR')}</td>
+                      <td className="text-sm">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
                       <td className="text-right">
                         <div className="flex justify-end gap-1">
-                          {!inv.used && (
-                            <Button variant="ghost" size="sm" onClick={() => copyLink(inv.token)} className="gap-1">
+                          {!invite.used && (
+                            <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="gap-1">
                               <Copy size={14} /> Copiar
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(inv.id)} className="h-8 w-8">
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8">
                             <Trash2 size={14} className="text-destructive" />
                           </Button>
                         </div>
@@ -289,14 +342,40 @@ export default function Invites() {
         </TabsContent>
 
         <TabsContent value="users" className="mt-4 space-y-3">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-            <Input
-              placeholder="Buscar participante..."
-              value={searchUsers}
-              onChange={e => setSearchUsers(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+              <Input
+                placeholder="Buscar participante..."
+                value={searchUsers}
+                onChange={(event) => setSearchUsers(event.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <Select value={userUnitFilter} onValueChange={setUserUnitFilter}>
+              <SelectTrigger className="w-full lg:w-[220px]">
+                <SelectValue placeholder="Filtrar por unidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as unidades</SelectItem>
+                {units.map((unit) => (
+                  <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={userCategoryFilter} onValueChange={setUserCategoryFilter}>
+              <SelectTrigger className="w-full lg:w-[220px]">
+                <SelectValue placeholder="Filtrar por categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {filteredUsers.length === 0 ? (
@@ -311,33 +390,33 @@ export default function Invites() {
                   <tr>
                     <th className="text-left">Usuário</th>
                     <th className="text-left">Nível</th>
-                    <th className="text-left">Escopo</th>
+                    <th className="text-left">Categoria</th>
+                    <th className="text-left">Unidade</th>
                     <th className="text-left">Desde</th>
                     <th className="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map(ur => {
-                    const name = getProfileName(ur.user_id);
+                  {filteredUsers.map((userRole) => {
+                    const name = getProfileName(userRole.user_id);
                     return (
-                      <tr key={ur.id}>
+                      <tr key={userRole.id}>
                         <td>
                           <div className="flex items-center gap-2">
                             <UserCircle size={18} className="text-muted-foreground" />
                             <span className="font-medium text-sm">{name}</span>
                           </div>
                         </td>
-                        <td><Badge variant="secondary">{roleLabels[ur.role] || ur.role}</Badge></td>
-                        <td className="text-sm text-muted-foreground">
-                          {ur.category_id ? getCatName(ur.category_id) : ur.unit_id ? getUnitName(ur.unit_id) : '—'}
-                        </td>
-                        <td className="text-sm">{new Date(ur.created_at).toLocaleDateString('pt-BR')}</td>
+                        <td><Badge variant="secondary">{roleLabels[userRole.role] || userRole.role}</Badge></td>
+                        <td className="text-sm text-muted-foreground">{getCatName(userRole.category_id)}</td>
+                        <td className="text-sm text-muted-foreground">{getUnitName(userRole.unit_id)}</td>
+                        <td className="text-sm">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => handleRemoveUser(ur.user_id, name)}
+                            onClick={() => handleRemoveUser(userRole.user_id, name)}
                           >
                             <Trash2 size={14} className="text-destructive" />
                           </Button>

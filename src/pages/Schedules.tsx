@@ -101,7 +101,11 @@ export default function Schedules() {
       return;
     }
 
-    // Check for conflicts
+    if (!roleInfo?.team_id) {
+      toast.error('Permissões ainda não carregadas. Recarregue a página e tente novamente.');
+      return;
+    }
+
     const conflictLeave = selectedDates.filter(d => isLeaveDay(empId, d));
     if (conflictLeave.length > 0) {
       const formatted = conflictLeave.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
@@ -121,13 +125,13 @@ export default function Schedules() {
       employee_id: empId,
       date,
       type,
-      team_id: roleInfo?.team_id,
+      team_id: roleInfo.team_id,
       created_by: user?.id ?? null,
     }));
 
     const { error } = await supabase.from('schedules').insert(inserts);
     if (error) {
-      toast.error('Erro ao criar escala(s).');
+      toast.error(error.message || 'Erro ao criar escala(s).');
       return;
     }
 

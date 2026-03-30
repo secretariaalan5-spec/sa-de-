@@ -30,7 +30,7 @@ export function AppShell() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const role = roleInfo?.role ?? 'admin';
+  const role = roleInfo?.role ?? '';
   const filtered = navItems.filter(item => item.roles.includes(role));
 
   useEffect(() => {
