@@ -15,6 +15,7 @@ import Transfers from "./pages/Transfers";
 import Units from "./pages/Units";
 import Categories from "./pages/Categories";
 import Invites from "./pages/Invites";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
