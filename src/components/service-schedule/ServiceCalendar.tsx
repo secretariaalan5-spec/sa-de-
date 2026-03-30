@@ -11,7 +11,7 @@ import { ServiceProfessional, ServiceScheduleEntry, LeaveRequest, LEAVE_TYPE_LAB
 import { toast } from 'sonner';
 
 interface ServiceCalendarProps {
-    type: 'nurse' | 'tech';
+    type: string;
     typeLabel: string;
     professionals: ServiceProfessional[];
     entries: ServiceScheduleEntry[];

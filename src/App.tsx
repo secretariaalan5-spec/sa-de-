@@ -19,6 +19,7 @@ import ProfilePage from "./pages/Profile";
 import ServiceScheduleNurses from "./pages/ServiceScheduleNurses";
 import ServiceProfessionalsPage from "./pages/ServiceProfessionals";
 import ServiceScheduleTechs from "./pages/ServiceScheduleTechs";
+import ServiceScheduleACS from "./pages/ServiceScheduleACS";
 import LeaveRequestsPage from "./pages/LeaveRequests";
 import ServiceReportsPage from "./pages/ServiceReports";
 import Login from "./pages/Login";
@@ -102,6 +103,7 @@ const App = () => (
                 <Route path="/exportar" element={<Export />} />
                 <Route path="/escalas-servicos/enfermeiros" element={<ServiceScheduleNurses />} />
                 <Route path="/escalas-servicos/tecnicos" element={<ServiceScheduleTechs />} />
+                <Route path="/escalas-servicos/acs" element={<ServiceScheduleACS />} />
                 <Route path="/escalas-servicos/folgas" element={<LeaveRequestsPage />} />
                 <Route path="/escalas-servicos/relatorios" element={<ServiceReportsPage />} />
                 <Route path="/escalas-servicos/profissionais" element={<ServiceProfessionalsPage />} />
