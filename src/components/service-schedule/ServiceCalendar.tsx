@@ -31,6 +31,7 @@ export function ServiceCalendar({
     onRemoveEntry,
     getEntriesForDate,
     leaveRequests = [],
+    readOnly = false,
 }: ServiceCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
