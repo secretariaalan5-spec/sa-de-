@@ -254,16 +254,29 @@ export default function Invites() {
               </div>
 
               {role === 'category_chief' && (
-                <div className="space-y-1.5">
-                  <Label>Categoria</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2">
+                  <Label>Categorias (pode selecionar várias)</Label>
+                  <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                    {categories.map((category) => (
+                      <div key={category.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`cat-${category.id}`}
+                          checked={selectedCategoryIds.includes(category.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCategoryIds(prev =>
+                              checked
+                                ? [...prev, category.id]
+                                : prev.filter(id => id !== category.id)
+                            );
+                          }}
+                        />
+                        <label htmlFor={`cat-${category.id}`} className="text-sm cursor-pointer">{category.name}</label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedCategoryIds.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{selectedCategoryIds.length} categoria(s) selecionada(s)</p>
+                  )}
                 </div>
               )}
 
