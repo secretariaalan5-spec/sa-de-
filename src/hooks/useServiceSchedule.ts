@@ -25,7 +25,7 @@ async function notifyProfessionalScheduled(professionalId: string, professionalN
             body: {
                 player_ids: [playerId],
                 title: '📋 Nova Escala',
-                message: `Você foi escalado(a) para ${dateFormatted} (${categoryLabel})`,
+                message: `Você foi escalado(a) para ${dateFormatted}`,
                 data: { type: 'schedule_added', date, professionalId },
             },
         });
