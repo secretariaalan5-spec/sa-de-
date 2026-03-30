@@ -20,7 +20,6 @@ async function notifyProfessionalScheduled(professionalId: string, professionalN
         if (!playerId) return;
 
         const dateFormatted = format(parseISO(date), "dd 'de' MMMM", { locale: ptBR });
-        const categoryLabel = type === 'nurse' ? 'Enfermagem' : 'Técnico';
 
         await supabase.functions.invoke('send-push-notification', {
             body: {
