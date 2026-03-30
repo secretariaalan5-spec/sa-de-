@@ -340,7 +340,7 @@ export default function Invites() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({userRoles.length})</TabsTrigger>
+          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({groupedUsers.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="invites" className="mt-4">
