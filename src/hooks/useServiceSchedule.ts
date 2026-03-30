@@ -34,7 +34,7 @@ async function notifyProfessionalScheduled(professionalId: string, professionalN
     }
 }
 
-export function useServiceSchedule(type: 'nurse' | 'tech') {
+export function useServiceSchedule(type: string) {
     const { state, updateServiceState, loading } = useServiceState();
     const allEntries = useMemo(() => state?.entries || [], [state?.entries]);
     const professionals = useMemo(() => state?.professionals || [], [state?.professionals]);
