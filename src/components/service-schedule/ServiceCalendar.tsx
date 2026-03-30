@@ -197,12 +197,14 @@ export function ServiceCalendar({
                                                 )}>
                                                     {professional?.name}
                                                 </span>
-                                                <button
-                                                    onClick={() => onRemoveEntry(entry.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
+                                                {!readOnly && (
+                                                    <button
+                                                        onClick={() => onRemoveEntry(entry.id)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                )}
                                             </div>
                                         );
                                     })}

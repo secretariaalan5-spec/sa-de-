@@ -155,12 +155,36 @@ export function useTeamPermissions() {
     return roleInfo?.role !== 'rh';
   }, [roleInfo]);
 
+  /** Chefe de categoria ou admin podem aprovar folgas */
+  const canApproveLeave = useCallback(() => {
+    return roleInfo?.role === 'admin' || roleInfo?.role === 'category_chief';
+  }, [roleInfo]);
+
+  /** Chefe ou admin podem editar escalas */
+  const canEditSchedule = useCallback(() => {
+    return roleInfo?.role === 'admin' || roleInfo?.role === 'category_chief';
+  }, [roleInfo]);
+
+  /** Gerente ou admin podem cadastrar profissionais */
+  const canAddProfessional = useCallback(() => {
+    return roleInfo?.role === 'admin' || roleInfo?.role === 'unit_manager';
+  }, [roleInfo]);
+
+  /** Somente admin pode deletar profissionais */
+  const canDeleteProfessional = useCallback(() => {
+    return roleInfo?.role === 'admin';
+  }, [roleInfo]);
+
   return {
     permissions,
     roleInfo,
     loading,
     can,
     canWrite,
+    canApproveLeave,
+    canEditSchedule,
+    canAddProfessional,
+    canDeleteProfessional,
     isRole,
     refresh: fetchPermissions,
   };
