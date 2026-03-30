@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2 } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 
 interface Employee {
   id: string; name: string; category_id: string | null;
@@ -33,6 +34,7 @@ export default function Employees() {
   const [filterCat, setFilterCat] = useState('all');
   const [filterUnit, setFilterUnit] = useState('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
 
   const canAdd = isAdmin || isManager;
   const canEdit = isAdmin || isChief || isManager;
@@ -202,6 +204,14 @@ export default function Employees() {
         </DialogContent>
       </Dialog>
 
+      {/* Employee Detail Dialog */}
+      <EmployeeDetailDialog
+        employeeId={detailEmp?.id ?? null}
+        employeeName={detailEmp?.name ?? ''}
+        open={!!detailEmp}
+        onOpenChange={(o) => { if (!o) setDetailEmp(null); }}
+      />
+
       {filtered.length === 0 ? (
         <div className="empty-state">
           <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
@@ -212,7 +222,7 @@ export default function Employees() {
           {filtered.map(emp => {
             const cat = getCat(emp.category_id);
             return (
-              <div key={emp.id} className="prof-card group">
+              <div key={emp.id} className="prof-card group cursor-pointer" onClick={() => setDetailEmp(emp)}>
                 <div className="h-1 rounded-full mb-3" style={{ backgroundColor: cat?.color ?? 'hsl(var(--muted))' }} />
                 <p className="font-semibold text-sm">{emp.name}</p>
                 <div className="flex items-center gap-2 mt-2">
@@ -220,13 +230,16 @@ export default function Employees() {
                   <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
                 </div>
                 <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
+                    <Eye size={12} /> Ver Histórico
+                  </Button>
                   {canEdit && (
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(emp)} className="h-7 text-xs gap-1">
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="h-7 text-xs gap-1">
                       <Pencil size={12} /> Editar
                     </Button>
                   )}
                   {canDelete && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(emp.id, emp.name)} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
                       <Trash2 size={12} /> Remover
                     </Button>
                   )}
@@ -241,14 +254,15 @@ export default function Employees() {
             <thead><tr><th className="text-left">Nome</th><th className="text-left">Categoria</th><th className="text-left">Unidade</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {filtered.map(emp => (
-                <tr key={emp.id}>
+                <tr key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailEmp(emp)}>
                   <td className="font-medium">{emp.name}</td>
                   <td>{getCat(emp.category_id)?.name ?? '—'}</td>
                   <td>{getUnitName(emp.unit_id)}</td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1">
-                      {canEdit && <Button variant="ghost" size="icon" onClick={() => openEdit(emp)}><Pencil size={16} /></Button>}
-                      {canDelete && <Button variant="ghost" size="icon" onClick={() => handleDelete(emp.id, emp.name)}><Trash2 size={16} className="text-destructive" /></Button>}
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={16} /></Button>
+                      {canEdit && <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={16} /></Button>}
+                      {canDelete && <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={16} className="text-destructive" /></Button>}
                     </div>
                   </td>
                 </tr>
