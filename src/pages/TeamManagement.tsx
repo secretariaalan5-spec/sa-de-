@@ -215,8 +215,8 @@ export default function TeamManagement() {
             role: selectedRole,
             invite_token: inviteToken,
             permissions: {
-              pending_category_id: selectedRole === 'category_chief' ? selectedCategoryId : null,
-              pending_unit_id: selectedRole === 'unit_manager' ? selectedUnitId : null,
+              pending_category_id: ['category_chief', 'professional'].includes(selectedRole) ? selectedCategoryId : null,
+              pending_unit_id: ['unit_manager', 'professional'].includes(selectedRole) ? selectedUnitId : null,
             },
             status: 'pending',
           } as any) as any;
