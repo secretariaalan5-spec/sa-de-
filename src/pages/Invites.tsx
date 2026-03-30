@@ -50,7 +50,7 @@ export default function Invites() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState('unit_manager');
-  const [categoryId, setCategoryId] = useState('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [unitId, setUnitId] = useState('');
   const [activeTab, setActiveTab] = useState('invites');
   const [searchUsers, setSearchUsers] = useState('');
