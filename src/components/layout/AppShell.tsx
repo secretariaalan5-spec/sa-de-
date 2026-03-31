@@ -13,14 +13,14 @@ import { supabase } from '@/integrations/supabase/untyped-client';
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'rh', 'category_chief', 'unit_manager', 'professional'] },
   { to: '/funcionarios', label: 'Profissionais', icon: Users, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
-  { to: '/escalas', label: 'Escalas', icon: CalendarDays, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
-  { to: '/folgas', label: 'Pedidos de Folga', icon: CalendarOff, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
+  { to: '/escalas', label: 'Escalas', icon: CalendarDays, roles: ['admin', 'rh', 'category_chief', 'unit_manager', 'professional'] },
+  { to: '/folgas', label: 'Pedidos de Folga', icon: CalendarOff, roles: ['admin', 'rh', 'category_chief', 'unit_manager', 'professional'] },
   { to: '/transferencias', label: 'Transferências', icon: ArrowRightLeft, roles: ['admin', 'rh', 'category_chief'] },
   { to: '/unidades', label: 'Unidades', icon: Building2, roles: ['admin'] },
   { to: '/categorias', label: 'Categorias', icon: Tag, roles: ['admin'] },
-  { to: '/saldo', label: 'Saldo de Folgas', icon: Wallet, roles: ['admin', 'rh', 'category_chief', 'unit_manager'] },
+  { to: '/saldo', label: 'Saldo de Folgas', icon: Wallet, roles: ['admin', 'rh', 'category_chief', 'unit_manager', 'professional'] },
   { to: '/convites', label: 'Convites', icon: Mail, roles: ['admin'] },
 ];
 

@@ -28,7 +28,7 @@ export default function Schedules() {
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
-  const [type, setType] = useState('normal');
+  const [type, setType] = useState('extra');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
