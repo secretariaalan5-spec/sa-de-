@@ -1,14 +1,16 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle, Wallet,
+  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useIsMobile } from '@/hooks/use-mobile';
+import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
 
@@ -29,9 +31,15 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useIsMobile();
 
   const role = roleInfo?.role ?? '';
   const filtered = navItems.filter(item => item.roles.includes(role));
+
+  // Bottom nav shows max 5 items on mobile
+  const bottomNavItems = filtered.slice(0, 4);
+  const hasMore = filtered.length > 4;
 
   useEffect(() => {
     if (!user) return;
@@ -39,7 +47,10 @@ export function AppShell() {
       .then(({ data }) => { if (data?.avatar_url) setAvatarUrl(data.avatar_url); });
   }, [user]);
 
-  const handleLogout = async () => { await signOut(); navigate('/login'); };
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   const roleLabels: Record<string, string> = {
     admin: 'Administrador', rh: 'RH', category_chief: 'Chefe de Categoria',
@@ -50,16 +61,24 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen flex w-full">
-      <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-      </button>
+      {/* Mobile hamburger - only when sidebar is used (non-mobile already has sidebar) */}
+      {!isMobile && (
+        <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
+          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      )}
 
-      {mobileOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && !isMobile && <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />}
 
-      <aside className={cn("fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar flex flex-col transition-transform duration-300", mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")}>
+      {/* Desktop sidebar */}
+      <aside className={cn(
+        "fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar flex-col transition-transform duration-300",
+        isMobile ? "hidden" : "flex",
+        !isMobile && (mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")
+      )}>
         <div className="p-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="bg-sidebar-primary/20 p-2 rounded-xl"><Stethoscope size={22} className="text-sidebar-primary" /></div>
+            <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
             <div>
               <h1 className="text-base font-bold text-sidebar-foreground leading-tight">Saúde+</h1>
               <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Gestão de Escalas</p>
@@ -101,9 +120,104 @@ export function AppShell() {
         </div>
       </aside>
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
-        <main className="flex-1 p-4 lg:p-8 pt-16 lg:pt-8"><Outlet /></main>
+        {/* Mobile top header */}
+        {isMobile && (
+          <header className="sticky top-0 z-30 bg-primary px-4 py-3 flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-2">
+              <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
+              <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/perfil')} className="p-1">
+                <Avatar className="h-7 w-7">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
+                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px]">{initials}</AvatarFallback>
+                </Avatar>
+              </button>
+              <button onClick={handleLogout} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground">
+                <LogOut size={18} />
+              </button>
+            </div>
+          </header>
+        )}
+
+        <main className={cn(
+          "flex-1 p-4 lg:p-8",
+          isMobile ? "pb-20" : "pt-16 lg:pt-8"
+        )}>
+          <Outlet />
+        </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      {isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
+          <div className="flex items-stretch justify-around">
+            {bottomNavItems.map(item => {
+              const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0"
+                >
+                  <item.icon size={20} className={cn(
+                    "transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )} />
+                  <span className={cn(
+                    "text-[10px] mt-0.5 truncate max-w-full",
+                    isActive ? "text-primary font-semibold" : "text-muted-foreground"
+                  )}>
+                    {item.label}
+                  </span>
+                </NavLink>
+              );
+            })}
+            {hasMore && (
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0"
+              >
+                <Menu size={20} className="text-muted-foreground" />
+                <span className="text-[10px] mt-0.5 text-muted-foreground">Mais</span>
+              </button>
+            )}
+          </div>
+        </nav>
+      )}
+
+      {/* Mobile "More" drawer */}
+      {isMobile && mobileOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setMobileOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl shadow-xl max-h-[70vh] overflow-y-auto animate-in slide-in-from-bottom">
+            <div className="p-2 flex justify-center">
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+            </div>
+            <div className="p-4 space-y-1">
+              {filtered.slice(4).map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors",
+                    isActive ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"
+                  )}
+                >
+                  <item.icon size={20} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

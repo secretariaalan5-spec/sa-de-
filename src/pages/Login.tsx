@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Stethoscope } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import logoSaude from '@/assets/logo-saude.png';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -29,9 +30,7 @@ export default function Login() {
       <div className="max-w-sm w-full animate-fade-in">
         <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
           <div className="bg-primary p-10 text-center">
-            <div className="bg-primary-foreground/20 p-4 rounded-2xl backdrop-blur-sm inline-flex mb-4">
-              <Stethoscope className="w-10 h-10 text-primary-foreground" />
-            </div>
+            <img src={logoSaude} alt="Saúde+" className="w-20 h-20 mx-auto mb-4 rounded-2xl" />
             <h1 className="text-2xl font-bold text-primary-foreground mb-1">Saúde+ Escalas</h1>
             <p className="text-primary-foreground/80 text-sm">Sistema de Gestão de Escalas</p>
           </div>
@@ -69,7 +68,7 @@ export default function Login() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-muted-foreground text-xs">© 2025 Saúde+ Gestão de Escalas</p>
+          <p className="text-muted-foreground text-xs">© 2026 Saúde+ Gestão de Escalas</p>
         </div>
       </div>
     </div>
