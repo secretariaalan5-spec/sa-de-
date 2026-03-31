@@ -112,7 +112,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold">{greeting()}</h1>
           <p className="text-muted-foreground text-sm">
-            {roleLabels[roleInfo?.role ?? 'admin']}
+            {roleDescription || roleLabels[roleInfo?.role ?? 'admin']}
             {isRH && ' — somente visualização'}
           </p>
         </div>
