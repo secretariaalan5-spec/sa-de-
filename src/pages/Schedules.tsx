@@ -28,7 +28,7 @@ export default function Schedules() {
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
-  const [type, setType] = useState('normal');
+  const [type, setType] = useState('extra');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
@@ -135,11 +135,11 @@ export default function Schedules() {
       return;
     }
 
-    toast.success(`${selectedDates.length} escala(s) criada(s)!${type === 'extra' ? ' +2 créditos por escala.' : ''}`);
+    toast.success(`${selectedDates.length} escala(s) extra criada(s)! +2 créditos por escala.`);
     setOpen(false);
     setEmpId('');
     setSelectedDates([]);
-    setType('normal');
+    setType('extra');
     load();
   };
 
@@ -254,7 +254,7 @@ export default function Schedules() {
                   <tr key={s.id}>
                     <td className="font-medium">{getEmpName(s.employee_id)}</td>
                     <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td><Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>{s.type === 'extra' ? 'Extra' : 'Normal'}</Badge></td>
+                    <td><Badge variant="default">Extra (+2)</Badge></td>
                     {canCreate && (
                       <td className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}><Trash2 size={16} className="text-destructive" /></Button>
@@ -276,27 +276,18 @@ export default function Schedules() {
             <DialogDescription>Selecione o funcionário, tipo e clique nos dias do calendário.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Funcionário</Label>
-                <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo</Label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="extra">Extra (+2 créditos)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Funcionário</Label>
+              <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
+            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+              Tipo: <span className="font-medium text-foreground">Extra (+2 créditos por escala)</span>
+            </p>
 
             {/* Mini calendar */}
             <div>
