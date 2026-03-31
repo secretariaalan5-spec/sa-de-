@@ -631,14 +631,31 @@ export default function Invites() {
                         <td className="text-sm text-muted-foreground">{getUnitName(userRole.unit_id)}</td>
                         <td className="text-sm">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleRemoveUser(userRole.user_id, name)}
-                          >
-                            <Trash2 size={14} className="text-destructive" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            {userRole.role === 'unit_manager' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Transferir para outra unidade"
+                                onClick={() => {
+                                  setTransferUserId(userRole.user_id);
+                                  setTransferToUnitId('');
+                                  setTransferOpen(true);
+                                }}
+                              >
+                                <ArrowRightLeft size={14} className="text-primary" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveUser(userRole.user_id, name)}
+                            >
+                              <Trash2 size={14} className="text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
