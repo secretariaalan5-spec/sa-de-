@@ -135,7 +135,7 @@ export default function Schedules() {
       return;
     }
 
-    toast.success(`${selectedDates.length} escala(s) criada(s)!${type === 'extra' ? ' +2 créditos por escala.' : ''}`);
+    toast.success(`${selectedDates.length} escala(s) extra criada(s)! +2 créditos por escala.`);
     setOpen(false);
     setEmpId('');
     setSelectedDates([]);
