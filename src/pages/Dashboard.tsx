@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useRoleDetails } from '@/hooks/useRoleDetails';
 
 interface RecentLeave {
   id: string;
