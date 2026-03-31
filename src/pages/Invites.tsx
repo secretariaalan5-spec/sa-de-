@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search } from 'lucide-react';
+import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search, Link as LinkIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 interface Invite {
@@ -21,6 +21,22 @@ interface Invite {
   category_id: string | null;
   unit_id: string | null;
   used_by: string | null;
+}
+
+interface CategoryInvite {
+  id: string;
+  token: string;
+  admin_id: string;
+  category_ids: string[];
+  label: string;
+  is_active: boolean;
+  uses_count: number;
+  max_uses: number | null;
+  expires_at: string | null;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Category { id: string; name: string; }
@@ -44,6 +60,7 @@ interface Profile {
 export default function Invites() {
   const { roleInfo, isAdmin } = useAuthContext();
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [categoryInvites, setCategoryInvites] = useState<CategoryInvite[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [userRoles, setUserRoles] = useState<UserWithRole[]>([]);
@@ -51,20 +68,23 @@ export default function Invites() {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState('unit_manager');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [inviteLabel, setInviteLabel] = useState('');
   const [unitId, setUnitId] = useState('');
-  const [activeTab, setActiveTab] = useState('invites');
+  const [activeTab, setActiveTab] = useState('category-invites');
   const [searchUsers, setSearchUsers] = useState('');
   const [userUnitFilter, setUserUnitFilter] = useState('all');
   const [userCategoryFilter, setUserCategoryFilter] = useState('all');
 
   const load = async () => {
-    const [i, c, u] = await Promise.all([
+    const [i, ci, c, u] = await Promise.all([
       supabase.from('invites').select('*').order('created_at', { ascending: false }),
+      supabase.from('category_invites').select('*').order('created_at', { ascending: false }),
       supabase.from('categories').select('id, name'),
       supabase.from('units').select('id, name'),
     ]);
 
     setInvites(i.data ?? []);
+    setCategoryInvites(ci.data ?? []);
     setCategories(c.data ?? []);
     setUnits(u.data ?? []);
 
@@ -127,21 +147,29 @@ export default function Invites() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (role === 'category_chief') {
-      // Create one invite per selected category
-      const inserts = selectedCategoryIds.map(catId => ({
-        role,
-        team_id: roleInfo.team_id!,
-        category_id: catId,
-        unit_id: null,
-        created_by: user?.id ?? null,
-      }));
-      const { error } = await supabase.from('invites').insert(inserts);
-      if (error) {
-        toast.error(error.message || 'Erro ao criar convites.');
+      // Create category invite with unique token
+      const { data: tokenData, error: tokenError } = await supabase.rpc('generate_invite_token');
+      
+      if (tokenError || !tokenData) {
+        toast.error('Erro ao gerar token do convite.');
         return;
       }
-      toast.success(`${selectedCategoryIds.length} convite(s) criado(s)!`);
+
+      const { error } = await supabase.from('category_invites').insert({
+        token: tokenData,
+        admin_id: user?.id ?? null,
+        category_ids: selectedCategoryIds,
+        label: inviteLabel,
+        max_uses: 1, // Uso único
+      });
+      
+      if (error) {
+        toast.error(error.message || 'Erro ao criar convite.');
+        return;
+      }
+      toast.success(`Convite criado para ${selectedCategoryIds.length} categoria(s)!`);
     } else {
+      // Legacy invites for other roles
       const { error } = await supabase.from('invites').insert({
         role,
         team_id: roleInfo.team_id,
@@ -159,6 +187,7 @@ export default function Invites() {
     setOpen(false);
     setRole('unit_manager');
     setSelectedCategoryIds([]);
+    setInviteLabel('');
     setUnitId('');
     load();
   };
@@ -191,6 +220,12 @@ export default function Invites() {
 
   const copyLink = async (token: string) => {
     const url = `${window.location.origin}/registro?token=${token}`;
+    await navigator.clipboard.writeText(url);
+    toast.success('Link copiado!');
+  };
+
+  const copyCategoryInviteLink = async (token: string) => {
+    const url = `${window.location.origin}/aceite-convite?token=${token}`;
     await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };
@@ -262,6 +297,15 @@ export default function Invites() {
               <DialogDescription>Gere um link de convite para novo usuário.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Nome do convite (opcional)</Label>
+                <Input
+                  placeholder="Ex: Convite Categoria Emergência"
+                  value={inviteLabel}
+                  onChange={(e) => setInviteLabel(e.target.value)}
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Nível de acesso</Label>
                 <Select value={role} onValueChange={setRole}>
@@ -338,10 +382,89 @@ export default function Invites() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="category-invites" className="gap-1"><LinkIcon size={14} /> Convites Categoria ({categoryInvites.length})</TabsTrigger>
+          <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Outros Convites ({invites.length})</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({groupedUsers.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="category-invites" className="mt-4">
+          {categoryInvites.length === 0 ? (
+            <div className="empty-state">
+              <LinkIcon className="mx-auto mb-3 text-muted-foreground" size={40} />
+              <p className="text-muted-foreground">Nenhum convite de categoria criado</p>
+            </div>
+          ) : (
+            <div className="page-card overflow-x-auto">
+              <table className="schedule-table">
+                <thead>
+                  <tr>
+                    <th className="text-left">Label</th>
+                    <th className="text-left">Categorias</th>
+                    <th className="text-left">Status</th>
+                    <th className="text-left">Usos</th>
+                    <th className="text-left">Criado em</th>
+                    <th className="text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categoryInvites.map((invite) => (
+                    <tr key={invite.id}>
+                      <td className="font-medium">{invite.label || '—'}</td>
+                      <td>
+                        <div className="flex flex-wrap gap-1">
+                          {invite.category_ids.map(cid => (
+                            <Badge key={cid} variant="outline" className="text-xs">{getCatName(cid)}</Badge>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'}>
+                          {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Aceito' : 'Inativo'}
+                        </Badge>
+                      </td>
+                      <td className="text-sm">
+                        {invite.uses_count}/{invite.max_uses ?? '∞'}
+                      </td>
+                      <td className="text-sm">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {invite.is_active && !invite.accepted_by && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => copyCategoryInviteLink(invite.token)} 
+                              className="gap-1"
+                            >
+                              <Copy size={14} /> Copiar Link
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={async () => {
+                              if (!confirm('Tem certeza que deseja excluir este convite?')) return;
+                              const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
+                              if (error) {
+                                toast.error(error.message || 'Erro ao excluir convite.');
+                                return;
+                              }
+                              toast.success('Convite excluído!');
+                              load();
+                            }} 
+                            className="h-8 w-8"
+                          >
+                            <Trash2 size={14} className="text-destructive" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="invites" className="mt-4">
           {invites.length === 0 ? (

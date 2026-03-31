@@ -7,6 +7,7 @@ import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Schedules from "./pages/Schedules";
@@ -47,6 +48,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/registro" element={<Register />} />
+            <Route path="/aceite-convite" element={<AcceptInvite />} />
 
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
