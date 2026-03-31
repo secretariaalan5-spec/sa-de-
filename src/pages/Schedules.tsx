@@ -254,7 +254,7 @@ export default function Schedules() {
                   <tr key={s.id}>
                     <td className="font-medium">{getEmpName(s.employee_id)}</td>
                     <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td><Badge variant={s.type === 'extra' ? 'default' : 'secondary'}>{s.type === 'extra' ? 'Extra' : 'Normal'}</Badge></td>
+                    <td><Badge variant="default">Extra (+2)</Badge></td>
                     {canCreate && (
                       <td className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}><Trash2 size={16} className="text-destructive" /></Button>
