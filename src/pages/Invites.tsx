@@ -108,7 +108,9 @@ export default function Invites() {
 
     setUserRoles(roles ?? []);
 
-    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean)));
+    const roleUserIds = (roles ?? []).map((r: any) => r.user_id).filter(Boolean);
+    const acceptedUserIds = (ci.data ?? []).map((inv: any) => inv.accepted_by).filter(Boolean);
+    const userIds = Array.from(new Set([...roleUserIds, ...acceptedUserIds]));
     if (userIds.length === 0) {
       setProfiles([]);
       return;
