@@ -79,6 +79,54 @@ export type Database = {
           },
         ]
       }
+      category_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          admin_id: string
+          category_ids: string[]
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          max_uses: number | null
+          token: string
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_id: string
+          category_ids: string[]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          token: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          admin_id?: string
+          category_ids?: string[]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          max_uses?: number | null
+          token?: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           active: boolean
@@ -631,6 +679,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_category_invite: { Args: { p_token: string }; Returns: Json }
+      generate_invite_token: { Args: never; Returns: string }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       user_category_id: { Args: never; Returns: string }
       user_category_ids: { Args: never; Returns: string[] }
