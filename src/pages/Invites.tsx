@@ -565,7 +565,10 @@ export default function Invites() {
                       <tr key={userRole.user_id}>
                         <td>
                           <div className="flex items-center gap-2">
-                            <UserCircle size={18} className="text-muted-foreground" />
+                            <Avatar className="h-7 w-7">
+                              {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
+                              <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
                             <span className="font-medium text-sm">{name}</span>
                           </div>
                         </td>
