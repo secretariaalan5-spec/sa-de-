@@ -238,6 +238,10 @@ export default function Invites() {
     return p?.display_name || userId.substring(0, 8) + '...';
   };
 
+  const getProfileAvatar = (userId: string) => {
+    return profiles.find((profile) => profile.user_id === userId)?.avatar_url ?? null;
+  };
+
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
   const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
