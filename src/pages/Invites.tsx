@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search, Link as LinkIcon } from 'lucide-react';
+import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 interface Invite {
@@ -68,7 +68,6 @@ export default function Invites() {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState('unit_manager');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [inviteLabel, setInviteLabel] = useState('');
   const [unitId, setUnitId] = useState('');
   const [activeTab, setActiveTab] = useState('category-invites');
   const [searchUsers, setSearchUsers] = useState('');
@@ -147,22 +146,18 @@ export default function Invites() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (role === 'category_chief') {
-      // Create category invite with unique token
-      const { data: tokenData, error: tokenError } = await supabase.rpc('generate_invite_token');
-      
-      if (tokenError || !tokenData) {
-        toast.error('Erro ao gerar token do convite.');
-        return;
-      }
+      // Gerar token único no frontend (32 caracteres hex)
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
       const { error } = await supabase.from('category_invites').insert({
-        token: tokenData,
+        token: token,
         admin_id: user?.id ?? null,
         category_ids: selectedCategoryIds,
-        label: inviteLabel,
         max_uses: 1, // Uso único
       });
-      
+
       if (error) {
         toast.error(error.message || 'Erro ao criar convite.');
         return;
@@ -187,7 +182,6 @@ export default function Invites() {
     setOpen(false);
     setRole('unit_manager');
     setSelectedCategoryIds([]);
-    setInviteLabel('');
     setUnitId('');
     load();
   };
@@ -298,15 +292,6 @@ export default function Invites() {
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Nome do convite (opcional)</Label>
-                <Input
-                  placeholder="Ex: Convite Categoria Emergência"
-                  value={inviteLabel}
-                  onChange={(e) => setInviteLabel(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
                 <Label>Nível de acesso</Label>
                 <Select value={role} onValueChange={setRole}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -383,7 +368,7 @@ export default function Invites() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="category-invites" className="gap-1"><LinkIcon size={14} /> Convites Categoria ({categoryInvites.length})</TabsTrigger>
+          <TabsTrigger value="category-invites" className="gap-1"><Users size={14} /> Convites Categoria ({categoryInvites.length})</TabsTrigger>
           <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Outros Convites ({invites.length})</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({groupedUsers.length})</TabsTrigger>
         </TabsList>
@@ -391,7 +376,7 @@ export default function Invites() {
         <TabsContent value="category-invites" className="mt-4">
           {categoryInvites.length === 0 ? (
             <div className="empty-state">
-              <LinkIcon className="mx-auto mb-3 text-muted-foreground" size={40} />
+              <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
               <p className="text-muted-foreground">Nenhum convite de categoria criado</p>
             </div>
           ) : (
