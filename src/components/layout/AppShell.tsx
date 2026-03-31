@@ -40,6 +40,12 @@ export function AppShell() {
   const { roleDescription } = useRoleDetails(roleInfo);
   const { canInstall, install } = usePWAInstall();
 
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { if (data?.avatar_url) setAvatarUrl(data.avatar_url); });
+  }, [user]);
+
   // Delay rendering until isMobile is determined to prevent sidebar flash
   useEffect(() => {
     if (isMobile !== undefined) setLayoutReady(true);
@@ -51,12 +57,6 @@ export function AppShell() {
   const hasMore = filtered.length > 4;
 
   if (!layoutReady) return null;
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => { if (data?.avatar_url) setAvatarUrl(data.avatar_url); });
-  }, [user]);
 
   const handleLogout = async () => {
     await signOut();
