@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2, Link as LinkIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Link as LinkIcon, Stethoscope } from 'lucide-react';
 
 interface CategoryInvite {
   id: string;
@@ -32,7 +32,10 @@ export default function AcceptInvite() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const token = new URLSearchParams(window.location.search).get('token');
 
   useEffect(() => {
     loadInvite();
@@ -40,47 +43,40 @@ export default function AcceptInvite() {
 
   const loadInvite = async () => {
     try {
-      const token = new URLSearchParams(window.location.search).get('token');
-      
       if (!token) {
         setError('Token de convite não fornecido.');
         setLoading(false);
         return;
       }
 
-      // Carregar convite
-      const { data: inviteData, error: inviteError } = await supabase
-        .from('category_invites')
-        .select('*')
-        .eq('token', token)
-        .single();
+      const [inviteRes, userRes] = await Promise.all([
+        supabase.from('category_invites').select('*').eq('token', token).single(),
+        supabase.auth.getUser(),
+      ]);
 
-      if (inviteError || !inviteData) {
+      if (inviteRes.error || !inviteRes.data) {
         setError('Convite não encontrado ou inválido.');
         setLoading(false);
         return;
       }
 
-      setInvite(inviteData);
+      setInvite(inviteRes.data);
 
-      // Carregar categorias
-      if (inviteData.category_ids.length > 0) {
+      if (inviteRes.data.category_ids.length > 0) {
         const { data: catsData } = await supabase
           .from('categories')
           .select('id, name')
-          .in('id', inviteData.category_ids);
-        
+          .in('id', inviteRes.data.category_ids);
         setCategories(catsData ?? []);
       }
 
-      // Verificar usuário logado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email ?? null);
+      if (userRes.data?.user) {
+        setUserEmail(userRes.data.user.email ?? null);
+        setUserId(userRes.data.user.id);
       }
 
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Erro ao carregar convite.');
       setLoading(false);
     }
@@ -88,7 +84,6 @@ export default function AcceptInvite() {
 
   const handleAccept = async () => {
     if (!invite) return;
-
     setAccepting(true);
 
     try {
@@ -102,20 +97,24 @@ export default function AcceptInvite() {
       }
 
       toast.success(data.message);
-      
-      // Aguardar um momento e redirecionar
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
-    } catch (err) {
+      setTimeout(() => navigate('/'), 2000);
+    } catch {
       toast.error('Erro ao processar convite.');
     } finally {
       setAccepting(false);
     }
   };
 
-  const handleLogin = () => {
-    navigate('/login');
+  const handleGoogleLogin = async () => {
+    // Redirect to Google OAuth, coming back to this same page with the token
+    const redirectUrl = `${window.location.origin}/aceite-convite?token=${token}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirectUrl },
+    });
+    if (error) {
+      toast.error('Erro ao conectar com Google.');
+    }
   };
 
   if (loading) {
@@ -148,35 +147,30 @@ export default function AcceptInvite() {
     );
   }
 
-  if (!invite) {
-    return null;
-  }
+  if (!invite) return null;
 
   const isExpired = invite.expires_at && new Date(invite.expires_at) < new Date();
-  const isAccepted = invite.accepted_by !== null;
   const isMaxUsesReached = invite.max_uses !== null && invite.uses_count >= invite.max_uses;
-  const canAccept = invite.is_active && !isExpired && !isAccepted && !isMaxUsesReached;
+  const canAccept = invite.is_active && !isExpired && !isMaxUsesReached;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <LinkIcon className="mx-auto h-12 w-12 text-primary" />
-          <CardTitle className="mt-4">
-            {isAccepted ? 'Convite já Aceito' : canAccept ? 'Convite de Chefe de Categoria' : 'Convite Indisponível'}
+          <div className="bg-primary/10 p-3 rounded-2xl inline-flex mx-auto mb-2">
+            <Stethoscope className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="mt-2">
+            {canAccept ? 'Convite de Chefe de Categoria' : 'Convite Indisponível'}
           </CardTitle>
           <CardDescription>
-            {invite.label || 'Convite para múltiplas categorias'}
+            {invite.label || 'Você foi convidado para gerenciar categorias'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Status */}
           <div className="flex items-center justify-center gap-2">
-            {isAccepted ? (
-              <Badge variant="secondary" className="text-sm">
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Aceito em {invite.accepted_at ? new Date(invite.accepted_at).toLocaleDateString('pt-BR') : ''}
-              </Badge>
-            ) : canAccept ? (
+            {canAccept ? (
               <Badge variant="default" className="text-sm">
                 <CheckCircle2 className="h-4 w-4 mr-1" /> Disponível
               </Badge>
@@ -189,7 +183,7 @@ export default function AcceptInvite() {
 
           {/* Categorias */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-center">Categorias atribuídas:</p>
+            <p className="text-sm font-medium text-center">Categorias que você irá gerenciar:</p>
             <div className="flex flex-wrap justify-center gap-2">
               {categories.map((cat) => (
                 <Badge key={cat.id} variant="outline" className="text-sm">
@@ -202,25 +196,17 @@ export default function AcceptInvite() {
             )}
           </div>
 
-          {/* Informações de uso */}
-          <div className="text-center text-sm text-muted-foreground">
-            <p>Usos: {invite.uses_count}/{invite.max_uses ?? '∞'}</p>
-            {invite.expires_at && (
-              <p>Expira em: {new Date(invite.expires_at).toLocaleDateString('pt-BR')}</p>
-            )}
-          </div>
-
           {/* Ações */}
           <div className="space-y-3">
-            {userEmail ? (
+            {userId ? (
               <>
                 <p className="text-sm text-center">
                   Logado como: <span className="font-medium">{userEmail}</span>
                 </p>
                 {canAccept ? (
-                  <Button 
-                    className="w-full" 
-                    size="lg" 
+                  <Button
+                    className="w-full"
+                    size="lg"
                     onClick={handleAccept}
                     disabled={accepting}
                   >
@@ -232,37 +218,36 @@ export default function AcceptInvite() {
                     ) : (
                       <>
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Aceitar Convite
+                        Aceitar Convite ({categories.length} categoria{categories.length !== 1 ? 's' : ''})
                       </>
                     )}
                   </Button>
-                ) : isAccepted ? (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Este convite já foi aceito anteriormente.
-                  </p>
                 ) : isExpired ? (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Este convite expirou.
-                  </p>
+                  <p className="text-center text-sm text-muted-foreground">Este convite expirou.</p>
                 ) : isMaxUsesReached ? (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Limite de usos atingido.
-                  </p>
-                ) : null}
+                  <p className="text-center text-sm text-muted-foreground">Limite de usos atingido.</p>
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground">Convite não está mais ativo.</p>
+                )}
               </>
             ) : (
               <>
                 <p className="text-sm text-center text-muted-foreground">
-                  Você precisa estar logado para aceitar este convite.
+                  Entre com sua conta Google para aceitar o convite
                 </p>
-                <Button className="w-full" size="lg" onClick={handleLogin}>
-                  Fazer Login
+                <Button className="w-full h-12 font-semibold gap-3" size="lg" onClick={handleGoogleLogin}>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  Entrar com Google
                 </Button>
               </>
             )}
           </div>
 
-          {/* Voltar */}
           <div className="text-center">
             <Button variant="link" onClick={() => navigate('/')}>
               Voltar ao início
