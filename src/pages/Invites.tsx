@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Mail, Copy, Trash2, Users, Search } from 'lucide-react';
+import { Plus, Mail, Copy, Trash2, Users, Search, ArrowRightLeft } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 
@@ -74,6 +74,9 @@ export default function Invites() {
   const [searchUsers, setSearchUsers] = useState('');
   const [userUnitFilter, setUserUnitFilter] = useState('all');
   const [userCategoryFilter, setUserCategoryFilter] = useState('all');
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferUserId, setTransferUserId] = useState('');
+  const [transferToUnitId, setTransferToUnitId] = useState('');
 
   const load = async () => {
     const [i, ci, c, u] = await Promise.all([
@@ -217,6 +220,28 @@ export default function Invites() {
     }
 
     toast.success('Usuário removido completamente do sistema!');
+    load();
+  };
+
+  const handleTransferManager = async () => {
+    if (!transferUserId || !transferToUnitId) return;
+
+    // Update user_roles unit_id
+    const { error: roleErr } = await supabase
+      .from('user_roles')
+      .update({ unit_id: transferToUnitId } as any)
+      .eq('user_id', transferUserId)
+      .eq('role', 'unit_manager');
+
+    if (roleErr) {
+      toast.error('Erro ao transferir gerente.');
+      return;
+    }
+
+    toast.success('Gerente transferido para nova unidade!');
+    setTransferOpen(false);
+    setTransferUserId('');
+    setTransferToUnitId('');
     load();
   };
 
@@ -606,14 +631,31 @@ export default function Invites() {
                         <td className="text-sm text-muted-foreground">{getUnitName(userRole.unit_id)}</td>
                         <td className="text-sm">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
                         <td className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleRemoveUser(userRole.user_id, name)}
-                          >
-                            <Trash2 size={14} className="text-destructive" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            {userRole.role === 'unit_manager' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Transferir para outra unidade"
+                                onClick={() => {
+                                  setTransferUserId(userRole.user_id);
+                                  setTransferToUnitId('');
+                                  setTransferOpen(true);
+                                }}
+                              >
+                                <ArrowRightLeft size={14} className="text-primary" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveUser(userRole.user_id, name)}
+                            >
+                              <Trash2 size={14} className="text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -624,6 +666,42 @@ export default function Invites() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Transfer Manager Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir Gerente de Unidade</DialogTitle>
+            <DialogDescription>
+              Mova o gerente <strong>{transferUserId ? getProfileName(transferUserId) : ''}</strong> para outra unidade. Os dados da unidade anterior serão mantidos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Unidade atual</Label>
+              <p className="text-sm text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+                {getUnitName(groupedUsers.find(u => u.user_id === transferUserId)?.unit_id ?? null)}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nova unidade</Label>
+              <Select value={transferToUnitId} onValueChange={setTransferToUnitId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a unidade destino" /></SelectTrigger>
+                <SelectContent>
+                  {units
+                    .filter(u => u.id !== (groupedUsers.find(gu => gu.user_id === transferUserId)?.unit_id))
+                    .map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleTransferManager} className="w-full" disabled={!transferToUnitId}>
+              Confirmar Transferência
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
