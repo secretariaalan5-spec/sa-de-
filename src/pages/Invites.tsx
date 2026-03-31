@@ -74,6 +74,9 @@ export default function Invites() {
   const [searchUsers, setSearchUsers] = useState('');
   const [userUnitFilter, setUserUnitFilter] = useState('all');
   const [userCategoryFilter, setUserCategoryFilter] = useState('all');
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferUserId, setTransferUserId] = useState('');
+  const [transferToUnitId, setTransferToUnitId] = useState('');
 
   const load = async () => {
     const [i, ci, c, u] = await Promise.all([
