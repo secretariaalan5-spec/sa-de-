@@ -203,15 +203,20 @@ export default function Invites() {
   };
 
   const handleRemoveUser = async (userId: string, userName: string) => {
-    if (!confirm(`Tem certeza que deseja remover o acesso de "${userName}"? O usuário não poderá mais acessar o sistema.`)) return;
+    if (!confirm(`Tem certeza que deseja REMOVER COMPLETAMENTE "${userName}"? Todos os dados e acesso serão apagados permanentemente.`)) return;
 
-    const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
+    const { data, error } = await supabase.rpc('remove_user_completely', { p_user_id: userId });
     if (error) {
       toast.error(error.message || 'Erro ao remover usuário.');
       return;
     }
+    const result = data as any;
+    if (result && !result.success) {
+      toast.error(result.error || 'Erro ao remover usuário.');
+      return;
+    }
 
-    toast.success('Acesso removido!');
+    toast.success('Usuário removido completamente do sistema!');
     load();
   };
 
