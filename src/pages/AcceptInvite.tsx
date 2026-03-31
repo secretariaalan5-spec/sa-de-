@@ -139,8 +139,10 @@ export default function AcceptInvite() {
             <CardTitle className="mt-4 text-destructive">Erro</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => navigate('/')}>Voltar ao início</Button>
+          <CardContent className="text-center space-y-3">
+            <p className="text-sm font-medium">Já tem acesso ao sistema?</p>
+            <Button onClick={() => navigate('/login')} className="w-full">Fazer Login</Button>
+            <Button variant="ghost" onClick={() => navigate('/')}>Voltar ao início</Button>
           </CardContent>
         </Card>
       </div>
