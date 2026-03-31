@@ -681,6 +681,7 @@ export type Database = {
     Functions: {
       accept_category_invite: { Args: { p_token: string }; Returns: Json }
       generate_invite_token: { Args: never; Returns: string }
+      grant_pending_extra_credits: { Args: never; Returns: number }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       user_category_id: { Args: never; Returns: string }
       user_category_ids: { Args: never; Returns: string[] }

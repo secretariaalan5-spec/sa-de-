@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Plus, CalendarOff, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import LeaveRequestForm from '@/components/leave/LeaveRequestForm';
 
 interface LeaveReq {
   id: string;
@@ -36,9 +34,6 @@ export default function LeaveRequests() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [open, setOpen] = useState(false);
-  const [empId, setEmpId] = useState('');
-  const [dates, setDates] = useState('');
-  const [obs, setObs] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
 
   const canRequest = isAdmin || isManager;
@@ -63,13 +58,8 @@ export default function LeaveRequests() {
 
   useEffect(() => { load(); }, []);
 
-  const handleRequest = async (ev: React.FormEvent) => {
-    ev.preventDefault();
-    if (!empId || !dates) return;
-
-    const leaveDates = dates.split(',').map(d => d.trim()).filter(Boolean);
-
-    // 1. Check schedule conflicts (folga + escala no mesmo dia)
+  const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {
+    // 1. Check schedule conflicts
     const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
     if (conflictDates.length > 0) {
       const formatted = conflictDates.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
@@ -77,7 +67,7 @@ export default function LeaveRequests() {
       return;
     }
 
-    // 2. Check duplicate leave dates (duas folgas no mesmo dia)
+    // 2. Check duplicate leave dates
     const existingLeaves = requests.filter(r => r.employee_id === empId && (r.status === 'pending' || r.status === 'approved'));
     const allExistingDates = existingLeaves.flatMap(r => r.leave_dates ?? []);
     const duplicateDates = leaveDates.filter(d => allExistingDates.includes(d));
@@ -87,7 +77,7 @@ export default function LeaveRequests() {
       return;
     }
 
-    // 3. Check balance (saldo < dias solicitados)
+    // 3. Check balance
     const balance = getBalance(empId);
     if (balance < leaveDates.length) {
       toast.error(`Saldo insuficiente. Saldo atual: ${balance} crédito(s), solicitado: ${leaveDates.length} dia(s).`);
@@ -107,7 +97,7 @@ export default function LeaveRequests() {
 
     if (error) { toast.error('Erro ao solicitar folga.'); return; }
     toast.success('Pedido de folga enviado!');
-    setOpen(false); setEmpId(''); setDates(''); setObs('');
+    setOpen(false);
     load();
   };
 
@@ -164,42 +154,9 @@ export default function LeaveRequests() {
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         {canRequest && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus size={16} /> Solicitar Folga</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Solicitar Folga</DialogTitle>
-                <DialogDescription>Envie um pedido para aprovação do chefe de categoria.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleRequest} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Funcionário</Label>
-                  <Select value={empId} onValueChange={setEmpId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                  {empId && (
-                    <p className="text-xs text-muted-foreground">
-                      Saldo atual: <span className={cn('font-bold', getBalance(empId) > 0 ? 'text-primary' : 'text-destructive')}>{getBalance(empId)} crédito(s)</span>
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Datas (separadas por vírgula, formato AAAA-MM-DD)</Label>
-                  <Input value={dates} onChange={e => setDates(e.target.value)} placeholder="2026-04-01, 2026-04-02" required />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Observações</Label>
-                  <Input value={obs} onChange={e => setObs(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full">Enviar Pedido</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button className="gap-2" onClick={() => setOpen(true)}>
+            <Plus size={16} /> Solicitar Folga
+          </Button>
         )}
       </div>
 
@@ -287,6 +244,22 @@ export default function LeaveRequests() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Leave Request Dialog with Calendar */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Solicitar Folga</DialogTitle>
+            <DialogDescription>Selecione o período clicando na data de início e fim.</DialogDescription>
+          </DialogHeader>
+          <LeaveRequestForm
+            employees={employees}
+            getBalance={getBalance}
+            onSubmit={handleRequest}
+            onCancel={() => setOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
