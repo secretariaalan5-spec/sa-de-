@@ -23,6 +23,7 @@ interface ScheduleStat {
 export default function Dashboard() {
   const { roleInfo, isAdmin, isRH, isChief, isManager, user } = useAuthContext();
   const navigate = useNavigate();
+  const { roleDescription, categoryNames, unitName } = useRoleDetails(roleInfo);
   const [stats, setStats] = useState({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0, categories: 0, approvedLeaves: 0 });
   const [recentLeaves, setRecentLeaves] = useState<RecentLeave[]>([]);
   const [scheduleStat, setScheduleStat] = useState<ScheduleStat>({ total: 0, extras: 0 });
