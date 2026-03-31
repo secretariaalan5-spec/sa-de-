@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Mail, Copy, Trash2, Users, UserCircle, Search } from 'lucide-react';
+import { Plus, Mail, Copy, Trash2, Users, Search } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 
 interface Invite {
@@ -107,7 +108,9 @@ export default function Invites() {
 
     setUserRoles(roles ?? []);
 
-    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id).filter(Boolean)));
+    const roleUserIds = (roles ?? []).map((r: any) => r.user_id).filter(Boolean);
+    const acceptedUserIds = (ci.data ?? []).map((inv: any) => inv.accepted_by).filter(Boolean);
+    const userIds = Array.from(new Set([...roleUserIds, ...acceptedUserIds]));
     if (userIds.length === 0) {
       setProfiles([]);
       return;
@@ -235,6 +238,10 @@ export default function Invites() {
   const getProfileName = (userId: string) => {
     const p = profiles.find((profile) => profile.user_id === userId);
     return p?.display_name || userId.substring(0, 8) + '...';
+  };
+
+  const getProfileAvatar = (userId: string) => {
+    return profiles.find((profile) => profile.user_id === userId)?.avatar_url ?? null;
   };
 
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
@@ -387,7 +394,7 @@ export default function Invites() {
                     <th className="text-left">Label</th>
                     <th className="text-left">Categorias</th>
                     <th className="text-left">Status</th>
-                    <th className="text-left">Usos</th>
+                    <th className="text-left">Aceito por</th>
                     <th className="text-left">Criado em</th>
                     <th className="text-right">Ações</th>
                   </tr>
@@ -408,8 +415,18 @@ export default function Invites() {
                           {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Aceito' : 'Inativo'}
                         </Badge>
                       </td>
-                      <td className="text-sm">
-                        {invite.uses_count}/{invite.max_uses ?? '∞'}
+                      <td>
+                        {invite.accepted_by ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
+                              <AvatarFallback className="bg-primary text-primary-foreground text-[9px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{getProfileName(invite.accepted_by)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="text-sm">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
                       <td className="text-right">
@@ -564,7 +581,10 @@ export default function Invites() {
                       <tr key={userRole.user_id}>
                         <td>
                           <div className="flex items-center gap-2">
-                            <UserCircle size={18} className="text-muted-foreground" />
+                            <Avatar className="h-7 w-7">
+                              {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
+                              <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
                             <span className="font-medium text-sm">{name}</span>
                           </div>
                         </td>

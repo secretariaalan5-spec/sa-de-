@@ -27,12 +27,13 @@ export function useAuth() {
     if (data && data.length > 0) {
       const first = data[0];
       const categoryIds = data.map((r: any) => r.category_id).filter(Boolean) as string[];
+      const teamId = data.find((r: any) => r.team_id)?.team_id ?? first.team_id;
       setRoleInfo({
         role: first.role as UserRole,
         category_id: first.category_id,
         category_ids: categoryIds,
         unit_id: first.unit_id,
-        team_id: first.team_id,
+        team_id: teamId,
       });
       return true;
     }

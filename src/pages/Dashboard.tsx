@@ -34,16 +34,25 @@ export default function Dashboard() {
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
+      // Build queries based on role
+      let empQuery = supabase.from('employees').select('id', { count: 'exact', head: true });
+      let schQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).gte('date', monthStart).lt('date', monthEnd);
+      let leavesQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+      let approvedQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'approved');
+      let recentQuery = supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').order('created_at', { ascending: false }).limit(5);
+      let extrasQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd);
+      let empListQuery = supabase.from('employees').select('id, name').eq('active', true);
+
       const [emp, sch, leaves, units, cats, approved, recent, extras, empList] = await Promise.all([
-        supabase.from('employees').select('id', { count: 'exact', head: true }),
-        supabase.from('schedules').select('id', { count: 'exact', head: true }).gte('date', monthStart).lt('date', monthEnd),
-        supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        empQuery,
+        schQuery,
+        leavesQuery,
         supabase.from('units').select('id', { count: 'exact', head: true }),
         supabase.from('categories').select('id', { count: 'exact', head: true }),
-        supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
-        supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd),
-        supabase.from('employees').select('id, name').eq('active', true),
+        approvedQuery,
+        recentQuery,
+        extrasQuery,
+        empListQuery,
       ]);
       setStats({
         employees: emp.count ?? 0,
