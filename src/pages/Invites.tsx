@@ -666,6 +666,42 @@ export default function Invites() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Transfer Manager Dialog */}
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir Gerente de Unidade</DialogTitle>
+            <DialogDescription>
+              Mova o gerente <strong>{transferUserId ? getProfileName(transferUserId) : ''}</strong> para outra unidade. Os dados da unidade anterior serão mantidos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Unidade atual</Label>
+              <p className="text-sm text-muted-foreground border rounded-md px-3 py-2 bg-muted/30">
+                {getUnitName(groupedUsers.find(u => u.user_id === transferUserId)?.unit_id ?? null)}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nova unidade</Label>
+              <Select value={transferToUnitId} onValueChange={setTransferToUnitId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a unidade destino" /></SelectTrigger>
+                <SelectContent>
+                  {units
+                    .filter(u => u.id !== (groupedUsers.find(gu => gu.user_id === transferUserId)?.unit_id))
+                    .map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleTransferManager} className="w-full" disabled={!transferToUnitId}>
+              Confirmar Transferência
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
