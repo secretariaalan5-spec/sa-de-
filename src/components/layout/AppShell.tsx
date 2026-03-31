@@ -33,16 +33,24 @@ export function AppShell() {
   const { roleInfo, signOut, user, isRH } = useAuthContext();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [layoutReady, setLayoutReady] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
   const { roleDescription } = useRoleDetails(roleInfo);
   const { canInstall, install } = usePWAInstall();
 
+  // Delay rendering until isMobile is determined to prevent sidebar flash
+  useEffect(() => {
+    if (isMobile !== undefined) setLayoutReady(true);
+  }, [isMobile]);
+
   const role = roleInfo?.role ?? '';
   const filtered = navItems.filter(item => item.roles.includes(role));
   const bottomNavItems = filtered.slice(0, 4);
   const hasMore = filtered.length > 4;
+
+  if (!layoutReady) return null;
 
   useEffect(() => {
     if (!user) return;
