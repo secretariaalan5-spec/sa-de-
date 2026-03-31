@@ -413,8 +413,18 @@ export default function Invites() {
                           {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Aceito' : 'Inativo'}
                         </Badge>
                       </td>
-                      <td className="text-sm">
-                        {invite.uses_count}/{invite.max_uses ?? '∞'}
+                      <td>
+                        {invite.accepted_by ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
+                              <AvatarFallback className="bg-primary text-primary-foreground text-[9px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{getProfileName(invite.accepted_by)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="text-sm">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
                       <td className="text-right">
