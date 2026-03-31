@@ -68,7 +68,7 @@ export default function Login() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-muted-foreground text-xs">© 2025 Saúde+ Gestão de Escalas</p>
+          <p className="text-muted-foreground text-xs">© 2026 Saúde+ Gestão de Escalas</p>
         </div>
       </div>
     </div>
