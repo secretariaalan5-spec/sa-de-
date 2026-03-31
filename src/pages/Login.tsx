@@ -30,9 +30,7 @@ export default function Login() {
       <div className="max-w-sm w-full animate-fade-in">
         <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
           <div className="bg-primary p-10 text-center">
-            <div className="bg-primary-foreground/20 p-4 rounded-2xl backdrop-blur-sm inline-flex mb-4">
-              <Stethoscope className="w-10 h-10 text-primary-foreground" />
-            </div>
+            <img src={logoSaude} alt="Saúde+" className="w-20 h-20 mx-auto mb-4 rounded-2xl" />
             <h1 className="text-2xl font-bold text-primary-foreground mb-1">Saúde+ Escalas</h1>
             <p className="text-primary-foreground/80 text-sm">Sistema de Gestão de Escalas</p>
           </div>
