@@ -276,27 +276,18 @@ export default function Schedules() {
             <DialogDescription>Selecione o funcionário, tipo e clique nos dias do calendário.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Funcionário</Label>
-                <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo</Label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="extra">Extra (+2 créditos)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1.5">
+              <Label>Funcionário</Label>
+              <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
+            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+              Tipo: <span className="font-medium text-foreground">Extra (+2 créditos por escala)</span>
+            </p>
 
             {/* Mini calendar */}
             <div>
