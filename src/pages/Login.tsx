@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, Stethoscope } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import logoSaude from '@/assets/logo-saude.png';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
