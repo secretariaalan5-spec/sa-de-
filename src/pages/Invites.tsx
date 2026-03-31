@@ -392,7 +392,7 @@ export default function Invites() {
                     <th className="text-left">Label</th>
                     <th className="text-left">Categorias</th>
                     <th className="text-left">Status</th>
-                    <th className="text-left">Usos</th>
+                    <th className="text-left">Aceito por</th>
                     <th className="text-left">Criado em</th>
                     <th className="text-right">Ações</th>
                   </tr>
