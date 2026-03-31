@@ -223,6 +223,28 @@ export default function Invites() {
     load();
   };
 
+  const handleTransferManager = async () => {
+    if (!transferUserId || !transferToUnitId) return;
+
+    // Update user_roles unit_id
+    const { error: roleErr } = await supabase
+      .from('user_roles')
+      .update({ unit_id: transferToUnitId } as any)
+      .eq('user_id', transferUserId)
+      .eq('role', 'unit_manager');
+
+    if (roleErr) {
+      toast.error('Erro ao transferir gerente.');
+      return;
+    }
+
+    toast.success('Gerente transferido para nova unidade!');
+    setTransferOpen(false);
+    setTransferUserId('');
+    setTransferToUnitId('');
+    load();
+  };
+
   const copyLink = async (token: string) => {
     const url = `${window.location.origin}/registro?token=${token}`;
     await navigator.clipboard.writeText(url);
