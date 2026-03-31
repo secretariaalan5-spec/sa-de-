@@ -139,7 +139,7 @@ export default function Schedules() {
     setOpen(false);
     setEmpId('');
     setSelectedDates([]);
-    setType('normal');
+    setType('extra');
     load();
   };
 
