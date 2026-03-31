@@ -74,11 +74,17 @@ export default function Register() {
   if (!token || !invite) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-        <div className="max-w-sm w-full bg-card rounded-2xl shadow-xl border border-border p-8 text-center">
-          <h1 className="text-xl font-bold mb-2">Convite inválido</h1>
+        <div className="max-w-sm w-full bg-card rounded-2xl shadow-xl border border-border p-8 text-center space-y-4">
+          <h1 className="text-xl font-bold mb-2">Convite inválido ou expirado</h1>
           <p className="text-muted-foreground text-sm">
             Este link de convite é inválido ou já foi utilizado.
           </p>
+          <div className="pt-2 border-t border-border space-y-2">
+            <p className="text-sm font-medium">Já tem acesso ao sistema?</p>
+            <Button onClick={() => window.location.href = '/login'} className="w-full gap-2">
+              Fazer Login
+            </Button>
+          </div>
         </div>
       </div>
     );

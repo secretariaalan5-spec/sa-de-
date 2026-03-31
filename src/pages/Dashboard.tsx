@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useRoleDetails } from '@/hooks/useRoleDetails';
 
 interface RecentLeave {
   id: string;
@@ -22,6 +23,7 @@ interface ScheduleStat {
 export default function Dashboard() {
   const { roleInfo, isAdmin, isRH, isChief, isManager, user } = useAuthContext();
   const navigate = useNavigate();
+  const { roleDescription, categoryNames, unitName } = useRoleDetails(roleInfo);
   const [stats, setStats] = useState({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0, categories: 0, approvedLeaves: 0 });
   const [recentLeaves, setRecentLeaves] = useState<RecentLeave[]>([]);
   const [scheduleStat, setScheduleStat] = useState<ScheduleStat>({ total: 0, extras: 0 });
@@ -110,7 +112,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold">{greeting()}</h1>
           <p className="text-muted-foreground text-sm">
-            {roleLabels[roleInfo?.role ?? 'admin']}
+            {roleDescription || roleLabels[roleInfo?.role ?? 'admin']}
             {isRH && ' — somente visualização'}
           </p>
         </div>

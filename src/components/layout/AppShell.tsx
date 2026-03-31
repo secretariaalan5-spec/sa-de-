@@ -2,14 +2,17 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet,
+  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useRoleDetails } from '@/hooks/useRoleDetails';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
@@ -33,11 +36,11 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { roleDescription } = useRoleDetails(roleInfo);
+  const { canInstall, install } = usePWAInstall();
 
   const role = roleInfo?.role ?? '';
   const filtered = navItems.filter(item => item.roles.includes(role));
-
-  // Bottom nav shows max 5 items on mobile
   const bottomNavItems = filtered.slice(0, 4);
   const hasMore = filtered.length > 4;
 
@@ -61,7 +64,6 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen flex w-full">
-      {/* Mobile hamburger - only when sidebar is used (non-mobile already has sidebar) */}
       {!isMobile && (
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -96,6 +98,18 @@ export function AppShell() {
               {isRH && <Eye size={12} className="ml-auto opacity-40" />}
             </NavLink>
           ))}
+
+          {/* PWA Install */}
+          {canInstall && (
+            <>
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-4 pb-1">App</p>
+              <button onClick={install}
+                className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
+                <Download size={18} />
+                <span>Instalar App</span>
+              </button>
+            </>
+          )}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
@@ -109,7 +123,7 @@ export function AppShell() {
             </Avatar>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.email}</p>
-              <p className="text-[10px] text-sidebar-foreground/50">{roleLabels[role]}</p>
+              <p className="text-[10px] text-sidebar-foreground/50">{roleDescription || roleLabels[role]}</p>
             </div>
             <UserCircle size={14} className="text-sidebar-foreground/40" />
           </button>
@@ -127,9 +141,19 @@ export function AppShell() {
           <header className="sticky top-0 z-30 bg-primary px-4 py-3 flex items-center justify-between shadow-md">
             <div className="flex items-center gap-2">
               <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
-              <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+              <div>
+                <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+                {roleDescription && (
+                  <p className="text-primary-foreground/70 text-[9px] leading-tight truncate max-w-[180px]">{roleDescription}</p>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {canInstall && (
+                <button onClick={install} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground">
+                  <Download size={18} />
+                </button>
+              )}
               <button onClick={() => navigate('/perfil')} className="p-1">
                 <Avatar className="h-7 w-7">
                   {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
@@ -214,6 +238,15 @@ export function AppShell() {
                   <span>{item.label}</span>
                 </NavLink>
               ))}
+              {canInstall && (
+                <button
+                  onClick={() => { install(); setMobileOpen(false); }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors text-foreground hover:bg-muted w-full"
+                >
+                  <Download size={20} />
+                  <span>Instalar App</span>
+                </button>
+              )}
             </div>
           </div>
         </>
