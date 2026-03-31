@@ -683,6 +683,7 @@ export type Database = {
       generate_invite_token: { Args: never; Returns: string }
       grant_pending_extra_credits: { Args: never; Returns: number }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      remove_user_completely: { Args: { p_user_id: string }; Returns: Json }
       user_category_id: { Args: never; Returns: string }
       user_category_ids: { Args: never; Returns: string[] }
       user_is: { Args: { _role: string }; Returns: boolean }
