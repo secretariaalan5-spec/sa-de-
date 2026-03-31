@@ -1,14 +1,16 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, Stethoscope, UserCircle, Wallet,
+  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useIsMobile } from '@/hooks/use-mobile';
+import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
 

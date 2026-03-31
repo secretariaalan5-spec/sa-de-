@@ -31,6 +31,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RootRedirect() {
+  const { session, loading } = useAuthContext();
+  if (loading) return null;
+  return <Navigate to={session ? "/" : "/login"} replace />;
+}
+
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthContext();
   if (loading) return null;
