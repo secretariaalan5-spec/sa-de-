@@ -65,14 +65,19 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
     return dates;
   }, [rangeStart, rangeEnd]);
 
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 10);
+  const minDateStr = minDate.toISOString().split('T')[0];
+
+  const isPastMinAdvance = (day: number) => getDateStr(day) < minDateStr;
+
   const handleDayClick = (day: number) => {
+    if (isPastMinAdvance(day)) return;
     const dateStr = getDateStr(day);
     if (!rangeStart || (rangeStart && rangeEnd)) {
-      // Start new range
       setRangeStart(dateStr);
       setRangeEnd(null);
     } else {
-      // Set end of range
       setRangeEnd(dateStr);
     }
   };
@@ -120,7 +125,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
       <div className="space-y-2">
         <Label>Período da folga</Label>
         <p className="text-xs text-muted-foreground">
-          {!rangeStart ? 'Clique na data de início' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
+          {!rangeStart ? 'Clique na data de início (mín. 10 dias de antecedência)' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
         </p>
 
         <div className="bg-muted/30 rounded-xl p-3 border border-border">
@@ -143,19 +148,22 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
               const inRange = isInRange(day);
               const start = isRangeStart(day);
               const end = isRangeEnd(day);
+              const disabled = isPastMinAdvance(day);
               return (
                 <button
                   key={day}
                   type="button"
+                  disabled={disabled}
                   onClick={() => handleDayClick(day)}
                   className={cn(
                     'h-9 rounded-md text-sm font-medium transition-all relative',
-                    inRange && !start && !end && 'bg-primary/15 text-primary',
-                    start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
-                    end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
-                    start && end && 'rounded-md',
-                    !inRange && 'hover:bg-muted text-foreground',
-                    isToday(day) && !inRange && 'ring-1 ring-primary',
+                    disabled && 'opacity-30 cursor-not-allowed text-muted-foreground',
+                    !disabled && inRange && !start && !end && 'bg-primary/15 text-primary',
+                    !disabled && start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
+                    !disabled && end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
+                    !disabled && start && end && 'rounded-md',
+                    !disabled && !inRange && 'hover:bg-muted text-foreground',
+                    !disabled && isToday(day) && !inRange && 'ring-1 ring-primary',
                   )}
                 >
                   {day}
