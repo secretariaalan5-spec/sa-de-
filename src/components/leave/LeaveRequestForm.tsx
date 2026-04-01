@@ -148,9 +148,8 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
               const inRange = isInRange(day);
               const start = isRangeStart(day);
               const end = isRangeEnd(day);
+              const disabled = isPastMinAdvance(day);
               return (
-                const disabled = isPastMinAdvance(day);
-                return (
                 <button
                   key={day}
                   type="button"
