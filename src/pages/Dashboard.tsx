@@ -234,13 +234,109 @@ export default function Dashboard() {
               </>
             )}
             {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
-                <Tag size={14} /> Gerar Convite
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
+                  <Tag size={14} /> Gerar Convite
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAnnouncementOpen(true)} className="gap-2">
+                  <Megaphone size={14} /> Comunicado
+                </Button>
+              </>
             )}
           </div>
         </div>
       )}
+
+      {/* Announcement Dialog */}
+      <AnnouncementDialog
+        open={announcementOpen}
+        onClose={() => setAnnouncementOpen(false)}
+        teamId={roleInfo?.team_id ?? ''}
+      />
     </div>
+  );
+}
+
+function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose: () => void; teamId: string }) {
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast.error('Preencha o título e a mensagem');
+      return;
+    }
+    setSending(true);
+    try {
+      // Get all unit_manager user IDs for this team
+      const { data: managers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('team_id', teamId)
+        .eq('role', 'unit_manager');
+
+      const managerIds = (managers ?? []).map((m: any) => m.user_id);
+
+      if (managerIds.length === 0) {
+        toast.error('Nenhum gerente de unidade encontrado');
+        setSending(false);
+        return;
+      }
+
+      // Insert a notification for each manager
+      const notifications = managerIds.map((uid: string) => ({
+        user_id: uid,
+        team_id: teamId,
+        title: `📢 ${title}`,
+        message,
+        link: '/',
+      }));
+
+      const { error } = await supabase.from('notifications').insert(notifications);
+      if (error) throw error;
+
+      toast.success(`Comunicado enviado para ${managerIds.length} gerente(s)`);
+      setTitle('');
+      setMessage('');
+      onClose();
+    } catch (err: any) {
+      toast.error('Erro ao enviar: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Megaphone size={18} className="text-primary" />
+            Enviar Comunicado
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            O comunicado será enviado como notificação para todos os gerentes de unidade da equipe.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="ann-title">Título</Label>
+            <Input id="ann-title" placeholder="Ex: Reunião amanhã" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ann-msg">Mensagem</Label>
+            <Textarea id="ann-msg" placeholder="Detalhes do comunicado..." value={message} onChange={e => setMessage(e.target.value)} rows={4} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSend} disabled={sending} className="gap-2">
+            <Megaphone size={14} />
+            {sending ? 'Enviando...' : 'Enviar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
