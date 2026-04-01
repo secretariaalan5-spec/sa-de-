@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saude-plus-v3';
+const CACHE_NAME = 'saude-plus-v4';
 const ASSETS_TO_CACHE = [
     '/',
     '/manifest.json',
@@ -42,6 +42,28 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // SPA navigation fallback: always serve index.html for navigation requests
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // If we got a 404 for a navigation request, serve index.html instead
+                    if (response.status === 404) {
+                        return fetch('/');
+                    }
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseClone);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match('/') || new Response('Offline', { status: 503 });
+                })
+        );
+        return;
+    }
+
     event.respondWith(
         fetch(event.request)
             .then((response) => {
@@ -56,10 +78,6 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
                 return caches.match(event.request).then(cached => {
                     if (cached) return cached;
-                    // Fallback to index.html for navigation requests (SPA)
-                    if (event.request.mode === 'navigate') {
-                        return caches.match('/');
-                    }
                     return new Response('Offline', { status: 503 });
                 });
             })
@@ -94,11 +112,11 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const url = event.notification.data?.url || '/portal';
+    const url = event.notification.data?.url || '/';
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
             for (const client of clients) {
-                if (client.url.includes('/portal') && 'focus' in client) {
+                if ('focus' in client) {
                     return client.focus();
                 }
             }
