@@ -125,7 +125,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
       <div className="space-y-2">
         <Label>Período da folga</Label>
         <p className="text-xs text-muted-foreground">
-          {!rangeStart ? 'Clique na data de início' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
+          {!rangeStart ? 'Clique na data de início (mín. 10 dias de antecedência)' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
         </p>
 
         <div className="bg-muted/30 rounded-xl p-3 border border-border">
