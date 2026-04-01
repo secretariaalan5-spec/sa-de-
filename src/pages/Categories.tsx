@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ export default function Categories() {
   };
 
   useEffect(() => { load(); }, []);
+  useDataSubscription(['categories'], load);
 
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();

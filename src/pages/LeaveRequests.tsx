@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -57,6 +58,7 @@ export default function LeaveRequests() {
   };
 
   useEffect(() => { load(); }, []);
+  useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
   const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {
     // 1. Check schedule conflicts
@@ -95,7 +97,7 @@ export default function LeaveRequests() {
       status: 'pending',
     });
 
-    if (error) { toast.error('Erro ao solicitar folga.'); return; }
+    if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
     toast.success('Pedido de folga enviado!');
     setOpen(false);
     load();
@@ -119,7 +121,7 @@ export default function LeaveRequests() {
       .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() } as any)
       .eq('id', id);
 
-    if (error) { toast.error('Erro ao processar decisão.'); return; }
+    if (error) { toast.error(error.message || 'Erro ao processar decisão.'); return; }
     toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
     load();
   };

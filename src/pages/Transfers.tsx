@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -53,6 +54,7 @@ export default function Transfers() {
   };
 
   useEffect(() => { load(); }, []);
+  useDataSubscription(['transfer_history', 'employees', 'units', 'leave_requests'], load);
 
   // Check transfer blocking when employee changes
   useEffect(() => {

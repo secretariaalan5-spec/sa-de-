@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -39,43 +40,46 @@ export default function BalancePanel() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const load = async () => {
+    const [empRes, credRes, catRes, unitRes] = await Promise.all([
+      supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true),
+      supabase.from('leave_credits').select('employee_id, amount, origin'),
+      supabase.from('categories').select('id, name, color'),
+      supabase.from('units').select('id, name'),
+    ]);
+
+    const employees: Employee[] = empRes.data ?? [];
+    const credits: Credit[] = credRes.data ?? [];
+    const categories: Category[] = catRes.data ?? [];
+    const units: Unit[] = unitRes.data ?? [];
+
+    const catMap = Object.fromEntries(categories.map(c => [c.id, c]));
+    const unitMap = Object.fromEntries(units.map(u => [u.id, u]));
+
+    const balances: BalanceRow[] = employees.map(emp => {
+      const empCredits = credits.filter(c => c.employee_id === emp.id);
+      const extras = empCredits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
+      const used = Math.abs(empCredits.filter(c => c.amount < 0).reduce((s, c) => s + c.amount, 0));
+      return {
+        employee: emp,
+        extras,
+        used,
+        balance: extras - used,
+        categoryName: emp.category_id ? catMap[emp.category_id]?.name ?? '—' : '—',
+        unitName: emp.unit_id ? unitMap[emp.unit_id]?.name ?? '—' : '—',
+      };
+    });
+
+    balances.sort((a, b) => b.balance - a.balance);
+    setRows(balances);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const [empRes, credRes, catRes, unitRes] = await Promise.all([
-        supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true),
-        supabase.from('leave_credits').select('employee_id, amount, origin'),
-        supabase.from('categories').select('id, name, color'),
-        supabase.from('units').select('id, name'),
-      ]);
-
-      const employees: Employee[] = empRes.data ?? [];
-      const credits: Credit[] = credRes.data ?? [];
-      const categories: Category[] = catRes.data ?? [];
-      const units: Unit[] = unitRes.data ?? [];
-
-      const catMap = Object.fromEntries(categories.map(c => [c.id, c]));
-      const unitMap = Object.fromEntries(units.map(u => [u.id, u]));
-
-      const balances: BalanceRow[] = employees.map(emp => {
-        const empCredits = credits.filter(c => c.employee_id === emp.id);
-        const extras = empCredits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
-        const used = Math.abs(empCredits.filter(c => c.amount < 0).reduce((s, c) => s + c.amount, 0));
-        return {
-          employee: emp,
-          extras,
-          used,
-          balance: extras - used,
-          categoryName: emp.category_id ? catMap[emp.category_id]?.name ?? '—' : '—',
-          unitName: emp.unit_id ? unitMap[emp.unit_id]?.name ?? '—' : '—',
-        };
-      });
-
-      balances.sort((a, b) => b.balance - a.balance);
-      setRows(balances);
-      setLoading(false);
-    };
     load();
   }, []);
+
+  useDataSubscription(['employees', 'leave_credits', 'categories', 'units'], load);
 
   const filtered = rows.filter(r =>
     r.employee.name.toLowerCase().includes(search.toLowerCase()) ||
