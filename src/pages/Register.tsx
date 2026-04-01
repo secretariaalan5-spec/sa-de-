@@ -54,7 +54,7 @@ export default function Register() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.host === 'localhost:5173' ? 'http://localhost:5173' : window.location.origin}/?token=${invite.token}`,
         },
       });
       if (error) throw error;

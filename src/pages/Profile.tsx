@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Camera, User, Mail, Shield, Save } from 'lucide-react';
 
 export default function Profile() {
-  const { user, roleInfo } = useAuthContext();
+  const { user, roleInfo, loading } = useAuthContext();
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -119,7 +119,9 @@ export default function Profile() {
           />
         </div>
         {uploading && <p className="text-xs text-muted-foreground">Enviando...</p>}
-        <p className="text-sm font-medium">{roleLabels[roleInfo?.role ?? 'professional']}</p>
+        <p className="text-sm font-medium">
+          {roleInfo?.role ? roleLabels[roleInfo.role] : (loading ? 'Carregando...' : 'Sem Permissão')}
+        </p>
       </div>
 
       <div className="page-card space-y-4">
@@ -135,7 +137,11 @@ export default function Profile() {
 
         <div className="space-y-1.5">
           <Label className="flex items-center gap-2"><Shield size={14} /> Função</Label>
-          <Input value={roleLabels[roleInfo?.role ?? 'professional']} disabled className="bg-muted" />
+          <Input 
+            value={roleInfo?.role ? roleLabels[roleInfo.role] : (loading ? 'Carregando...' : 'Sem Permissão')} 
+            disabled 
+            className="bg-muted" 
+          />
         </div>
 
         <Button onClick={handleSave} disabled={saving} className="w-full gap-2">

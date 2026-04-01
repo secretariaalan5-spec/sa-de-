@@ -41,7 +41,10 @@ export function useAuth() {
   }, []);
 
   const processPendingInvite = useCallback(async (userId: string) => {
-    const token = localStorage.getItem('pending_invite_token');
+    // Try to get token from URL params first (robust for mobile redirects), then fallback to localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token') || localStorage.getItem('pending_invite_token');
+
     if (!token || processingRef.current) return;
     processingRef.current = true;
 
@@ -107,6 +110,11 @@ export function useAuth() {
       console.error('Error processing invite:', err);
     } finally {
       localStorage.removeItem('pending_invite_token');
+
+      // Also clean up the token from the URL to avoid reprocessing
+      if (window.location.search.includes('token=')) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
       processingRef.current = false;
     }
   }, [fetchRole]);
