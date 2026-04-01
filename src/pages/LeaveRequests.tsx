@@ -124,7 +124,10 @@ export default function LeaveRequests() {
     load();
   };
 
-  const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
+  const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? null;
+
+  // Filter out leave requests from deleted (inactive) employees
+  const activeRequests = requests.filter(r => getEmpName(r.employee_id) !== null);
 
   const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
     pending: { label: 'Pendente', variant: 'secondary', icon: Clock },
@@ -132,12 +135,12 @@ export default function LeaveRequests() {
     rejected: { label: 'Negado', variant: 'destructive', icon: XCircle },
   };
 
-  const filtered = requests.filter(r => activeTab === 'all' ? true : r.status === activeTab);
+  const filtered = activeRequests.filter(r => activeTab === 'all' ? true : r.status === activeTab);
 
   const counts = {
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
+    pending: activeRequests.filter(r => r.status === 'pending').length,
+    approved: activeRequests.filter(r => r.status === 'approved').length,
+    rejected: activeRequests.filter(r => r.status === 'rejected').length,
   };
 
   const roleDescription = isRH
@@ -209,7 +212,7 @@ export default function LeaveRequests() {
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{getEmpName(r.employee_id)}</p>
+                      <p className="font-medium text-sm">{getEmpName(r.employee_id) ?? '—'}</p>
                       <p className="text-xs text-muted-foreground">
                         {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                       </p>

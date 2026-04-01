@@ -112,8 +112,11 @@ export default function Transfers() {
     load();
   };
 
-  const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
+  const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? null;
   const getUnitName = (id: string | null) => units.find(u => u.id === id)?.name ?? '—';
+
+  // Filter out transfers from deleted (inactive) employees
+  const activeTransfers = transfers.filter(t => getEmpName(t.employee_id) !== null);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -170,7 +173,7 @@ export default function Transfers() {
         )}
       </div>
 
-      {transfers.length === 0 ? (
+      {activeTransfers.length === 0 ? (
         <div className="empty-state">
           <ArrowRightLeft className="mx-auto mb-3 text-muted-foreground" size={40} />
           <p className="text-muted-foreground">Nenhuma transferência registrada</p>
@@ -187,9 +190,9 @@ export default function Transfers() {
               </tr>
             </thead>
             <tbody>
-              {transfers.map(t => (
+              {activeTransfers.map(t => (
                 <tr key={t.id}>
-                  <td className="font-medium">{getEmpName(t.employee_id)}</td>
+                  <td className="font-medium">{getEmpName(t.employee_id) ?? '—'}</td>
                   <td>{getUnitName(t.from_unit_id)}</td>
                   <td>{getUnitName(t.to_unit_id)}</td>
                   <td>{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</td>

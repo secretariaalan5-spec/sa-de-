@@ -87,10 +87,19 @@ export default function Employees() {
   };
 
   const handleDelete = async (id: string, empName: string) => {
-    if (!confirm(`Tem certeza que deseja remover o profissional "${empName}"?`)) return;
+    if (!confirm(`Tem certeza que deseja remover o profissional "${empName}"?\n\nIsso também apagará todas as folgas, escalas, transferências e créditos associados.`)) return;
+
+    // Cascade delete all related records
+    await Promise.all([
+      supabase.from('leave_requests').delete().eq('employee_id', id),
+      supabase.from('transfer_history').delete().eq('employee_id', id),
+      supabase.from('leave_credits').delete().eq('employee_id', id),
+      supabase.from('schedules').delete().eq('employee_id', id),
+    ]);
+
     const { error } = await supabase.from('employees').update({ active: false }).eq('id', id);
     if (error) { toast.error('Erro ao remover profissional.'); return; }
-    toast.success('Profissional removido!'); load();
+    toast.success('Profissional removido e dados relacionados apagados!'); load();
   };
 
   const getCat = (id: string | null) => categories.find(c => c.id === id);
