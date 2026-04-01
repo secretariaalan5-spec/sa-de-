@@ -149,18 +149,22 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
               const start = isRangeStart(day);
               const end = isRangeEnd(day);
               return (
+                const disabled = isPastMinAdvance(day);
+                return (
                 <button
                   key={day}
                   type="button"
+                  disabled={disabled}
                   onClick={() => handleDayClick(day)}
                   className={cn(
                     'h-9 rounded-md text-sm font-medium transition-all relative',
-                    inRange && !start && !end && 'bg-primary/15 text-primary',
-                    start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
-                    end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
-                    start && end && 'rounded-md',
-                    !inRange && 'hover:bg-muted text-foreground',
-                    isToday(day) && !inRange && 'ring-1 ring-primary',
+                    disabled && 'opacity-30 cursor-not-allowed text-muted-foreground',
+                    !disabled && inRange && !start && !end && 'bg-primary/15 text-primary',
+                    !disabled && start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
+                    !disabled && end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
+                    !disabled && start && end && 'rounded-md',
+                    !disabled && !inRange && 'hover:bg-muted text-foreground',
+                    !disabled && isToday(day) && !inRange && 'ring-1 ring-primary',
                   )}
                 >
                   {day}
