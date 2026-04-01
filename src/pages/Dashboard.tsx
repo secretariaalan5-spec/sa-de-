@@ -2,10 +2,15 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useNavigate } from 'react-router-dom';
-import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight, Megaphone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface RecentLeave {
   id: string;
