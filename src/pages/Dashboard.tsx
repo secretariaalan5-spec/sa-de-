@@ -2,10 +2,15 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useNavigate } from 'react-router-dom';
-import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight, Megaphone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface RecentLeave {
   id: string;
@@ -26,6 +31,7 @@ export default function Dashboard() {
   const { roleDescription, categoryNames, unitName } = useRoleDetails(roleInfo);
   const [stats, setStats] = useState({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0, categories: 0, approvedLeaves: 0 });
   const [recentLeaves, setRecentLeaves] = useState<RecentLeave[]>([]);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [scheduleStat, setScheduleStat] = useState<ScheduleStat>({ total: 0, extras: 0 });
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
 
@@ -39,27 +45,29 @@ export default function Dashboard() {
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-      let empQuery = supabase.from('employees').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('active', true);
-      let schQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).gte('date', monthStart).lt('date', monthEnd);
-      let leavesQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'pending');
-      let approvedQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'approved');
-      let recentQuery = supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').eq('team_id', teamId).order('created_at', { ascending: false }).limit(5);
-      let extrasQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd);
-      let empListQuery = supabase.from('employees').select('id, name').eq('team_id', teamId).eq('active', true);
+      // First get active employee IDs to filter all queries
+      const { data: activeEmps } = await supabase.from('employees').select('id, name').eq('team_id', teamId).eq('active', true);
+      const activeIds = (activeEmps ?? []).map(e => e.id);
+      setEmployees(activeEmps ?? []);
 
-      const [emp, sch, leaves, units, cats, approved, recent, extras, empList] = await Promise.all([
-        empQuery,
-        schQuery,
-        leavesQuery,
+      if (activeIds.length === 0) {
+        setStats({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0, categories: 0, approvedLeaves: 0 });
+        setRecentLeaves([]);
+        setScheduleStat({ total: 0, extras: 0 });
+        return;
+      }
+
+      const [sch, leaves, units, cats, approved, recent, extras] = await Promise.all([
+        supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).in('employee_id', activeIds).gte('date', monthStart).lt('date', monthEnd),
+        supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).in('employee_id', activeIds).eq('status', 'pending'),
         supabase.from('units').select('id', { count: 'exact', head: true }).eq('team_id', teamId),
         supabase.from('categories').select('id', { count: 'exact', head: true }).eq('team_id', teamId),
-        approvedQuery,
-        recentQuery,
-        extrasQuery,
-        empListQuery,
+        supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).in('employee_id', activeIds).eq('status', 'approved'),
+        supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').eq('team_id', teamId).in('employee_id', activeIds).order('created_at', { ascending: false }).limit(5),
+        supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).in('employee_id', activeIds).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd),
       ]);
       setStats({
-        employees: emp.count ?? 0,
+        employees: activeIds.length,
         schedules: sch.count ?? 0,
         pendingLeaves: leaves.count ?? 0,
         units: units.count ?? 0,
@@ -68,7 +76,6 @@ export default function Dashboard() {
       });
       setRecentLeaves(recent.data ?? []);
       setScheduleStat({ total: sch.count ?? 0, extras: extras.count ?? 0 });
-      setEmployees(empList.data ?? []);
     };
     load();
   }, [roleInfo?.team_id]);
@@ -228,13 +235,109 @@ export default function Dashboard() {
               </>
             )}
             {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
-                <Tag size={14} /> Gerar Convite
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
+                  <Tag size={14} /> Gerar Convite
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAnnouncementOpen(true)} className="gap-2">
+                  <Megaphone size={14} /> Comunicado
+                </Button>
+              </>
             )}
           </div>
         </div>
       )}
+
+      {/* Announcement Dialog */}
+      <AnnouncementDialog
+        open={announcementOpen}
+        onClose={() => setAnnouncementOpen(false)}
+        teamId={roleInfo?.team_id ?? ''}
+      />
     </div>
+  );
+}
+
+function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose: () => void; teamId: string }) {
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast.error('Preencha o título e a mensagem');
+      return;
+    }
+    setSending(true);
+    try {
+      // Get all unit_manager user IDs for this team
+      const { data: managers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('team_id', teamId)
+        .eq('role', 'unit_manager');
+
+      const managerIds = (managers ?? []).map((m: any) => m.user_id);
+
+      if (managerIds.length === 0) {
+        toast.error('Nenhum gerente de unidade encontrado');
+        setSending(false);
+        return;
+      }
+
+      // Insert a notification for each manager
+      const notifications = managerIds.map((uid: string) => ({
+        user_id: uid,
+        team_id: teamId,
+        title: `📢 ${title}`,
+        message,
+        link: '/',
+      }));
+
+      const { error } = await supabase.from('notifications').insert(notifications);
+      if (error) throw error;
+
+      toast.success(`Comunicado enviado para ${managerIds.length} gerente(s)`);
+      setTitle('');
+      setMessage('');
+      onClose();
+    } catch (err: any) {
+      toast.error('Erro ao enviar: ' + err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Megaphone size={18} className="text-primary" />
+            Enviar Comunicado
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            O comunicado será enviado como notificação para todos os gerentes de unidade da equipe.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="ann-title">Título</Label>
+            <Input id="ann-title" placeholder="Ex: Reunião amanhã" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ann-msg">Mensagem</Label>
+            <Textarea id="ann-msg" placeholder="Detalhes do comunicado..." value={message} onChange={e => setMessage(e.target.value)} rows={4} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSend} disabled={sending} className="gap-2">
+            <Megaphone size={14} />
+            {sending ? 'Enviando...' : 'Enviar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
