@@ -65,14 +65,19 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
     return dates;
   }, [rangeStart, rangeEnd]);
 
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 10);
+  const minDateStr = minDate.toISOString().split('T')[0];
+
+  const isPastMinAdvance = (day: number) => getDateStr(day) < minDateStr;
+
   const handleDayClick = (day: number) => {
+    if (isPastMinAdvance(day)) return;
     const dateStr = getDateStr(day);
     if (!rangeStart || (rangeStart && rangeEnd)) {
-      // Start new range
       setRangeStart(dateStr);
       setRangeEnd(null);
     } else {
-      // Set end of range
       setRangeEnd(dateStr);
     }
   };
