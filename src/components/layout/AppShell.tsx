@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/untyped-client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { NotificationBell } from '@/components/NotificationBell';
 import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
@@ -121,6 +122,10 @@ export function AppShell() {
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">Alertas</span>
+            <NotificationBell iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
+          </div>
           <button
             onClick={() => { navigate('/perfil'); setMobileOpen(false); }}
             className="flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30 mb-2 w-full hover:bg-sidebar-accent/50 transition-colors"
@@ -157,6 +162,7 @@ export function AppShell() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <NotificationBell iconClassName="text-primary-foreground/70 hover:text-primary-foreground" />
               {canInstall && (
                 <button onClick={install} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground">
                   <Download size={18} />
