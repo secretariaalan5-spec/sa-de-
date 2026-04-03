@@ -192,8 +192,8 @@ export function AppShell() {
 
       {/* Mobile bottom navigation */}
       {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.08)]">
-          <div className="flex items-stretch justify-around">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-8px_25px_rgba(0,0,0,0.2)] safe-area-bottom">
+          <div className="flex items-stretch justify-around px-2 pb-2 pt-2">
             {bottomNavItems.map(item => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
               return (
@@ -201,15 +201,20 @@ export function AppShell() {
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
-                  className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0"
+                  className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0 relative group"
                 >
-                  <item.icon size={20} className={cn(
-                    "transition-colors",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )} />
+                  <div className={cn(
+                    "relative flex items-center justify-center w-12 h-8 rounded-full transition-all duration-300",
+                    isActive ? "bg-white/20" : "bg-transparent hover:bg-white/5"
+                  )}>
+                    <item.icon size={20} className={cn(
+                      "transition-all duration-300",
+                      isActive ? "text-white scale-110" : "text-primary-foreground/70 scale-100"
+                    )} />
+                  </div>
                   <span className={cn(
-                    "text-[10px] mt-0.5 truncate max-w-full",
-                    isActive ? "text-primary font-semibold" : "text-muted-foreground"
+                    "text-[10px] mt-1 truncate max-w-full transition-colors duration-300",
+                    isActive ? "text-white font-medium" : "text-primary-foreground/70"
                   )}>
                     {item.label}
                   </span>
@@ -219,10 +224,22 @@ export function AppShell() {
             {hasMore && (
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0"
+                className="flex flex-col items-center justify-center py-2 px-1 flex-1 min-w-0 relative group"
               >
-                <Menu size={20} className="text-muted-foreground" />
-                <span className="text-[10px] mt-0.5 text-muted-foreground">Mais</span>
+                <div className={cn(
+                    "relative flex items-center justify-center w-12 h-8 rounded-full transition-all duration-300",
+                    mobileOpen ? "bg-white/20" : "bg-transparent hover:bg-white/5"
+                  )}>
+                  {mobileOpen ? (
+                    <X size={20} className="text-white scale-110 transition-all duration-300" />
+                  ) : (
+                    <Menu size={20} className="text-primary-foreground/70 scale-100 transition-all duration-300" />
+                  )}
+                </div>
+                <span className={cn(
+                  "text-[10px] mt-1 transition-colors duration-300",
+                  mobileOpen ? "text-white font-medium" : "text-primary-foreground/70"
+                )}>Mais</span>
               </button>
             )}
           </div>
