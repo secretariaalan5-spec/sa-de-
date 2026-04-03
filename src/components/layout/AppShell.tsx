@@ -4,12 +4,13 @@ import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
   LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download, ShieldAlert
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -39,8 +40,13 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const outlet = Outlet ? <Outlet /> : null;
   const { roleDescription } = useRoleDetails(roleInfo);
   const { canInstall, install } = usePWAInstall();
+
+  // Gesture refs
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -63,6 +69,38 @@ export function AppShell() {
   const handleLogout = async () => {
     await signOut();
     navigate('/login', { replace: true });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    // Check if swipe was mostly horizontal
+    const deltaX = touchStartX.current - touchEndX;
+    const deltaY = touchStartY.current - touchEndY;
+    
+    // Min swipe distance of 50px, mostly horizontal
+    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if ((e.target as Element).closest('.overflow-x-auto, .schedule-table')) {
+         return; // Don't swipe if touching a horizontal scroll area (like tables)
+      }
+      
+      const currentIndex = bottomNavItems.findIndex(item => item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to));
+      if (currentIndex === -1) return; // Not on a main tab
+      
+      if (deltaX > 0 && currentIndex < bottomNavItems.length - 1) {
+         navigate(bottomNavItems[currentIndex + 1].to);
+      } else if (deltaX < 0 && currentIndex > 0) {
+         navigate(bottomNavItems[currentIndex - 1].to);
+      }
+    }
   };
 
   const roleLabels: Record<string, string> = {
@@ -182,11 +220,26 @@ export function AppShell() {
           </header>
         )}
 
-        <main className={cn(
-          "flex-1 p-4 lg:p-8",
-          isMobile ? "pb-[calc(110px+env(safe-area-inset-bottom))]" : "pt-16 lg:pt-8"
-        )}>
-          <Outlet />
+        <main 
+          className={cn(
+            "flex-1 flex flex-col p-4 lg:p-8 relative",
+            isMobile ? "pb-[calc(110px+env(safe-area-inset-bottom))]" : "pt-16 lg:pt-8"
+          )}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, x: isMobile ? 15 : 0, y: isMobile ? 0 : 10 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, x: isMobile ? -15 : 0, y: isMobile ? 0 : -10 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="flex-1 flex flex-col"
+            >
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 
