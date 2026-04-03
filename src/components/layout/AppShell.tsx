@@ -73,7 +73,7 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="min-h-screen flex w-full">
+    <div className="min-h-[100dvh] flex w-full">
       {!isMobile && (
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -149,7 +149,7 @@ export function AppShell() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
+      <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
         {/* Mobile top header */}
         {isMobile && (
           <header className="sticky top-0 z-30 bg-primary px-4 py-3 flex items-center justify-between shadow-md">
@@ -184,7 +184,7 @@ export function AppShell() {
 
         <main className={cn(
           "flex-1 p-4 lg:p-8",
-          isMobile ? "pb-[110px]" : "pt-16 lg:pt-8"
+          isMobile ? "pb-[calc(110px+env(safe-area-inset-bottom))]" : "pt-16 lg:pt-8"
         )}>
           <Outlet />
         </main>
