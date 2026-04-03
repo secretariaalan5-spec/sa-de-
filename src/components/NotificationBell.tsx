@@ -55,9 +55,30 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
     load();
   }, [load]);
 
-  useDataSubscription(['notifications'], load);
+  useDataSubscription(['notifications'], (payload?: any) => {
+    load();
+    if (payload?.eventType === 'INSERT' && payload.new && user) {
+      const newNotif = payload.new;
+      // Only fire browser push if it belongs to the current user
+      if (newNotif.user_id === user.id && !newNotif.is_read) {
+         if ('Notification' in window && Notification.permission === 'granted') {
+           new Notification(newNotif.title || 'Saúde+ Escalas', {
+             body: newNotif.message || 'Você tem um novo aviso.',
+             icon: '/logo-saude.png'
+           });
+         }
+      }
+    }
+  });
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  useEffect(() => {
+    // Pedir permissão ao navegador para disparar Notificações Nativas
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     // Atualiza o contador de mensagens no ícone do aplicativo (PWA App Badge/Taskbar)
@@ -140,15 +161,6 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
 
       const { error } = await supabase.from('notifications').insert(payload);
       if (error) throw error;
-      
-      // Send external Push Notification using OneSignal via Edge Function
-      supabase.functions.invoke('send-push-notification', {
-        body: {
-          user_ids: uniqueManagerIds,
-          title: title.trim(),
-          message: message.trim(),
-        }
-      }).catch(console.error);
       
       toast.success(`Comunicado enviado para ${uniqueManagerIds.length} gerente(s).`);
       setTitle('');
