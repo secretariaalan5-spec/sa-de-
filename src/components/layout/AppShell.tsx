@@ -110,7 +110,7 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="min-h-[100dvh] flex w-full">
+    <div className="h-[100dvh] flex w-full overflow-hidden bg-background">
       {!isMobile && (
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -186,7 +186,7 @@ export function AppShell() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
+      <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
         {/* Mobile top header */}
         {isMobile && (
           <header className="fixed top-0 left-0 right-0 z-50 bg-primary px-4 py-3 flex items-center justify-between shadow-md env-pt">
@@ -221,19 +221,18 @@ export function AppShell() {
 
         <main 
           className={cn(
-            "flex-1 flex flex-col p-4 lg:p-8 relative",
-            isMobile ? "pb-[120px] pt-[84px]" : "pt-16 lg:pt-8"
+            "flex-1 overflow-y-auto overflow-x-hidden relative",
+            isMobile ? "p-4" : "p-4 lg:p-8"
           )}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {outlet}
         </main>
-      </div>
 
-      {/* Mobile bottom navigation */}
-      {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-8px_25px_rgba(0,0,0,0.2)] safe-area-bottom">
+        {/* Mobile bottom navigation */}
+        {isMobile && (
+          <nav className="flex-none z-50 bg-primary/95 backdrop-blur-md shadow-[0_-8px_25px_rgba(0,0,0,0.2)] safe-area-bottom">
           <div className="flex items-stretch justify-around px-2 pb-2 pt-2">
             {bottomNavItems.map(item => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -250,12 +249,12 @@ export function AppShell() {
                   )}>
                     <item.icon size={20} className={cn(
                       "transition-all duration-300",
-                      isActive ? "text-white scale-110" : "text-primary-foreground/70 scale-100"
+                      isActive ? "text-white scale-110" : "text-blue-100 opacity-80 scale-100"
                     )} />
                   </div>
                   <span className={cn(
                     "text-[10px] mt-1 truncate max-w-full transition-colors duration-300",
-                    isActive ? "text-white font-medium" : "text-primary-foreground/70"
+                    isActive ? "text-white font-medium" : "text-blue-100 opacity-80"
                   )}>
                     {item.label}
                   </span>
@@ -286,6 +285,8 @@ export function AppShell() {
           </div>
         </nav>
       )}
+
+      </div>
 
       {/* Mobile "More" drawer */}
       {isMobile && mobileOpen && (
