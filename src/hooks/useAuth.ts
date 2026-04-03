@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/untyped-client';
 import { Session } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'professional';
+export type PendingStatus = 'pending' | 'approved' | 'rejected' | null;
 
 export interface UserRoleInfo {
   role: UserRole;
@@ -15,6 +16,7 @@ export interface UserRoleInfo {
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [roleInfo, setRoleInfo] = useState<UserRoleInfo | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<PendingStatus>(null);
   const [loading, setLoading] = useState(true);
   const processingRef = useRef(false);
 
@@ -35,20 +37,41 @@ export function useAuth() {
         unit_id: first.unit_id,
         team_id: teamId,
       });
+      setPendingStatus(null); // Has role = no pending
       return true;
     }
     return false;
   }, []);
 
+  const fetchPendingStatus = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from('pending_approvals')
+      .select('status')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setPendingStatus(data.status as PendingStatus);
+    } else {
+      setPendingStatus(null);
+    }
+  }, []);
+
   const processPendingInvite = useCallback(async (userId: string) => {
-    // Try to get token from URL params first (robust for mobile redirects), then pathname, then fallback to localStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    let token = urlParams.get('token');
-    
-    if (!token && window.location.pathname.startsWith('/registro/')) {
+    // Try to get token from URL pathname first, then localStorage
+    let token: string | null = null;
+
+    if (window.location.pathname.startsWith('/registro/')) {
       token = window.location.pathname.split('/registro/')[1];
     }
-    
+
+    if (!token) {
+      const urlParams = new URLSearchParams(window.location.search);
+      token = urlParams.get('token');
+    }
+
     if (!token) {
       token = localStorage.getItem('pending_invite_token');
     }
@@ -64,79 +87,72 @@ export function useAuth() {
       if (error) {
         console.error('RPC Error processing invite:', error);
       } else {
-        console.log('Invite processed successfully:', data);
+        console.log('Invite processed:', data);
       }
 
-      await fetchRole(userId);
+      // After processing, check if user got a role (admin pre-approved) or is pending
+      const hasRole = await fetchRole(userId);
+      if (!hasRole) {
+        await fetchPendingStatus(userId);
+      }
     } catch (err) {
       console.error('Error processing invite:', err);
     } finally {
+      // ALWAYS clean up token immediately to prevent account switching
       localStorage.removeItem('pending_invite_token');
 
-      // Also clean up the token from the URL to avoid reprocessing
       if (window.location.search.includes('token=')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
       processingRef.current = false;
     }
-  }, [fetchRole]);
+  }, [fetchRole, fetchPendingStatus]);
 
   useEffect(() => {
     let initialSessionHandled = false;
 
-    // Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const handleSession = async (session: Session | null) => {
       setSession(session);
       if (session?.user) {
-        setTimeout(() => {
-          fetchRole(session.user.id).then(hasRole => {
-            if (!hasRole) {
-              processPendingInvite(session.user.id);
-            }
-            // If getSession hasn't resolved yet, mark loading done here
-            if (!initialSessionHandled) {
-              initialSessionHandled = true;
-              setLoading(false);
-            }
-          });
-        }, 0);
+        const hasRole = await fetchRole(session.user.id);
+        if (!hasRole) {
+          await processPendingInvite(session.user.id);
+          // If still no role after processing invite, check pending status
+          const hasRoleNow = await fetchRole(session.user.id);
+          if (!hasRoleNow) {
+            await fetchPendingStatus(session.user.id);
+          }
+        }
       } else {
         setRoleInfo(null);
-        if (!initialSessionHandled) {
-          initialSessionHandled = true;
-          setLoading(false);
-        }
+        setPendingStatus(null);
       }
+      if (!initialSessionHandled) {
+        initialSessionHandled = true;
+        setLoading(false);
+      }
+    };
+
+    // Set up listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => handleSession(session), 0);
     });
 
     // Then check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchRole(session.user.id).then(hasRole => {
-          if (!hasRole) {
-            processPendingInvite(session.user.id);
-          }
-          if (!initialSessionHandled) {
-            initialSessionHandled = true;
-            setLoading(false);
-          }
-        });
-      } else {
-        if (!initialSessionHandled) {
-          initialSessionHandled = true;
-          setLoading(false);
-        }
-      }
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchRole, processPendingInvite]);
+  }, [fetchRole, processPendingInvite, fetchPendingStatus]);
 
   const signOut = useCallback(async () => {
+    // Clear ALL sensitive data on logout
+    localStorage.removeItem('pending_invite_token');
     await supabase.auth.signOut();
     setSession(null);
     setRoleInfo(null);
+    setPendingStatus(null);
   }, []);
 
   const isAdmin = roleInfo?.role === 'admin';
@@ -149,6 +165,7 @@ export function useAuth() {
     session,
     user: session?.user ?? null,
     roleInfo,
+    pendingStatus,
     loading,
     signOut,
     isAdmin,

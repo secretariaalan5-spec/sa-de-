@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useNavigate } from 'react-router-dom';
-import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight, Megaphone } from 'lucide-react';
+import { Users, CalendarDays, CalendarOff, Building2, Tag, Clock, TrendingUp, ArrowRight, Megaphone, ShieldCheck, XCircle, LogOut } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
@@ -27,7 +27,7 @@ interface ScheduleStat {
 }
 
 export default function Dashboard() {
-  const { roleInfo, isAdmin, isRH, isChief, isManager, user } = useAuthContext();
+  const { roleInfo, isAdmin, isRH, isChief, isManager, user, pendingStatus, signOut } = useAuthContext();
   const navigate = useNavigate();
   const { roleDescription, categoryNames, unitName } = useRoleDetails(roleInfo);
   const [stats, setStats] = useState({ employees: 0, schedules: 0, pendingLeaves: 0, units: 0, categories: 0, approvedLeaves: 0 });
@@ -124,6 +124,56 @@ export default function Dashboard() {
       { label: 'Categorias', value: stats.categories, icon: Tag, color: 'bg-muted text-muted-foreground', link: '/categorias' },
     ] : []),
   ];
+
+  // ========== PENDING APPROVAL STATE ==========
+  if (pendingStatus === 'pending' && !roleInfo) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] animate-fade-in">
+        <div className="max-w-md w-full text-center space-y-6 p-8">
+          <div className="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+            <Clock className="w-8 h-8 text-amber-600 animate-pulse" />
+          </div>
+          <h1 className="text-2xl font-bold">Aguardando Aprovação</h1>
+          <p className="text-muted-foreground">
+            Sua solicitação de acesso foi enviada ao administrador. 
+            Você receberá uma notificação assim que for aprovada.
+          </p>
+          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <ShieldCheck size={16} className="text-primary" />
+              <span className="font-medium">Verificação de segurança</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Por segurança, todo novo acesso ao sistema requer aprovação manual do administrador.
+            </p>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}>
+            <LogOut size={16} /> Sair
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (pendingStatus === 'rejected' && !roleInfo) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] animate-fade-in">
+        <div className="max-w-md w-full text-center space-y-6 p-8">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <XCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold">Acesso Recusado</h1>
+          <p className="text-muted-foreground">
+            Sua solicitação de acesso foi recusada pelo administrador. 
+            Entre em contato com o responsável pelo sistema para mais informações.
+          </p>
+          <Button variant="outline" className="gap-2" onClick={async () => { await signOut(); navigate('/login', { replace: true }); }}>
+            <LogOut size={16} /> Sair e usar outra conta
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

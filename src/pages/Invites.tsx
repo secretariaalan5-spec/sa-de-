@@ -9,9 +9,22 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Mail, Copy, Trash2, Users, Search, ArrowRightLeft } from 'lucide-react';
+import { Plus, Mail, Copy, Trash2, Users, Search, ArrowRightLeft, CheckCircle2, XCircle, Clock, ShieldAlert } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+
+interface PendingApproval {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string | null;
+  user_avatar: string | null;
+  requested_role: string;
+  unit_id: string | null;
+  category_ids: string[];
+  status: string;
+  created_at: string;
+}
 
 interface Invite {
   id: string;
@@ -66,11 +79,12 @@ export default function Invites() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [userRoles, setUserRoles] = useState<UserWithRole[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState('unit_manager');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [unitId, setUnitId] = useState('');
-  const [activeTab, setActiveTab] = useState('category-invites');
+  const [activeTab, setActiveTab] = useState('approvals');
   const [searchUsers, setSearchUsers] = useState('');
   const [userUnitFilter, setUserUnitFilter] = useState('all');
   const [userCategoryFilter, setUserCategoryFilter] = useState('all');
@@ -90,6 +104,15 @@ export default function Invites() {
     setCategoryInvites(ci.data ?? []);
     setCategories(c.data ?? []);
     setUnits(u.data ?? []);
+
+    // Load pending approvals
+    if (isAdmin) {
+      const { data: approvals } = await supabase
+        .from('pending_approvals')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setPendingApprovals(approvals ?? []);
+    }
 
     if (!isAdmin) {
       setUserRoles([]);
@@ -151,10 +174,11 @@ export default function Invites() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-      // Generate expiration (48 hours)
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 48);
+    // Generate expiration (48 hours)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 48);
 
+    if (role === 'category_chief') {
       // Gerar token único no frontend (32 caracteres hex)
       const token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0'))
@@ -164,8 +188,8 @@ export default function Invites() {
         token: token,
         admin_id: user?.id ?? null,
         category_ids: selectedCategoryIds,
-        max_uses: 1, // Uso único
-        expires_at: expiresAt.toISOString(), // Expiração forte de 48h
+        max_uses: 1,
+        expires_at: expiresAt.toISOString(),
       });
 
       if (error) {
@@ -396,7 +420,23 @@ export default function Invites() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      {/* Pending approvals alert */}
+      {pendingApprovals.filter(a => a.status === 'pending').length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+          <ShieldAlert className="text-amber-600 flex-shrink-0" size={24} />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800">{pendingApprovals.filter(a => a.status === 'pending').length} solicitação(ões) aguardando aprovação</p>
+            <p className="text-xs text-amber-600">Revise as solicitações na aba "Aprovações"</p>
+          </div>
+          <Button size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-100" onClick={() => setActiveTab('approvals')}>Revisar</Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-card rounded-xl border border-border p-4 text-center">
+          <p className="text-2xl font-bold text-amber-500">{pendingApprovals.filter(a => a.status === 'pending').length}</p>
+          <p className="text-xs text-muted-foreground">Pendentes</p>
+        </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
           <p className="text-2xl font-bold text-primary">{availableInvites}</p>
           <p className="text-xs text-muted-foreground">Disponíveis</p>
@@ -412,11 +452,79 @@ export default function Invites() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-3">
-          <TabsTrigger value="category-invites" className="gap-1"><Users size={14} /> Convites Categoria ({categoryInvites.length})</TabsTrigger>
-          <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Outros Convites ({invites.length})</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Participantes ({groupedUsers.length})</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-4">
+          <TabsTrigger value="approvals" className="gap-1 relative">
+            <ShieldAlert size={14} /> Aprovações
+            {pendingApprovals.filter(a => a.status === 'pending').length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                {pendingApprovals.filter(a => a.status === 'pending').length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="category-invites" className="gap-1"><Users size={14} /> Categorias ({categoryInvites.length})</TabsTrigger>
+          <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
+          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Equipe ({groupedUsers.length})</TabsTrigger>
         </TabsList>
+
+        {/* ========== APPROVALS TAB ========== */}
+        <TabsContent value="approvals" className="mt-4">
+          {pendingApprovals.length === 0 ? (
+            <div className="empty-state">
+              <CheckCircle2 className="mx-auto mb-3 text-muted-foreground" size={40} />
+              <p className="text-muted-foreground">Nenhuma solicitação de acesso</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingApprovals.map((approval) => (
+                <div key={approval.id} className={`page-card p-4 flex items-center gap-4 ${approval.status === 'pending' ? 'border-l-4 border-l-amber-400' : approval.status === 'approved' ? 'border-l-4 border-l-emerald-400 opacity-60' : 'border-l-4 border-l-red-400 opacity-60'}`}>
+                  <Avatar className="h-10 w-10">
+                    {approval.user_avatar && <AvatarImage src={approval.user_avatar} />}
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {(approval.user_name || approval.user_email || '?').substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{approval.user_name || approval.user_email}</p>
+                    <p className="text-xs text-muted-foreground truncate">{approval.user_email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-xs">{roleLabels[approval.requested_role] || approval.requested_role}</Badge>
+                      {approval.unit_id && <Badge variant="outline" className="text-xs">{getUnitName(approval.unit_id)}</Badge>}
+                      {approval.category_ids?.length > 0 && approval.category_ids.map(cid => (
+                        <Badge key={cid} variant="outline" className="text-xs">{getCatName(cid)}</Badge>
+                      ))}
+                      <span className="text-[10px] text-muted-foreground">{new Date(approval.created_at).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  </div>
+                  {approval.status === 'pending' ? (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button size="sm" variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
+                        const { data, error } = await supabase.rpc('approve_pending_user', { p_approval_id: approval.id });
+                        if (error) { toast.error(error.message); return; }
+                        toast.success('Usuário aprovado!');
+                        load();
+                      }}>
+                        <CheckCircle2 size={14} /> Aprovar
+                      </Button>
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={async () => {
+                        if (!confirm(`Recusar acesso de ${approval.user_name || approval.user_email}?`)) return;
+                        const { data, error } = await supabase.rpc('reject_pending_user', { p_approval_id: approval.id });
+                        if (error) { toast.error(error.message); return; }
+                        toast.success('Solicitação recusada.');
+                        load();
+                      }}>
+                        <XCircle size={14} /> Recusar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Badge variant={approval.status === 'approved' ? 'default' : 'destructive'}>
+                      {approval.status === 'approved' ? 'Aprovado' : 'Recusado'}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="category-invites" className="mt-4">
           {categoryInvites.length === 0 ? (

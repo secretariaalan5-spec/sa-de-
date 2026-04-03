@@ -1,11 +1,12 @@
 import { createContext, useContext, ReactNode } from 'react';
-import { useAuth, UserRoleInfo } from '@/hooks/useAuth';
+import { useAuth, UserRoleInfo, PendingStatus } from '@/hooks/useAuth';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   roleInfo: UserRoleInfo | null;
+  pendingStatus: PendingStatus;
   loading: boolean;
   signOut: () => Promise<void>;
   isAdmin: boolean;

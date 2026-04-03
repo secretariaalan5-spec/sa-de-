@@ -2,14 +2,14 @@
  * Register — Google OAuth via invite link.
  * Stores invite token in localStorage so useAuth can assign the role after redirect.
  * Token comes from path params (/registro/:token) — never exposed in query string.
- * Premium design with animated particle background.
+ * Now supports the pending approval flow.
  */
 import { useState, useEffect } from 'react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, CheckCircle2, ShieldCheck, Clock, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import AuthBackground from '@/components/AuthBackground';
 import logoSaude from '@/assets/logo-saude.png';
@@ -24,37 +24,58 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Register() {
-  const { roleInfo, session } = useAuthContext();
+  const { roleInfo, session, pendingStatus } = useAuthContext();
   const navigate = useNavigate();
   const { token: pathToken } = useParams<{ token: string }>();
   const [params] = useSearchParams();
-  // Prefer path param, fallback to legacy query param for backward compatibility
   const token = pathToken || params.get('token');
 
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
     // If the user already has an active session and lands here with a token,
     // they are trying to accept an invite. Process it directly.
     if (session && token) {
       setSubmitting(true);
-      supabase.rpc('accept_invite_by_token', { p_token: token }).then(({ error }) => {
+      supabase.rpc('accept_invite_by_token', { p_token: token }).then(({ data, error }) => {
+        // Always clean up token from localStorage
+        localStorage.removeItem('pending_invite_token');
+
         if (error) {
           toast.error(error.message || 'Erro ao processar convite');
           setSubmitting(false);
           return;
         }
-        // Clear local storage and navigate to dashboard after successful RPC
-        localStorage.removeItem('pending_invite_token');
+
+        // The RPC now returns status: 'pending' instead of creating the role directly
+        if (data?.status === 'pending') {
+          setRequestSent(true);
+          setSubmitting(false);
+          return;
+        }
+
+        if (data?.status === 'already_approved') {
+          navigate('/', { replace: true });
+          return;
+        }
+
+        if (data?.status === 'rejected') {
+          toast.error('Sua solicitação foi recusada pelo administrador.');
+          setSubmitting(false);
+          return;
+        }
+
+        // Fallback: navigate to dashboard
         navigate('/', { replace: true });
-        window.location.reload(); // Refresh to ensure useAuth fetches the new roles correctly
+        window.location.reload();
       });
       return;
     }
 
-    // If the user already has a role assigned and no token is being processed, redirect straight to dashboard
+    // If the user already has a role assigned and no token is being processed, redirect
     if (roleInfo && !token) {
       navigate('/', { replace: true });
     }
@@ -63,7 +84,7 @@ export default function Register() {
   useEffect(() => {
     if (!token) { setLoading(false); return; }
 
-    // Clean token from URL if it came via query param (security)
+    // Clean token from URL if it came via query param
     if (params.get('token')) {
       window.history.replaceState({}, '', `/registro/${token}`);
     }
@@ -85,13 +106,11 @@ export default function Register() {
     setSubmitting(true);
 
     try {
-      // Store token securely in localStorage — NOT in the redirect URL
       localStorage.setItem('pending_invite_token', invite.token);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Redirect to the same path so useAuth can pick it up even if localStorage clears (common on mobile)
           redirectTo: `${window.location.origin}/registro/${invite.token}`,
         },
       });
@@ -111,6 +130,76 @@ export default function Register() {
     );
   }
 
+  // ========== PENDING APPROVAL SCREEN ==========
+  if (requestSent || pendingStatus === 'pending') {
+    return (
+      <AuthBackground>
+        <div className="max-w-[400px] w-full px-4 animate-fade-in">
+          <div className="auth-card text-center space-y-5">
+            <div className="auth-logo">
+              <img src={logoSaude} alt="Saúde+" className="w-[60px] h-[60px] rounded-xl shadow-lg" />
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <Clock size={24} className="text-amber-400 animate-pulse" />
+            </div>
+            <h1 className="text-xl font-bold text-white">Aguardando Aprovação</h1>
+            <p className="text-white/55 text-sm">
+              Sua solicitação de acesso foi enviada com sucesso!
+              O administrador precisa aprovar seu cadastro antes de você acessar o sistema.
+            </p>
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <ShieldCheck size={14} className="text-emerald-400" />
+                <span className="text-xs text-white/60">Verificação de segurança</span>
+              </div>
+              <p className="text-[11px] text-white/40">
+                Por segurança, todos os novos acessos passam por aprovação manual do administrador.
+              </p>
+            </div>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Button
+              onClick={() => { navigate('/login'); }}
+              variant="ghost"
+              className="text-white/50 hover:text-white/80"
+            >
+              Voltar ao Login
+            </Button>
+          </div>
+        </div>
+      </AuthBackground>
+    );
+  }
+
+  // ========== REJECTED SCREEN ==========
+  if (pendingStatus === 'rejected') {
+    return (
+      <AuthBackground>
+        <div className="max-w-[400px] w-full px-4 animate-fade-in">
+          <div className="auth-card text-center space-y-5">
+            <div className="auth-logo">
+              <img src={logoSaude} alt="Saúde+" className="w-[60px] h-[60px] rounded-xl shadow-lg" />
+            </div>
+            <XCircle className="mx-auto h-10 w-10 text-red-400" />
+            <h1 className="text-xl font-bold text-white">Acesso Recusado</h1>
+            <p className="text-white/55 text-sm">
+              Sua solicitação de acesso foi recusada pelo administrador.
+              Entre em contato com o responsável pelo sistema.
+            </p>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Button
+              onClick={() => navigate('/login')}
+              variant="ghost"
+              className="text-white/50 hover:text-white/80"
+            >
+              Voltar ao Login
+            </Button>
+          </div>
+        </div>
+      </AuthBackground>
+    );
+  }
+
+  // ========== INVITE NOT FOUND ==========
   if (!token || !invite) {
     return (
       <AuthBackground>
@@ -139,12 +228,11 @@ export default function Register() {
     );
   }
 
+  // ========== INVITE VALID — REGISTER ==========
   return (
     <AuthBackground>
       <div className="max-w-[400px] w-full px-4 animate-fade-in">
-        {/* Glassmorphism card */}
         <div className="auth-card">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="auth-logo">
               <img src={logoSaude} alt="Saúde+" className="w-[72px] h-[72px] rounded-2xl shadow-lg" />
@@ -157,10 +245,8 @@ export default function Register() {
             </p>
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
 
-          {/* Invite info */}
           <div className="space-y-5">
             <div className="bg-white/10 rounded-xl p-4 text-center space-y-2.5 border border-white/10">
               <div className="flex items-center justify-center gap-2">
@@ -172,14 +258,13 @@ export default function Register() {
               </Badge>
             </div>
 
-            {/* Security badge */}
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/40">
               <ShieldCheck size={12} />
-              <span>Link seguro • Uso único</span>
+              <span>Link seguro • Uso único • Aprovação obrigatória</span>
             </div>
 
             <p className="text-center text-sm text-white/55">
-              Entre com sua conta Google para criar seu acesso
+              Entre com sua conta Google para solicitar acesso
             </p>
 
             <Button
@@ -198,14 +283,13 @@ export default function Register() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
               )}
-              {submitting ? 'Conectando...' : !!session ? 'Processando acesso...' : 'Entrar com Google'}
+              {submitting ? 'Enviando solicitação...' : !!session ? 'Processando...' : 'Entrar com Google'}
             </Button>
           </div>
 
-          {/* Footer */}
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
             <p className="text-[11px] text-white/40 italic">
-              Acesso restrito a usuários com convite válido.
+              Após entrar, sua solicitação será enviada ao administrador para aprovação.
             </p>
           </div>
         </div>
