@@ -59,6 +59,19 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  useEffect(() => {
+    // Atualiza o contador de mensagens no ícone do aplicativo (PWA App Badge/Taskbar)
+    if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+      try {
+        if (unreadCount > 0) {
+          (navigator as any).setAppBadge(unreadCount).catch(() => {});
+        } else {
+          (navigator as any).clearAppBadge().catch(() => {});
+        }
+      } catch (e) {}
+    }
+  }, [unreadCount]);
+
   const markAsRead = async (id: string, link: string | null) => {
     supabase.from('notifications').update({ is_read: true }).eq('id', id).then(() => load());
     setOpen(false);
@@ -198,13 +211,15 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
                     <span className={cn("font-medium", !n.is_read ? "text-foreground" : "text-muted-foreground")}>{n.title}</span>
                     <div className="flex items-center gap-2">
                       {!n.is_read && <span className="h-2 w-2 mt-1.5 rounded-full bg-primary shrink-0 shadow-[0_0_8px_hsl(var(--primary))]" />}
-                      <button 
-                        onClick={(e) => deleteNotification(n, e)}
-                        className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                        title={n.sender_id === user?.id ? "Apagar aviso para todos" : "Apagar notificação"}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {n.sender_id === user?.id && n.batch_id && (
+                        <button 
+                          onClick={(e) => deleteNotification(n, e)}
+                          className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                          title="Apagar aviso para todos"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="text-muted-foreground text-xs mt-1 leading-snug">{n.message}</p>
