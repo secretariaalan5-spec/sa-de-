@@ -84,7 +84,7 @@ export default function AuditLogs() {
     const names: Record<string, string> = {
       schedules: 'Escalas',
       employees: 'Profissionais',
-      leave_requests: 'Folgas/Atestados',
+      leave_requests: 'Pedidos de Folga',
       units: 'Unidades',
       categories: 'Categorias'
     };
@@ -126,7 +126,7 @@ export default function AuditLogs() {
           <SelectContent>
             <SelectItem value="all">Qualquer Tabela</SelectItem>
             <SelectItem value="schedules">Escalas</SelectItem>
-            <SelectItem value="leave_requests">Folgas/Atestados</SelectItem>
+            <SelectItem value="leave_requests">Pedidos de Folga</SelectItem>
             <SelectItem value="employees">Profissionais</SelectItem>
           </SelectContent>
         </Select>
