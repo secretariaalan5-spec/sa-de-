@@ -222,6 +222,24 @@ export default function LeaveRequests() {
                         {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                       </p>
                       {r.observations && <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>}
+                      {r.requested_by && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Solicitado por: <span className="font-medium">{getUserName(r.requested_by) ?? 'Desconhecido'}</span>
+                          {' • '}{new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                      {(r.status === 'approved' || r.status === 'rejected') && r.decided_by && (
+                        <p className="text-[10px] mt-0.5">
+                          <span className={cn(r.status === 'approved' ? 'text-accent' : 'text-destructive')}>
+                            {r.status === 'approved' ? 'Aprovado' : 'Negado'} por: {getUserName(r.decided_by) ?? 'Desconhecido'}
+                          </span>
+                          {r.decided_at && (
+                            <span className="text-muted-foreground">
+                              {' • '}{new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </p>
+                      )}
                       {r.status === 'pending' && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           Saldo: <span className={cn('font-semibold', empBalance >= r.days_requested ? 'text-primary' : 'text-destructive')}>{empBalance}</span>
