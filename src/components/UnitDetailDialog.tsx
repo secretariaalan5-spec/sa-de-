@@ -56,6 +56,14 @@ export function UnitDetailDialog({ unitId, unitName, open, onOpenChange }: UnitD
     load();
   }, [unitId, open]);
 
+  // Group employees by category
+  const groupedEmployees = employees.reduce((acc, emp) => {
+    const catId = emp.category_id || 'sem-categoria';
+    if (!acc[catId]) acc[catId] = [];
+    acc[catId].push(emp);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
@@ -92,35 +100,54 @@ export function UnitDetailDialog({ unitId, unitName, open, onOpenChange }: UnitD
 
               {/* Employees Section */}
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider border-b pb-2">
                   <Users size={16} /> Profissionais ({employees.length})
                 </h3>
                 {employees.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic">Nenhum profissional lotado nesta unidade.</p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {employees.map(emp => {
-                      const cat = categories[emp.category_id];
+                  <div className="space-y-6">
+                    {Object.entries(groupedEmployees).map(([catId, emps]: [string, any[]]) => {
+                      const cat = categories[catId];
                       return (
-                        <div key={emp.id} className="bg-card p-3 rounded-lg border border-border flex flex-col gap-1.5 shadow-sm">
-                          <p className="font-semibold text-sm line-clamp-1" title={emp.name}>{emp.name}</p>
-                          
-                          {cat && (
-                            <div className="w-fit">
-                              <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>
+                        <div key={catId} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            {cat ? (
+                              <Badge variant="secondary" style={{ borderColor: cat.color, color: cat.color }}>
                                 {cat.name}
                               </Badge>
-                            </div>
-                          )}
+                            ) : (
+                              <Badge variant="outline">Sem Categoria</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">({emps.length})</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {emps.map(emp => {
+                              const phoneClean = emp.phone ? emp.phone.replace(/\D/g, '') : '';
+                              const waLink = phoneClean ? `https://wa.me/${phoneClean.startsWith('55') ? phoneClean : '55' + phoneClean}` : '#';
 
-                          {canViewContacts && emp.phone && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                              <Phone size={12} className="text-green-500" />
-                              {emp.phone}
-                            </p>
-                          )}
+                              return (
+                                <div key={emp.id} className="bg-card p-3 rounded-lg border border-border flex flex-col gap-1.5 shadow-sm transition-colors hover:bg-muted/30">
+                                  <p className="font-semibold text-sm line-clamp-1" title={emp.name}>{emp.name}</p>
+                                  
+                                  {canViewContacts && emp.phone && (
+                                    <a 
+                                      href={waLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="Conversar no WhatsApp"
+                                      className="text-xs text-muted-foreground hover:text-green-500 hover:font-medium transition-all flex items-center gap-1.5 mt-1 w-fit"
+                                    >
+                                      <Phone size={12} className="text-green-500" />
+                                      {emp.phone}
+                                    </a>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 )}
