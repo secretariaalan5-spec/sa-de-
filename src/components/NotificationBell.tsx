@@ -174,7 +174,13 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      // Browser constraint: Request permission explicitly bound to a user interaction (gesture)
+      if (isOpen && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+    }}>
       <PopoverTrigger asChild>
         <button className={cn("relative p-1.5 transition-colors flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5", iconClassName)}>
           <Bell className="h-[22px] w-[22px]" />
