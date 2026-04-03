@@ -46,16 +46,18 @@ export default function LeaveRequests() {
   };
 
   const load = async () => {
-    const [r, e, s, c] = await Promise.all([
+    const [r, e, s, c, p] = await Promise.all([
       supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
       supabase.from('employees').select('id, name').eq('active', true).order('name'),
       supabase.from('schedules').select('employee_id, date'),
       supabase.from('leave_credits').select('employee_id, amount'),
+      supabase.from('profiles').select('user_id, display_name'),
     ]);
     setRequests(r.data ?? []);
     setEmployees(e.data ?? []);
     setSchedules(s.data ?? []);
     setCredits(c.data ?? []);
+    setProfiles(p.data ?? []);
   };
 
   useEffect(() => { load(); }, []);
