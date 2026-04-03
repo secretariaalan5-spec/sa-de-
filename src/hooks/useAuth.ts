@@ -41,9 +41,17 @@ export function useAuth() {
   }, []);
 
   const processPendingInvite = useCallback(async (userId: string) => {
-    // Try to get token from URL params first (robust for mobile redirects), then fallback to localStorage
+    // Try to get token from URL params first (robust for mobile redirects), then pathname, then fallback to localStorage
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token') || localStorage.getItem('pending_invite_token');
+    let token = urlParams.get('token');
+    
+    if (!token && window.location.pathname.startsWith('/registro/')) {
+      token = window.location.pathname.split('/registro/')[1];
+    }
+    
+    if (!token) {
+      token = localStorage.getItem('pending_invite_token');
+    }
 
     if (!token || processingRef.current) return;
     processingRef.current = true;
