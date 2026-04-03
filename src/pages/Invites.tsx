@@ -151,7 +151,10 @@ export default function Invites() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (role === 'category_chief') {
+      // Generate expiration (48 hours)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48);
+
       // Gerar token único no frontend (32 caracteres hex)
       const token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map(b => b.toString(16).padStart(2, '0'))
@@ -162,6 +165,7 @@ export default function Invites() {
         admin_id: user?.id ?? null,
         category_ids: selectedCategoryIds,
         max_uses: 1, // Uso único
+        expires_at: expiresAt.toISOString(), // Expiração forte de 48h
       });
 
       if (error) {
@@ -171,12 +175,16 @@ export default function Invites() {
       toast.success(`Convite criado para ${selectedCategoryIds.length} categoria(s)!`);
     } else {
       // Legacy invites for other roles
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48);
+
       const { error } = await supabase.from('invites').insert({
         role,
         team_id: roleInfo.team_id,
         category_id: null,
         unit_id: role === 'unit_manager' ? unitId || null : null,
         created_by: user?.id ?? null,
+        expires_at: expiresAt.toISOString(), // Expiração forte de 48h
       });
       if (error) {
         toast.error(error.message || 'Erro ao criar convite.');
