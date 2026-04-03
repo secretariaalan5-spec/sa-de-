@@ -16,6 +16,7 @@ import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 interface Employee {
   id: string; name: string; category_id: string | null;
   unit_id: string | null; active: boolean; team_id: string;
+  phone?: string | null;
 }
 interface Category { id: string; name: string; color: string; }
 interface Unit { id: string; name: string; }
@@ -29,6 +30,7 @@ export default function Employees() {
   const [editOpen, setEditOpen] = useState(false);
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [unitId, setUnitId] = useState('');
   const [search, setSearch] = useState('');
@@ -64,28 +66,29 @@ export default function Employees() {
     }
     const { error } = await supabase.from('employees').insert({
       name: name.trim(),
+      phone: phone.trim() || null,
       category_id: categoryId || null,
       unit_id: isManager ? (roleInfo.unit_id ?? null) : (unitId || null),
       team_id: roleInfo.team_id,
     });
     if (error) { toast.error(error.message || 'Erro ao cadastrar funcionário.'); return; }
     toast.success('Funcionário cadastrado!');
-    setName(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
+    setName(''); setPhone(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
   };
 
   const openEdit = (emp: Employee) => {
-    setEditEmp(emp); setName(emp.name); setCategoryId(emp.category_id ?? ''); setUnitId(emp.unit_id ?? ''); setEditOpen(true);
+    setEditEmp(emp); setName(emp.name); setPhone(emp.phone ?? ''); setCategoryId(emp.category_id ?? ''); setUnitId(emp.unit_id ?? ''); setEditOpen(true);
   };
 
   const handleEdit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!editEmp || !name.trim()) return;
-    const updateData: any = { name: name.trim() };
+    const updateData: any = { name: name.trim(), phone: phone.trim() || null };
     if (isAdmin || isChief) { updateData.category_id = categoryId || null; updateData.unit_id = unitId || null; }
     const { error } = await supabase.from('employees').update(updateData).eq('id', editEmp.id);
     if (error) { toast.error('Erro ao atualizar funcionário.'); return; }
     toast.success('Funcionário atualizado!');
-    setEditOpen(false); setEditEmp(null); setName(''); setCategoryId(''); setUnitId(''); load();
+    setEditOpen(false); setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
   };
 
   const handleDelete = async (id: string, empName: string) => {
@@ -135,6 +138,7 @@ export default function Employees() {
               <DialogHeader><DialogTitle>Cadastrar Profissional</DialogTitle><DialogDescription>Adicione um novo profissional ao sistema.</DialogDescription></DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                <div className="space-y-1.5"><Label>WhatsApp (Opcional)</Label><Input type="tel" placeholder="(00) 90000-0000" value={phone} onChange={e => setPhone(e.target.value)} /></div>
                 <div className="space-y-1.5">
                   <Label>Categoria</Label>
                   <Select value={categoryId} onValueChange={setCategoryId}>
@@ -196,6 +200,7 @@ export default function Employees() {
           <DialogHeader><DialogTitle>Editar Profissional</DialogTitle><DialogDescription>Atualize os dados do profissional.</DialogDescription></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+            <div className="space-y-1.5"><Label>WhatsApp (Opcional)</Label><Input type="tel" placeholder="(00) 90000-0000" value={phone} onChange={e => setPhone(e.target.value)} /></div>
             {(isAdmin || isChief) && (
               <>
                 <div className="space-y-1.5">
@@ -244,6 +249,11 @@ export default function Employees() {
                   {cat && <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>{cat.name}</Badge>}
                   <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
                 </div>
+                {(isAdmin || isRH || isChief || isManager) && emp.phone && (
+                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]" /> {emp.phone}
+                  </p>
+                )}
                 <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
                     <Eye size={12} /> Ver Histórico
@@ -266,11 +276,12 @@ export default function Employees() {
       ) : (
         <div className="page-card overflow-x-auto">
           <table className="schedule-table">
-            <thead><tr><th className="text-left">Nome</th><th className="text-left">Categoria</th><th className="text-left">Unidade</th><th className="text-right">Ações</th></tr></thead>
+            <thead><tr><th className="text-left">Nome</th><th className="text-left">WhatsApp</th><th className="text-left">Categoria</th><th className="text-left">Unidade</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {filtered.map(emp => (
                 <tr key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailEmp(emp)}>
                   <td className="font-medium">{emp.name}</td>
+                  <td className="text-xs text-muted-foreground">{(isAdmin || isRH || isChief || isManager) && emp.phone ? emp.phone : '—'}</td>
                   <td>{getCat(emp.category_id)?.name ?? '—'}</td>
                   <td>{getUnitName(emp.unit_id)}</td>
                   <td className="text-right">
