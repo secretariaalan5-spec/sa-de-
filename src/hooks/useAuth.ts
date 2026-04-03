@@ -57,61 +57,15 @@ export function useAuth() {
     processingRef.current = true;
 
     try {
-      const { data: invite } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('token', token)
-        .eq('used', false)
-        .maybeSingle();
-
-      if (!invite) {
-        localStorage.removeItem('pending_invite_token');
-        return;
-      }
-
-      // For category_chief, allow adding new category even if user already has a role
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('id, role, category_id')
-        .eq('user_id', userId);
-
-      const hasExactRole = (existingRole ?? []).some((r: any) =>
-        r.role === invite.role && r.category_id === invite.category_id
-      );
-
-      if (hasExactRole) {
-        localStorage.removeItem('pending_invite_token');
-        await fetchRole(userId);
-        return;
-      }
-
-      // If user has a different role (not category_chief adding category), skip
-      if (existingRole && existingRole.length > 0 && invite.role !== 'category_chief') {
-        const hasOtherRole = existingRole.some((r: any) => r.role !== invite.role);
-        if (hasOtherRole) {
-          localStorage.removeItem('pending_invite_token');
-          await fetchRole(userId);
-          return;
-        }
-      }
-
-      await supabase.from('user_roles').insert({
-        user_id: userId,
-        role: invite.role,
-        team_id: invite.team_id,
-        category_id: invite.category_id,
-        unit_id: invite.unit_id,
+      const { data, error } = await supabase.rpc('accept_invite_by_token', {
+        p_token: token
       });
 
-      await supabase
-        .from('profiles')
-        .update({ team_id: invite.team_id } as any)
-        .eq('user_id', userId);
-
-      await supabase
-        .from('invites')
-        .update({ used: true, used_by: userId } as any)
-        .eq('id', invite.id);
+      if (error) {
+        console.error('RPC Error processing invite:', error);
+      } else {
+        console.log('Invite processed successfully:', data);
+      }
 
       await fetchRole(userId);
     } catch (err) {
