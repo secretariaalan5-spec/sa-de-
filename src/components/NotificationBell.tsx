@@ -8,6 +8,12 @@ import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Send, Loader2, Megaphone } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -19,9 +25,16 @@ interface Notification {
 }
 
 export function NotificationBell({ iconClassName }: { iconClassName?: string }) {
-  const { user } = useAuthContext();
+  const { user, isAdmin, isRH, roleInfo } = useAuthContext();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  
+  // Admin Send Notification State
+  const [sendOpen, setSendOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -56,6 +69,50 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
     load();
   };
 
+  const handleSendToManagers = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast.error('Preencha título e mensagem.');
+      return;
+    }
+    setSending(true);
+    try {
+      const { data: managers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('team_id', roleInfo?.team_id)
+        .eq('role', 'unit_manager');
+
+      if (!managers || managers.length === 0) {
+        toast.info('Nenhum gerente encontrado.');
+        setSending(false);
+        return;
+      }
+
+      // Evita duplicação dedupando unit_managers se um user tiver a role mais de uma vez na mesma team
+      const uniqueManagerIds = Array.from(new Set(managers.map(m => m.user_id)));
+
+      const payload = uniqueManagerIds.map(userId => ({
+        user_id: userId,
+        team_id: roleInfo?.team_id,
+        title: title.trim(),
+        message: message.trim(),
+        link: null
+      }));
+
+      const { error } = await supabase.from('notifications').insert(payload);
+      if (error) throw error;
+      
+      toast.success(`Comunicado enviado para ${uniqueManagerIds.length} gerente(s).`);
+      setTitle('');
+      setMessage('');
+      setSendOpen(false);
+    } catch (e: any) {
+      toast.error('Erro ao enviar: ' + e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -72,11 +129,18 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
       <PopoverContent align="end" className="w-[320px] p-0 shadow-2xl border-border/50 rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <h4 className="font-semibold text-sm">Notificações {unreadCount > 0 && <span className="ml-1 text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</h4>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-auto p-0 text-xs text-primary hover:text-primary/80 transition-colors">
-              Marcar como lidas
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {(isAdmin || isRH) && (
+              <Button variant="outline" size="sm" onClick={() => setSendOpen(true)} className="h-6 px-2 text-[10px] gap-1">
+                <Megaphone size={12} /> Aviso
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-auto p-0 text-xs text-primary hover:text-primary/80 transition-colors">
+                Marcar lidas
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-[360px] bg-card">
           {notifications.length === 0 ? (
@@ -109,6 +173,48 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
           )}
         </ScrollArea>
       </PopoverContent>
+
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-primary" />
+              Comunicado aos Gerentes
+            </DialogTitle>
+            <DialogDescription>
+              Envie um alerta que aparecerá no ícone de notificações (sino) de todos os Gerentes de Unidade.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Assunto</Label>
+              <Input
+                placeholder="Ex: Prazos de fechamento"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={50}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mensagem</Label>
+              <Textarea
+                placeholder="Digite o aviso para as chefias..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="min-h-[100px] resize-none"
+                maxLength={300}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendOpen(false)} disabled={sending}>Cancelar</Button>
+            <Button onClick={handleSendToManagers} disabled={sending} className="gap-2">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sending ? 'Disparando...' : 'Disparar Aviso'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Popover>
   );
 }
