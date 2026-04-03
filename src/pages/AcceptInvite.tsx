@@ -1,7 +1,7 @@
 /**
  * AcceptInvite — Category Chief invite acceptance.
  * Token comes from path params (/convite/:token) — never exposed in query string.
- * Premium design matching the Register page style.
+ * Now supports the pending approval flow.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, ShieldCheck, Clock } from 'lucide-react';
 import AuthBackground from '@/components/AuthBackground';
 import logoSaude from '@/assets/logo-saude.png';
 
@@ -39,11 +39,11 @@ export default function AcceptInvite() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] = useState(false);
   const navigate = useNavigate();
 
   const { token: pathToken } = useParams<{ token: string }>();
   const [params] = useSearchParams();
-  // Prefer path param, fallback to legacy query param for backward compatibility
   const token = pathToken || params.get('token');
 
   useEffect(() => {
@@ -104,12 +104,25 @@ export default function AcceptInvite() {
         p_token: invite.token,
       });
 
-      if (error || !data?.success) {
+      if (error) {
+        toast.error(error.message || 'Erro ao aceitar convite.');
+        return;
+      }
+
+      if (!data?.success) {
         toast.error(data?.error || 'Erro ao aceitar convite.');
         return;
       }
 
-      toast.success(data.message);
+      // Handle the new pending approval flow
+      if (data?.status === 'pending') {
+        toast.success('Solicitação enviada! Aguarde a aprovação do administrador.');
+        setPendingApproval(true);
+        return;
+      }
+
+      // Direct approval (legacy flow or already approved)
+      toast.success(data.message || 'Convite aceito!');
       setTimeout(() => navigate('/'), 2000);
     } catch {
       toast.error('Erro ao processar convite.');
@@ -119,7 +132,6 @@ export default function AcceptInvite() {
   };
 
   const handleGoogleLogin = async () => {
-    // Redirect to Google OAuth, coming back to this page via clean path
     const redirectUrl = `${window.location.origin}/convite/${token}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -134,6 +146,46 @@ export default function AcceptInvite() {
     return (
       <AuthBackground>
         <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </AuthBackground>
+    );
+  }
+
+  // ========== PENDING APPROVAL SCREEN ==========
+  if (pendingApproval) {
+    return (
+      <AuthBackground>
+        <div className="max-w-[400px] w-full px-4 animate-fade-in">
+          <div className="auth-card text-center space-y-5">
+            <div className="auth-logo">
+              <img src={logoSaude} alt="Saúde+" className="w-[60px] h-[60px] rounded-xl shadow-lg" />
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <Clock size={24} className="text-amber-400 animate-pulse" />
+            </div>
+            <h1 className="text-xl font-bold text-white">Aguardando Aprovação</h1>
+            <p className="text-white/55 text-sm">
+              Sua solicitação de acesso como <strong className="text-white/80">Chefe de Categoria</strong> foi enviada com sucesso!
+              O administrador precisa aprovar seu cadastro antes de você acessar o sistema.
+            </p>
+            <div className="bg-white/10 rounded-xl p-4 border border-white/10 space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <ShieldCheck size={14} className="text-emerald-400" />
+                <span className="text-xs text-white/60">Verificação de segurança</span>
+              </div>
+              <p className="text-[11px] text-white/40">
+                Por segurança, todos os novos acessos passam por aprovação manual do administrador.
+              </p>
+            </div>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <Button
+              onClick={() => navigate('/login')}
+              variant="ghost"
+              className="text-white/50 hover:text-white/80"
+            >
+              Voltar ao Login
+            </Button>
+          </div>
+        </div>
       </AuthBackground>
     );
   }
@@ -230,7 +282,7 @@ export default function AcceptInvite() {
             {/* Security badge */}
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/40">
               <ShieldCheck size={12} />
-              <span>Link seguro • Uso único</span>
+              <span>Link seguro • Uso único • Aprovação obrigatória</span>
             </div>
 
             {/* Actions */}
@@ -251,12 +303,12 @@ export default function AcceptInvite() {
                     {accepting ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processando...
+                        Enviando solicitação...
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Aceitar Convite ({categories.length} categoria{categories.length !== 1 ? 's' : ''})
+                        Solicitar Acesso ({categories.length} categoria{categories.length !== 1 ? 's' : ''})
                       </>
                     )}
                   </Button>
@@ -271,7 +323,7 @@ export default function AcceptInvite() {
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-center text-white/55">
-                  Entre com sua conta Google para aceitar o convite
+                  Entre com sua conta Google para solicitar acesso
                 </p>
                 <Button className="auth-google-btn" size="lg" onClick={handleGoogleLogin}>
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -288,6 +340,9 @@ export default function AcceptInvite() {
 
           {/* Footer */}
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
+            <p className="text-[11px] text-white/40 italic mb-2">
+              Após solicitar, o administrador precisará aprovar seu acesso.
+            </p>
             <Button variant="link" className="text-white/40 hover:text-white/70 text-[11px]" onClick={() => navigate('/')}>
               Voltar ao início
             </Button>
