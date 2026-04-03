@@ -35,12 +35,15 @@ export default function AuditLogs() {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('audit_logs')
-        .select(`*, actorProfile:profiles!actor_id(display_name)`)
+        .select(`*, actorProfile:profiles(display_name)`)
         .order('created_at', { ascending: false })
         .limit(200);
       
+      if (error) {
+        console.error("Supabase Error fetching audit logs:", error);
+      }
       setLogs(data || []);
     } catch (err) {
       console.error(err);
