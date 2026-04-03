@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Send, Loader2, Megaphone } from 'lucide-react';
+import { Send, Loader2, Megaphone, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Notification {
@@ -22,6 +22,8 @@ interface Notification {
   is_read: boolean;
   link: string | null;
   created_at: string;
+  sender_id?: string;
+  batch_id?: string;
 }
 
 export function NotificationBell({ iconClassName }: { iconClassName?: string }) {
@@ -69,6 +71,21 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
     load();
   };
 
+  const deleteNotification = async (n: Notification, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita marcar como lida e redirecionar ao excluir
+    if (!user) return;
+
+    if (n.sender_id === user.id && n.batch_id) {
+      // Exclui o broadcast inteiro para todos que o receberam (global delete)
+      await supabase.from('notifications').delete().eq('batch_id', n.batch_id);
+      toast.success('Comunicado apagado para todos.');
+    } else {
+      // Exclui apenas a cópia local do usuário
+      await supabase.from('notifications').delete().eq('id', n.id);
+    }
+    load();
+  };
+
   const handleSendToManagers = async () => {
     if (!title.trim() || !message.trim()) {
       toast.error('Preencha título e mensagem.');
@@ -91,12 +108,21 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
       // Evita duplicação dedupando unit_managers se um user tiver a role mais de uma vez na mesma team
       const uniqueManagerIds = Array.from(new Set(managers.map(m => m.user_id)));
 
+      // O admin deve receber uma cópia no seu painel para poder rastrear o aviso e apagá-lo globalmente
+      if (!uniqueManagerIds.includes(user.id)) {
+        uniqueManagerIds.unshift(user.id);
+      }
+
+      const batchId = crypto.randomUUID();
+
       const payload = uniqueManagerIds.map(userId => ({
         user_id: userId,
         team_id: roleInfo?.team_id,
         title: title.trim(),
         message: message.trim(),
-        link: null
+        link: null,
+        sender_id: user.id,
+        batch_id: batchId
       }));
 
       const { error } = await supabase.from('notifications').insert(payload);
@@ -164,13 +190,22 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
                   key={n.id}
                   onClick={() => markAsRead(n.id, n.link)}
                   className={cn(
-                    "text-left px-4 py-3 text-sm transition-all hover:bg-muted/60 border-b border-border/40 last:border-0",
+                    "group relative text-left px-4 py-3 text-sm transition-all hover:bg-muted/60 border-b border-border/40 last:border-0",
                     !n.is_read ? "bg-primary/5" : "opacity-75"
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className={cn("font-medium", !n.is_read ? "text-foreground" : "text-muted-foreground")}>{n.title}</span>
-                    {!n.is_read && <span className="h-2 w-2 mt-1.5 rounded-full bg-primary shrink-0 shadow-[0_0_8px_hsl(var(--primary))]" />}
+                    <div className="flex items-center gap-2">
+                      {!n.is_read && <span className="h-2 w-2 mt-1.5 rounded-full bg-primary shrink-0 shadow-[0_0_8px_hsl(var(--primary))]" />}
+                      <button 
+                        onClick={(e) => deleteNotification(n, e)}
+                        className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                        title={n.sender_id === user?.id ? "Apagar aviso para todos" : "Apagar notificação"}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                   <p className="text-muted-foreground text-xs mt-1 leading-snug">{n.message}</p>
                   <p className="text-[10px] text-muted-foreground/50 mt-2 font-mono">
