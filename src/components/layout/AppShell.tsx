@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download,
+  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download, ShieldAlert
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { to: '/categorias', label: 'Categorias', icon: Tag, roles: ['admin'] },
   { to: '/saldo', label: 'Saldo de Folgas', icon: Wallet, roles: ['admin', 'rh', 'category_chief', 'unit_manager', 'professional'] },
   { to: '/convites', label: 'Convites', icon: Mail, roles: ['admin'] },
+  { to: '/auditoria', label: 'Auditoria', icon: ShieldAlert, roles: ['admin'] },
 ];
 
 export function AppShell() {
