@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Building2, Pencil, Trash2 } from 'lucide-react';
+import { UnitDetailDialog } from '@/components/UnitDetailDialog';
 
 interface Unit { id: string; name: string; active: boolean; }
 
@@ -18,6 +19,9 @@ export default function Units() {
   const [editOpen, setEditOpen] = useState(false);
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
   const [name, setName] = useState('');
+  
+  // Detail Dialog State
+  const [detailUnit, setDetailUnit] = useState<Unit | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from('units').select('*').order('name');
@@ -36,7 +40,8 @@ export default function Units() {
     setName(''); setOpen(false); load();
   };
 
-  const openEditDialog = (u: Unit) => {
+  const openEditDialog = (ev: React.MouseEvent, u: Unit) => {
+    ev.stopPropagation();
     setEditUnit(u); setName(u.name); setEditOpen(true);
   };
 
@@ -49,7 +54,8 @@ export default function Units() {
     setEditOpen(false); setEditUnit(null); setName(''); load();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (ev: React.MouseEvent, id: string) => {
+    ev.stopPropagation();
     if (!confirm('Tem certeza que deseja remover esta unidade?')) return;
     const { error } = await supabase.from('units').delete().eq('id', id);
     if (error) { toast.error('Erro ao remover unidade. Verifique se não há profissionais vinculados.'); return; }
@@ -86,6 +92,14 @@ export default function Units() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      {/* Detail Dialog */}
+      <UnitDetailDialog 
+        open={!!detailUnit} 
+        onOpenChange={(op) => !op && setDetailUnit(null)} 
+        unitId={detailUnit?.id ?? null} 
+        unitName={detailUnit?.name ?? ''} 
+      />
 
       {units.length === 0 ? (
         <div className="empty-state">
@@ -95,15 +109,15 @@ export default function Units() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {units.map(u => (
-            <div key={u.id} className="page-card flex items-center gap-3">
+            <div key={u.id} onClick={() => setDetailUnit(u)} className="page-card flex items-center gap-3 cursor-pointer hover:border-primary/50 transition-colors group">
               <Building2 size={20} className="text-primary" />
               <span className="font-medium flex-1">{u.name}</span>
               {isAdmin && (
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(u)}>
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => openEditDialog(e, u)}>
                     <Pencil size={14} />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(u.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => handleDelete(e, u.id)}>
                     <Trash2 size={14} className="text-destructive" />
                   </Button>
                 </div>
