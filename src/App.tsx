@@ -54,7 +54,9 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/registro" element={<Register />} />
+            <Route path="/registro/:token" element={<Register />} />
             <Route path="/aceite-convite" element={<AcceptInvite />} />
+            <Route path="/convite/:token" element={<AcceptInvite />} />
 
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />

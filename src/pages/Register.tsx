@@ -1,14 +1,15 @@
 /**
  * Register — Google OAuth via invite link.
  * Stores invite token in localStorage so useAuth can assign the role after redirect.
+ * Token comes from path params (/registro/:token) — never exposed in query string.
  * Premium design with animated particle background.
  */
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import AuthBackground from '@/components/AuthBackground';
 import logoSaude from '@/assets/logo-saude.png';
@@ -22,8 +23,10 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Register() {
+  const { token: pathToken } = useParams<{ token: string }>();
   const [params] = useSearchParams();
-  const token = params.get('token');
+  // Prefer path param, fallback to legacy query param for backward compatibility
+  const token = pathToken || params.get('token');
 
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,11 @@ export default function Register() {
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
+
+    // Clean token from URL if it came via query param (security)
+    if (params.get('token')) {
+      window.history.replaceState({}, '', `/registro/${token}`);
+    }
 
     supabase
       .from('invites')
@@ -49,12 +57,14 @@ export default function Register() {
     setSubmitting(true);
 
     try {
+      // Store token securely in localStorage — NOT in the redirect URL
       localStorage.setItem('pending_invite_token', invite.token);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.host === 'localhost:5173' ? 'http://localhost:5173' : window.location.origin}/?token=${invite.token}`,
+          // Redirect to root — useAuth will pick up token from localStorage
+          redirectTo: `${window.location.origin}/`,
         },
       });
       if (error) throw error;
@@ -132,6 +142,12 @@ export default function Register() {
               <Badge className="bg-white/15 hover:bg-white/20 text-white border-white/20 text-sm px-3 py-1">
                 {roleLabels[invite.role] || invite.role}
               </Badge>
+            </div>
+
+            {/* Security badge */}
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/40">
+              <ShieldCheck size={12} />
+              <span>Link seguro • Uso único</span>
             </div>
 
             <p className="text-center text-sm text-white/55">

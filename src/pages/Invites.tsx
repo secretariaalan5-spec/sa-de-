@@ -246,13 +246,13 @@ export default function Invites() {
   };
 
   const copyLink = async (token: string) => {
-    const url = `${window.location.origin}/registro?token=${token}`;
+    const url = `${window.location.origin}/registro/${token}`;
     await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };
 
   const copyCategoryInviteLink = async (token: string) => {
-    const url = `${window.location.origin}/aceite-convite?token=${token}`;
+    const url = `${window.location.origin}/convite/${token}`;
     await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };

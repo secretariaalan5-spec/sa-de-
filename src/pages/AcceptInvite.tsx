@@ -1,11 +1,17 @@
+/**
+ * AcceptInvite — Category Chief invite acceptance.
+ * Token comes from path params (/convite/:token) — never exposed in query string.
+ * Premium design matching the Register page style.
+ */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, Loader2, Link as LinkIcon, Stethoscope } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, ShieldCheck } from 'lucide-react';
+import AuthBackground from '@/components/AuthBackground';
+import logoSaude from '@/assets/logo-saude.png';
 
 interface CategoryInvite {
   id: string;
@@ -35,9 +41,16 @@ export default function AcceptInvite() {
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const token = new URLSearchParams(window.location.search).get('token');
+  const { token: pathToken } = useParams<{ token: string }>();
+  const [params] = useSearchParams();
+  // Prefer path param, fallback to legacy query param for backward compatibility
+  const token = pathToken || params.get('token');
 
   useEffect(() => {
+    // Clean token from URL if it came via query param (security)
+    if (params.get('token') && token) {
+      window.history.replaceState({}, '', `/convite/${token}`);
+    }
     loadInvite();
   }, []);
 
@@ -106,8 +119,8 @@ export default function AcceptInvite() {
   };
 
   const handleGoogleLogin = async () => {
-    // Redirect to Google OAuth, coming back to this same page with the token
-    const redirectUrl = `${window.location.origin}/aceite-convite?token=${token}`;
+    // Redirect to Google OAuth, coming back to this page via clean path
+    const redirectUrl = `${window.location.origin}/convite/${token}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: redirectUrl },
@@ -119,33 +132,36 @@ export default function AcceptInvite() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <CardTitle className="mt-4">Carregando convite...</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <AuthBackground>
+        <Loader2 className="w-8 h-8 animate-spin text-white" />
+      </AuthBackground>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <XCircle className="mx-auto h-12 w-12 text-destructive" />
-            <CardTitle className="mt-4 text-destructive">Erro</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-3">
-            <p className="text-sm font-medium">Já tem acesso ao sistema?</p>
-            <Button onClick={() => navigate('/login')} className="w-full">Fazer Login</Button>
-            <Button variant="ghost" onClick={() => navigate('/')}>Voltar ao início</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthBackground>
+        <div className="max-w-[400px] w-full px-4 animate-fade-in">
+          <div className="auth-card text-center space-y-5">
+            <div className="auth-logo">
+              <img src={logoSaude} alt="Saúde+" className="w-[60px] h-[60px] rounded-xl shadow-lg" />
+            </div>
+            <XCircle className="mx-auto h-10 w-10 text-red-400" />
+            <h1 className="text-xl font-bold text-white">Erro</h1>
+            <p className="text-white/55 text-sm">{error}</p>
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-white/70">Já tem acesso ao sistema?</p>
+              <Button onClick={() => navigate('/login')} className="auth-google-btn">
+                Fazer Login
+              </Button>
+              <Button variant="link" className="text-white/50 hover:text-white/80" onClick={() => navigate('/')}>
+                Voltar ao início
+              </Button>
+            </div>
+          </div>
+        </div>
+      </AuthBackground>
     );
   }
 
@@ -156,58 +172,78 @@ export default function AcceptInvite() {
   const canAccept = invite.is_active && !isExpired && !isMaxUsesReached;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="bg-primary/10 p-3 rounded-2xl inline-flex mx-auto mb-2">
-            <Stethoscope className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="mt-2">
-            {canAccept ? 'Convite de Chefe de Categoria' : 'Convite Indisponível'}
-          </CardTitle>
-          <CardDescription>
-            {invite.label || 'Você foi convidado para gerenciar categorias'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Status */}
-          <div className="flex items-center justify-center gap-2">
-            {canAccept ? (
-              <Badge variant="default" className="text-sm">
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Disponível
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="text-sm">
-                <XCircle className="h-4 w-4 mr-1" /> Indisponível
-              </Badge>
-            )}
-          </div>
-
-          {/* Categorias */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-center">Categorias que você irá gerenciar:</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {categories.map((cat) => (
-                <Badge key={cat.id} variant="outline" className="text-sm">
-                  {cat.name}
-                </Badge>
-              ))}
+    <AuthBackground>
+      <div className="max-w-[420px] w-full px-4 animate-fade-in">
+        <div className="auth-card">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="auth-logo">
+              <img src={logoSaude} alt="Saúde+" className="w-[72px] h-[72px] rounded-2xl shadow-lg" />
             </div>
-            {categories.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center">Nenhuma categoria encontrada</p>
-            )}
+            <h1 className="text-[26px] font-bold text-white mt-5 tracking-tight">
+              Saúde+ Escalas
+            </h1>
+            <p className="text-white/60 text-sm mt-1.5">
+              {canAccept ? 'Convite de Chefe de Categoria' : 'Convite Indisponível'}
+            </p>
           </div>
 
-          {/* Ações */}
-          <div className="space-y-3">
+          {/* Divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6" />
+
+          <div className="space-y-5">
+            {/* Status */}
+            <div className="flex items-center justify-center gap-2">
+              {canAccept ? (
+                <Badge className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/30 text-sm px-3 py-1">
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Disponível
+                </Badge>
+              ) : (
+                <Badge className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 text-sm px-3 py-1">
+                  <XCircle className="h-4 w-4 mr-1" /> Indisponível
+                </Badge>
+              )}
+            </div>
+
+            {/* Description label */}
+            {invite.label && (
+              <p className="text-center text-sm text-white/70 italic">"{invite.label}"</p>
+            )}
+
+            {/* Categories */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-center text-white/80">
+                Categorias que você irá gerenciar:
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {categories.map((cat) => (
+                  <Badge key={cat.id} className="bg-white/15 hover:bg-white/20 text-white border-white/20 text-sm px-3 py-1">
+                    {cat.name}
+                  </Badge>
+                ))}
+              </div>
+              {categories.length === 0 && (
+                <p className="text-sm text-white/40 text-center">Nenhuma categoria encontrada</p>
+              )}
+            </div>
+
+            {/* Security badge */}
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/40">
+              <ShieldCheck size={12} />
+              <span>Link seguro • Uso único</span>
+            </div>
+
+            {/* Actions */}
             {userId ? (
-              <>
-                <p className="text-sm text-center">
-                  Logado como: <span className="font-medium">{userEmail}</span>
-                </p>
+              <div className="space-y-3">
+                <div className="bg-white/10 rounded-xl p-3 text-center border border-white/10">
+                  <p className="text-sm text-white/70">
+                    Logado como: <span className="font-medium text-white/90">{userEmail}</span>
+                  </p>
+                </div>
                 {canAccept ? (
                   <Button
-                    className="w-full"
+                    className="auth-google-btn"
                     size="lg"
                     onClick={handleAccept}
                     disabled={accepting}
@@ -225,38 +261,39 @@ export default function AcceptInvite() {
                     )}
                   </Button>
                 ) : isExpired ? (
-                  <p className="text-center text-sm text-muted-foreground">Este convite expirou.</p>
+                  <p className="text-center text-sm text-white/50">Este convite expirou.</p>
                 ) : isMaxUsesReached ? (
-                  <p className="text-center text-sm text-muted-foreground">Limite de usos atingido.</p>
+                  <p className="text-center text-sm text-white/50">Limite de usos atingido.</p>
                 ) : (
-                  <p className="text-center text-sm text-muted-foreground">Convite não está mais ativo.</p>
+                  <p className="text-center text-sm text-white/50">Convite não está mais ativo.</p>
                 )}
-              </>
+              </div>
             ) : (
-              <>
-                <p className="text-sm text-center text-muted-foreground">
+              <div className="space-y-3">
+                <p className="text-sm text-center text-white/55">
                   Entre com sua conta Google para aceitar o convite
                 </p>
-                <Button className="w-full h-12 font-semibold gap-3" size="lg" onClick={handleGoogleLogin}>
+                <Button className="auth-google-btn" size="lg" onClick={handleGoogleLogin}>
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   Entrar com Google
                 </Button>
-              </>
+              </div>
             )}
           </div>
 
-          <div className="text-center">
-            <Button variant="link" onClick={() => navigate('/')}>
+          {/* Footer */}
+          <div className="mt-6 pt-4 border-t border-white/10 text-center">
+            <Button variant="link" className="text-white/40 hover:text-white/70 text-[11px]" onClick={() => navigate('/')}>
               Voltar ao início
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </AuthBackground>
   );
 }
