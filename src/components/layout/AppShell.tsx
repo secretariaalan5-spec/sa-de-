@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/untyped-client';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -190,7 +189,7 @@ export function AppShell() {
       <div className="flex-1 flex flex-col lg:ml-0 min-w-0">
         {/* Mobile top header */}
         {isMobile && (
-          <header className="sticky top-0 z-30 bg-primary px-4 py-3 flex items-center justify-between shadow-md">
+          <header className="fixed top-0 left-0 right-0 z-50 bg-primary px-4 py-3 flex items-center justify-between shadow-md env-pt">
             <div className="flex items-center gap-2">
               <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
               <div>
@@ -223,23 +222,12 @@ export function AppShell() {
         <main 
           className={cn(
             "flex-1 flex flex-col p-4 lg:p-8 relative",
-            isMobile ? "pb-[calc(110px+env(safe-area-inset-bottom))]" : "pt-16 lg:pt-8"
+            isMobile ? "pb-[120px] pt-[84px]" : "pt-16 lg:pt-8"
           )}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, x: isMobile ? 15 : 0, y: isMobile ? 0 : 10 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              exit={{ opacity: 0, x: isMobile ? -15 : 0, y: isMobile ? 0 : -10 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="flex-1 flex flex-col"
-            >
-              {outlet}
-            </motion.div>
-          </AnimatePresence>
+          {outlet}
         </main>
       </div>
 
@@ -286,12 +274,12 @@ export function AppShell() {
                   {mobileOpen ? (
                     <X size={20} className="text-white scale-110 transition-all duration-300" />
                   ) : (
-                    <Menu size={20} className="text-primary-foreground/70 scale-100 transition-all duration-300" />
+                    <Menu size={20} className="text-blue-100 opacity-80 scale-100 transition-all duration-300" />
                   )}
                 </div>
                 <span className={cn(
                   "text-[10px] mt-1 transition-colors duration-300",
-                  mobileOpen ? "text-white font-medium" : "text-primary-foreground/70"
+                  mobileOpen ? "text-white font-medium" : "text-blue-100 opacity-80"
                 )}>Mais</span>
               </button>
             )}
