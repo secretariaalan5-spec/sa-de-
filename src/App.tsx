@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import Login from "./pages/Login";
@@ -40,8 +40,20 @@ function RootRedirect() {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthContext();
+  const [searchParams] = useSearchParams();
+  
   if (loading) return null;
-  if (session) return <Navigate to="/" replace />;
+  
+  if (session) {
+    // If a logged-in user clicks an invite link, save the token before redirecting
+    // so it doesn't get stripped out and lost during navigation.
+    const token = searchParams.get('token');
+    if (token) {
+      localStorage.setItem('pending_invite_token', token);
+    }
+    return <Navigate to="/" replace />;
+  }
+  
   return <>{children}</>;
 }
 
