@@ -36,11 +36,29 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // If the user already has a role assigned, redirect straight to dashboard
-    if (roleInfo) {
+    // If the user already has an active session and lands here with a token,
+    // they are trying to accept an invite. Process it directly.
+    if (session && token) {
+      setSubmitting(true);
+      supabase.rpc('accept_invite_by_token', { p_token: token }).then(({ error }) => {
+        if (error) {
+          toast.error(error.message || 'Erro ao processar convite');
+          setSubmitting(false);
+          return;
+        }
+        // Clear local storage and navigate to dashboard after successful RPC
+        localStorage.removeItem('pending_invite_token');
+        navigate('/', { replace: true });
+        window.location.reload(); // Refresh to ensure useAuth fetches the new roles correctly
+      });
+      return;
+    }
+
+    // If the user already has a role assigned and no token is being processed, redirect straight to dashboard
+    if (roleInfo && !token) {
       navigate('/', { replace: true });
     }
-  }, [roleInfo, navigate]);
+  }, [session, roleInfo, navigate, token]);
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
