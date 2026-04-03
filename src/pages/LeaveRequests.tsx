@@ -34,6 +34,7 @@ export default function LeaveRequests() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
 
