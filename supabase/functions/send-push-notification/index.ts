@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { player_ids, title, message, data: pushData, team_id } = body;
+    const { player_ids, user_ids, title, message, data: pushData, team_id } = body;
 
     const ONESIGNAL_APP_ID = 'cba1a85c-c723-4e42-bd22-d3f4d4d07467';
     const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY');
@@ -60,8 +60,24 @@ Deno.serve(async (req) => {
         .filter(Boolean);
     }
 
-    if (!targetPlayerIds || targetPlayerIds.length === 0) {
+    if ((!targetPlayerIds || targetPlayerIds.length === 0) && (!user_ids || user_ids.length === 0)) {
       return new Response(JSON.stringify({ success: true, sent: 0, message: 'No recipients' }), { headers: corsHeaders });
+    }
+
+    // Prepare OneSignal Payload
+    const payload: any = {
+      app_id: ONESIGNAL_APP_ID,
+      headings: { en: title || 'Saúde+' },
+      contents: { en: message || 'Nova atualização disponível' },
+      data: pushData || {},
+    };
+
+    if (pushData?.url) payload.url = pushData.url;
+    if (targetPlayerIds && targetPlayerIds.length > 0) payload.include_player_ids = targetPlayerIds;
+    
+    if (user_ids && user_ids.length > 0) {
+      payload.include_aliases = { external_id: user_ids };
+      payload.target_channel = "push";
     }
 
     // Send via OneSignal REST API
@@ -71,14 +87,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json; charset=utf-8',
         'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
       },
-      body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        include_player_ids: targetPlayerIds,
-        headings: { en: title || 'Saúde+' },
-        contents: { en: message || 'Nova atualização disponível' },
-        data: pushData || {},
-        url: pushData?.url || undefined,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const result = await onesignalRes.json();

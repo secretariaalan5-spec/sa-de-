@@ -102,6 +102,15 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
       const { error } = await supabase.from('notifications').insert(payload);
       if (error) throw error;
       
+      // Send external Push Notification using OneSignal via Edge Function
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: uniqueManagerIds,
+          title: title.trim(),
+          message: message.trim(),
+        }
+      }).catch(console.error);
+      
       toast.success(`Comunicado enviado para ${uniqueManagerIds.length} gerente(s).`);
       setTitle('');
       setMessage('');

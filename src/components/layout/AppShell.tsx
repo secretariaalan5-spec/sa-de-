@@ -43,6 +43,18 @@ export function AppShell() {
 
   useEffect(() => {
     if (!user) return;
+    
+    // Bind device to OneSignal using the authenticated user UUID
+    const OneSignal = (window as any).OneSignal;
+    if (OneSignal && typeof OneSignal.login === 'function') {
+      OneSignal.login(user.id).catch(console.error);
+    } else {
+      (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
+      (window as any).OneSignalDeferred.push(async function(OS: any) {
+        if (typeof OS.login === 'function') await OS.login(user.id);
+      });
+    }
+
     supabase.from('profiles').select('avatar_url').eq('user_id', user.id).maybeSingle()
       .then(({ data }) => { if (data?.avatar_url) setAvatarUrl(data.avatar_url); });
   }, [user]);
