@@ -26,6 +26,7 @@ interface LeaveReq {
 interface Employee { id: string; name: string; }
 interface Schedule { employee_id: string; date: string; }
 interface Credit { employee_id: string; amount: number; }
+interface Profile { user_id: string; display_name: string; }
 
 export default function LeaveRequests() {
   const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
