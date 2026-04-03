@@ -184,7 +184,7 @@ export function AppShell() {
 
         <main className={cn(
           "flex-1 p-4 lg:p-8",
-          isMobile ? "pb-20" : "pt-16 lg:pt-8"
+          isMobile ? "pb-[110px]" : "pt-16 lg:pt-8"
         )}>
           <Outlet />
         </main>

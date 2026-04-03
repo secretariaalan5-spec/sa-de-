@@ -111,9 +111,11 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: none;
   }
 
   /* Hierarquia tipográfica padrão */
@@ -358,7 +360,7 @@
 
 /* ─── Safe Area (Mobile) ──────────────────────────────────────────────── */
 .safe-area-bottom {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem);
+  padding-bottom: max(env(safe-area-inset-bottom), 18px);
 }
 
 /* ─── Impressão ───────────────────────────────────────────────────────── */
