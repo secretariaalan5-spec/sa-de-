@@ -129,6 +129,10 @@ export default function LeaveRequests() {
   };
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
+  const getUserName = (id: string | null) => {
+    if (!id) return null;
+    return profiles.find(p => p.user_id === id)?.display_name || null;
+  };
 
   const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
     pending: { label: 'Pendente', variant: 'secondary', icon: Clock },
