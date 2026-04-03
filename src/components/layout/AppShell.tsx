@@ -59,7 +59,13 @@ export function AppShell() {
   }, [isMobile]);
 
   const role = roleInfo?.role ?? '';
-  const filtered = navItems.filter(item => item.roles.includes(role));
+  let filtered = navItems.filter(item => item.roles.includes(role));
+  
+  // Failsafe: if role isn't loaded yet or mismatched, show at least Dashboard to prevent empty blue bar
+  if (filtered.length === 0) {
+    filtered = navItems.filter(item => ['/'].includes(item.to));
+  }
+
   const bottomNavItems = filtered.slice(0, 4);
   const hasMore = filtered.length > 4;
 

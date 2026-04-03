@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saude-plus-v4';
+const CACHE_NAME = 'saude-plus-v5-mobile-fix';
 const ASSETS_TO_CACHE = [
     '/',
     '/manifest.json',
