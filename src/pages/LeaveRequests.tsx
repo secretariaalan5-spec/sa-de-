@@ -68,6 +68,21 @@ export default function LeaveRequests() {
   useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
   const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {
+    // 0. Check 10 days advance notice (Business Logic Skill)
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 10);
+    minDate.setHours(0, 0, 0, 0);
+
+    const tooEarlyDates = leaveDates.filter(d => {
+      const date = new Date(d + 'T12:00:00');
+      return date < minDate;
+    });
+
+    if (tooEarlyDates.length > 0) {
+      toast.error(`Pedido recusado: Antecedência mínima de 10 dias exigida pela prefeitura.`);
+      return;
+    }
+
     // 1. Check schedule conflicts
     const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
     if (conflictDates.length > 0) {
