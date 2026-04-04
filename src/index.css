@@ -12,6 +12,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Deployment Trigger: Reverting dashboard changes but keeping premium login. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
