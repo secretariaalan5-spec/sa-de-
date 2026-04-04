@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saude-plus-v5-mobile-fix';
+const CACHE_NAME = 'saude-plus-v6-push';
 const ASSETS_TO_CACHE = [
     '/',
     '/manifest.json',
@@ -42,12 +42,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // SPA navigation fallback: always serve index.html for navigation requests
+    // SPA navigation fallback
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // If we got a 404 for a navigation request, serve index.html instead
                     if (response.status === 404) {
                         return fetch('/');
                     }
@@ -84,43 +83,70 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Handle push events (from OneSignal or direct)
-self.addEventListener('push', (event) => {
-    if (!event.data) return;
-    try {
-        const data = event.data.json();
-        const title = data.title || data.headings?.en || 'Saúde+';
-        const body = data.alert || data.contents?.en || 'Nova atualização';
-        const icon = '/icon-192.png';
-        const badge = '/icon-192.png';
+// =========================================
+// PUSH NOTIFICATIONS
+// =========================================
 
-        event.waitUntil(
-            self.registration.showNotification(title, {
-                body,
-                icon,
-                badge,
-                data: data.custom || data.data || {},
-                vibrate: [200, 100, 200],
-                tag: 'saude-plus-notification',
-                renotify: true,
-            })
-        );
-    } catch (e) {
-        // Silent fail for non-JSON push
+// Handle push events from server
+self.addEventListener('push', (event) => {
+    let data = { title: 'Saúde+', body: 'Nova notificação', icon: '/icon-192.png', url: '/' };
+
+    if (event.data) {
+        try {
+            const json = event.data.json();
+            data.title = json.title || json.headings?.en || data.title;
+            data.body = json.body || json.alert || json.message || json.contents?.en || data.body;
+            data.url = json.data?.url || json.url || data.url;
+        } catch (e) {
+            try { data.body = event.data.text(); } catch (e2) { /* ignore */ }
+        }
     }
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            data: { url: data.url },
+            vibrate: [200, 100, 200],
+            tag: 'saude-plus-' + Date.now(),
+            renotify: true,
+            requireInteraction: false,
+            silent: false,
+        })
+    );
 });
 
+// Handle notification click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const url = event.notification.data?.url || '/';
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+            // Focus existing window or open new one
             for (const client of clients) {
-                if ('focus' in client) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    client.navigate(url);
                     return client.focus();
                 }
             }
             return self.clients.openWindow(url);
         })
     );
+});
+
+// Handle messages from the main app (for showing local push when app is in background)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+        const { title, body, url } = event.data;
+        self.registration.showNotification(title || 'Saúde+', {
+            body: body || 'Nova notificação',
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            data: { url: url || '/' },
+            vibrate: [200, 100, 200],
+            tag: 'saude-local-' + Date.now(),
+            renotify: true,
+        });
+    }
 });

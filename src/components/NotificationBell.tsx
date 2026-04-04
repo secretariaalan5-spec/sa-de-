@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Send, Loader2, Megaphone, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Notification {
   id: string;
@@ -30,6 +31,9 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
   const { user, isAdmin, isRH, roleInfo } = useAuthContext();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  
+  // Push notifications via Service Worker
+  const { showLocalPush } = usePushNotifications();
   
   // Admin Send Notification State
   const [sendOpen, setSendOpen] = useState(false);
@@ -59,14 +63,14 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
     load();
     if (payload?.eventType === 'INSERT' && payload.new && user) {
       const newNotif = payload.new;
-      // Only fire browser push if it belongs to the current user
+      // Only fire push if it belongs to the current user
       if (newNotif.user_id === user.id && !newNotif.is_read) {
-         if ('Notification' in window && Notification.permission === 'granted') {
-           new Notification(newNotif.title || 'Saúde+ Escalas', {
-             body: newNotif.message || 'Você tem um novo aviso.',
-             icon: '/logo-saude.png'
-           });
-         }
+        // Use Service Worker for push (works even in background/minimized)
+        showLocalPush(
+          newNotif.title || 'Saúde+ Escalas',
+          newNotif.message || 'Você tem um novo aviso.',
+          newNotif.link || '/'
+        );
       }
     }
   });
