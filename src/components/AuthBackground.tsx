@@ -13,6 +13,9 @@ export default function AuthBackground({ children }: AuthBackgroundProps) {
     <div className="auth-bg">
       {/* Gradient layer */}
       <div className="auth-bg__gradient" />
+      
+      {/* Pattern texture layer */}
+      <div className="auth-bg__pattern" aria-hidden="true" />
 
       {/* Content */}
       <div className="auth-bg__content">

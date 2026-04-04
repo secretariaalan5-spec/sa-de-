@@ -29,24 +29,21 @@ export default function Login() {
 
   return (
     <AuthBackground>
-      <div className="max-w-[420px] w-full px-4 animate-in fade-in zoom-in-95 duration-500">
+      <div className="max-w-[440px] w-full px-4 animate-in fade-in zoom-in-95 duration-500">
         {/* Main Auth Card */}
         <div className="auth-card">
           {/* Header & Logo */}
           <div className="text-center mb-10">
-            <div className="inline-flex p-1.5 rounded-[1.5rem] bg-slate-50 shadow-inner mb-6">
+            <div className="inline-flex p-1.5 rounded-[1.5rem] bg-white/10 backdrop-blur-md shadow-inner mb-6">
               <img 
                 src={logoSaude} 
                 alt="Saúde+ Official" 
-                className="w-24 h-24 object-contain rounded-[1.2rem]" 
+                className="w-28 h-28 object-contain rounded-[1.2rem]" 
               />
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tighter mb-2">
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tighter">
               Saúde+ Escalas
             </h1>
-            <p className="text-slate-500 text-sm font-medium">
-              Portal de Gestão Hospitalar
-            </p>
           </div>
 
           {/* Social Auth Action */}

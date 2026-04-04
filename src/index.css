@@ -406,6 +406,15 @@
   z-index: 0;
 }
 
+.auth-bg__pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='10' fill='white' text-anchor='middle' dominant-baseline='middle'%3ESaúde+%3C/text%3E%3C/svg%3E");
+  background-repeat: repeat;
+  z-index: 1;
+}
+
 /* ── Animated glow orbs ── */
 .auth-bg__orbs {
   position: absolute;
@@ -475,17 +484,19 @@
   padding: 1rem;
 }
 
-/* ── Glassmorphism Card (Premium Light Version) ── */
+/* ── Glassmorphism Card (Premium Glass Version) ── */
 .auth-card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.1);
-  border-radius: 2rem;
-  padding: 3rem 2.5rem;
+  background: hsla(0, 0%, 100%, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsla(0, 0%, 100%, 0.2);
+  border-radius: 2.5rem;
+  padding: 3.5rem 3rem;
   box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    0 25px 50px -12px rgba(30, 58, 138, 0.3),
+    0 0 0 1px hsla(0, 0%, 100%, 0.4) inset;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
 }
 
 /* ── Logo container ── */
