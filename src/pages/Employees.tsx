@@ -219,23 +219,23 @@ export default function Employees() {
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
             <div className="space-y-1.5"><Label>WhatsApp (Opcional)</Label><Input type="tel" placeholder="(00) 90000-0000" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+            {(isAdmin || isRH) && (
+              <div className="space-y-1.5">
+                <Label>Categoria</Label>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
             {(isAdmin || isChief) && (
-              <>
-                <div className="space-y-1.5">
-                  <Label>Categoria</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Unidade</Label>
-                  <Select value={unitId} onValueChange={setUnitId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </>
+              <div className="space-y-1.5">
+                <Label>Unidade</Label>
+                <Select value={unitId} onValueChange={setUnitId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             )}
             <Button type="submit" className="w-full">Salvar</Button>
           </form>
