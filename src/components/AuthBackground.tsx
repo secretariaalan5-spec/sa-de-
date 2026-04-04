@@ -14,13 +14,6 @@ export default function AuthBackground({ children }: AuthBackgroundProps) {
       {/* Gradient layer */}
       <div className="auth-bg__gradient" />
 
-      {/* Animated glow orbs */}
-      <div className="auth-bg__orbs" aria-hidden="true">
-        <span className="auth-orb auth-orb--1" />
-        <span className="auth-orb auth-orb--2" />
-        <span className="auth-orb auth-orb--3" />
-      </div>
-
       {/* Content */}
       <div className="auth-bg__content">
         {children}

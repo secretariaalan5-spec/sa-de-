@@ -399,11 +399,10 @@
 .auth-bg__gradient {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 20% 50%, hsl(220, 90%, 30%) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, hsl(200, 80%, 25%) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, hsl(235, 70%, 20%) 0%, transparent 50%),
-    linear-gradient(135deg, hsl(220, 80%, 15%) 0%, hsl(210, 90%, 20%) 30%, hsl(230, 70%, 18%) 70%, hsl(215, 85%, 12%) 100%);
+  background: 
+    radial-gradient(circle at 0% 0%, hsla(210, 100%, 50%, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, hsla(210, 100%, 40%, 0.1) 0%, transparent 50%),
+    linear-gradient(135deg, hsl(210, 100%, 45%) 0%, hsl(210, 100%, 35%) 100%);
   z-index: 0;
 }
 
@@ -476,18 +475,17 @@
   padding: 1rem;
 }
 
-/* ── Glassmorphism Card ── */
+/* ── Glassmorphism Card (Premium Light Version) ── */
 .auth-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1.25rem;
-  padding: 2.5rem;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.1);
+  border-radius: 2rem;
+  padding: 3rem 2.5rem;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  width: 100%;
+  max-width: 420px;
 }
 
 /* ── Logo container ── */
@@ -501,17 +499,12 @@
 
 /* ── Google button ── */
 .auth-google-btn {
-  width: 100%;
-  height: 52px;
-  font-weight: 600;
-  font-size: 15px;
-  gap: 0.75rem;
+  @apply w-full h-[54px] font-semibold text-[15px] flex items-center justify-center gap-3 transition-all duration-200;
   background: white !important;
-  color: #1a56db !important;
-  border: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255,255,255,0.1);
-  transition: all 0.2s ease;
+  color: hsl(210, 100%, 35%) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .auth-google-btn:hover:not(:disabled) {
