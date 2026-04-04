@@ -48,6 +48,11 @@ export default function Schedules() {
     let lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     let pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
 
+    // Filtro Explícito: Chefe de Categoria só pode escalar seus próprios funcionários
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
+    }
+
     const [s, e, lr, pendingLr] = await Promise.all([schedulesQuery, employeesQuery, lrQuery, pendingLrQuery]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
