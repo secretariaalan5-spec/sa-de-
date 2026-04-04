@@ -93,11 +93,13 @@ export default function Invites() {
   const [transferToUnitId, setTransferToUnitId] = useState('');
 
   const load = async () => {
+    if (!roleInfo?.team_id) return;
+    const teamId = roleInfo.team_id;
     const [i, ci, c, u] = await Promise.all([
-      supabase.from('invites').select('*').order('created_at', { ascending: false }),
-      supabase.from('category_invites').select('*').order('created_at', { ascending: false }),
-      supabase.from('categories').select('id, name'),
-      supabase.from('units').select('id, name'),
+      supabase.from('invites').select('*').eq('team_id', teamId).order('created_at', { ascending: false }),
+      supabase.from('category_invites').select('*').eq('team_id', teamId).order('created_at', { ascending: false }),
+      supabase.from('categories').select('id, name').eq('team_id', teamId),
+      supabase.from('units').select('id, name').eq('team_id', teamId),
     ]);
 
     setInvites(i.data ?? []);

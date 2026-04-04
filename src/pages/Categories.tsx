@@ -21,7 +21,8 @@ export default function Categories() {
   const [color, setColor] = useState('#6366f1');
 
   const load = async () => {
-    const { data } = await supabase.from('categories').select('*').order('name');
+    if (!roleInfo?.team_id) return;
+    const { data } = await supabase.from('categories').select('*').eq('team_id', roleInfo.team_id).order('name');
     setCategories(data ?? []);
   };
 

@@ -44,10 +44,12 @@ export default function Employees() {
   const canDelete = isAdmin || isManager;
 
   const load = async () => {
+    if (!roleInfo?.team_id) return;
+    const teamId = roleInfo.team_id;
     const [e, c, u] = await Promise.all([
-      supabase.from('employees').select('*').eq('active', true).order('name'),
-      supabase.from('categories').select('id, name, color').eq('active', true),
-      supabase.from('units').select('id, name').eq('active', true),
+      supabase.from('employees').select('*').eq('active', true).eq('team_id', teamId).order('name'),
+      supabase.from('categories').select('id, name, color').eq('active', true).eq('team_id', teamId),
+      supabase.from('units').select('id, name').eq('active', true).eq('team_id', teamId),
     ]);
     setEmployees(e.data ?? []);
     setCategories(c.data ?? []);

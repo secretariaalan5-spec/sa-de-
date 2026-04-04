@@ -24,7 +24,8 @@ export default function Units() {
   const [detailUnit, setDetailUnit] = useState<Unit | null>(null);
 
   const load = async () => {
-    const { data } = await supabase.from('units').select('*').order('name');
+    if (!roleInfo?.team_id) return;
+    const { data } = await supabase.from('units').select('*').eq('team_id', roleInfo.team_id).order('name');
     setUnits(data ?? []);
   };
 
