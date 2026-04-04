@@ -47,11 +47,14 @@ export default function LeaveRequests() {
   };
 
   const load = async () => {
+    const teamId = roleInfo?.team_id;
+    if (!teamId) return;
+
     const [r, e, s, c, p] = await Promise.all([
-      supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
-      supabase.from('employees').select('id, name').eq('active', true).order('name'),
-      supabase.from('schedules').select('employee_id, date'),
-      supabase.from('leave_credits').select('employee_id, amount'),
+      supabase.from('leave_requests').select('*').eq('team_id', teamId).order('created_at', { ascending: false }).limit(300),
+      supabase.from('employees').select('id, name').eq('active', true).eq('team_id', teamId).order('name'),
+      supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).limit(500),
+      supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId),
       supabase.from('profiles').select('user_id, display_name'),
     ]);
     setRequests(r.data ?? []);
@@ -61,7 +64,7 @@ export default function LeaveRequests() {
     setProfiles(p.data ?? []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [roleInfo?.team_id]);
   useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
   const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {

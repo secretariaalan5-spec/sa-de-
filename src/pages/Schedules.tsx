@@ -40,12 +40,15 @@ export default function Schedules() {
   const canCreate = isAdmin || isChief;
 
   const load = async () => {
-    const [s, e, lr, pendingLr] = await Promise.all([
-      supabase.from('schedules').select('*').order('date', { ascending: false }).limit(500),
-      supabase.from('employees').select('id, name, category_id').eq('active', true).order('name'),
-      supabase.from('leave_requests').select('employee_id, leave_dates').eq('status', 'approved'),
-      supabase.from('leave_requests').select('employee_id, leave_dates').eq('status', 'pending'),
-    ]);
+    const teamId = roleInfo?.team_id;
+    if (!teamId) return;
+
+    let schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
+    let employeesQuery = supabase.from('employees').select('id, name, category_id').eq('active', true).eq('team_id', teamId).order('name');
+    let lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
+    let pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
+
+    const [s, e, lr, pendingLr] = await Promise.all([schedulesQuery, employeesQuery, lrQuery, pendingLrQuery]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
 
@@ -58,7 +61,7 @@ export default function Schedules() {
     setApprovedLeaveDates(leaveMap);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [roleInfo?.team_id]);
   useDataSubscription(['schedules', 'employees', 'leave_requests'], load);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();

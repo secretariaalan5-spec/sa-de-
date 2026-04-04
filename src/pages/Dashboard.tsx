@@ -296,14 +296,14 @@ export default function Dashboard() {
               </>
             )}
             {isAdmin && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
-                  <Tag size={14} /> Gerar Convite
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setAnnouncementOpen(true)} className="gap-2">
-                  <Megaphone size={14} /> Comunicado
-                </Button>
-              </>
+              <Button variant="outline" size="sm" onClick={() => navigate('/convites')} className="gap-2">
+                <Tag size={14} /> Gerar Convite
+              </Button>
+            )}
+            {(isAdmin || isChief) && (
+              <Button variant="outline" size="sm" onClick={() => setAnnouncementOpen(true)} className="gap-2">
+                <Megaphone size={14} /> Comunicado
+              </Button>
             )}
           </div>
         </div>
@@ -331,23 +331,23 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
     }
     setSending(true);
     try {
-      // Get all unit_manager user IDs for this team
-      const { data: managers } = await supabase
+      // Get all team member user IDs (managers, chiefs, RH)
+      const { data: teamMembers } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('team_id', teamId)
-        .eq('role', 'unit_manager');
+        .in('role', ['unit_manager', 'category_chief', 'rh']);
 
-      const managerIds = (managers ?? []).map((m: any) => m.user_id);
+      const memberIds = (teamMembers ?? []).map((m: any) => m.user_id);
 
-      if (managerIds.length === 0) {
-        toast.error('Nenhum gerente de unidade encontrado');
+      if (memberIds.length === 0) {
+        toast.error('Nenhum membro da equipe encontrado');
         setSending(false);
         return;
       }
 
-      // Insert a notification for each manager
-      const notifications = managerIds.map((uid: string) => ({
+      // Insert a notification for each team member
+      const notifications = memberIds.map((uid: string) => ({
         user_id: uid,
         team_id: teamId,
         title: `📢 ${title}`,
@@ -358,7 +358,7 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
       const { error } = await supabase.from('notifications').insert(notifications);
       if (error) throw error;
 
-      toast.success(`Comunicado enviado para ${managerIds.length} gerente(s)`);
+      toast.success(`Comunicado enviado para ${memberIds.length} membro(s) da equipe`);
       setTitle('');
       setMessage('');
       onClose();
@@ -380,7 +380,7 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            O comunicado será enviado como notificação para todos os gerentes de unidade da equipe.
+            O comunicado será enviado como notificação para todos os membros da equipe (gerentes, chefes e RH).
           </p>
           <div className="space-y-2">
             <Label htmlFor="ann-title">Título</Label>

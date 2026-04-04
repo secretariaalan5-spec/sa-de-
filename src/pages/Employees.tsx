@@ -87,7 +87,23 @@ export default function Employees() {
     if (isAdmin || isChief) { updateData.category_id = categoryId || null; updateData.unit_id = unitId || null; }
     const { error } = await supabase.from('employees').update(updateData).eq('id', editEmp.id);
     if (error) { toast.error('Erro ao atualizar funcionário.'); return; }
-    toast.success('Funcionário atualizado!');
+
+    // Se a unidade mudou, registrar em transfer_history
+    const newUnitId = unitId || null;
+    const oldUnitId = editEmp.unit_id || null;
+    if (newUnitId !== oldUnitId && (isAdmin || isChief)) {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('transfer_history').insert({
+        employee_id: editEmp.id,
+        from_unit_id: oldUnitId,
+        to_unit_id: newUnitId,
+        team_id: roleInfo?.team_id,
+        transferred_by: currentUser?.id ?? null,
+      });
+      toast.success('Funcionário atualizado e transferência registrada!');
+    } else {
+      toast.success('Funcionário atualizado!');
+    }
     setEditOpen(false); setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
   };
 

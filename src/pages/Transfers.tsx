@@ -39,12 +39,15 @@ export default function Transfers() {
   const today = new Date().toISOString().split('T')[0];
 
   const load = async () => {
+    const teamId = roleInfo?.team_id;
+    if (!teamId) return;
+
     const [t, e, u, s, lr] = await Promise.all([
-      supabase.from('transfer_history').select('*').order('transferred_at', { ascending: false }),
-      supabase.from('employees').select('id, name, unit_id').eq('active', true).order('name'),
+      supabase.from('transfer_history').select('*').eq('team_id', teamId).order('transferred_at', { ascending: false }).limit(200),
+      supabase.from('employees').select('id, name, unit_id').eq('active', true).eq('team_id', teamId).order('name'),
       supabase.from('units').select('id, name').eq('active', true),
-      supabase.from('schedules').select('employee_id, date'),
-      supabase.from('leave_requests').select('employee_id, status').eq('status', 'pending'),
+      supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).gte('date', today).limit(200),
+      supabase.from('leave_requests').select('employee_id, status').eq('team_id', teamId).eq('status', 'pending').limit(100),
     ]);
     setTransfers(t.data ?? []);
     setEmployees(e.data ?? []);
@@ -53,7 +56,7 @@ export default function Transfers() {
     setLeaveRequests(lr.data ?? []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [roleInfo?.team_id]);
   useDataSubscription(['transfer_history', 'employees', 'units', 'leave_requests'], load);
 
   // Check transfer blocking when employee changes
