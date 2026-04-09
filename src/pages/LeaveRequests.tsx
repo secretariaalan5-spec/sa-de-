@@ -22,6 +22,7 @@ interface LeaveReq {
   requested_by: string | null;
   decided_by: string | null;
   decided_at: string | null;
+  is_short_notice?: boolean;
 }
 
 interface Employee { id: string; name: string; }
@@ -67,22 +68,7 @@ export default function LeaveRequests() {
   useEffect(() => { load(); }, [roleInfo?.team_id]);
   useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
-  const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {
-    // 0. Check 10 days advance notice — allow but flag as "sujeito à análise"
-    const minDate = new Date();
-    minDate.setDate(minDate.getDate() + 10);
-    minDate.setHours(0, 0, 0, 0);
-
-    const hasShortNotice = leaveDates.some(d => {
-      const date = new Date(d + 'T12:00:00');
-      return date < minDate;
-    });
-
-    let finalObs = obs;
-    if (hasShortNotice) {
-      const shortNoticeNote = '⚠️ SUJEITO À ANÁLISE — Antecedência inferior a 10 dias';
-      finalObs = obs ? `${shortNoticeNote} | ${obs}` : shortNoticeNote;
-    }
+  const handleRequest = async (empId: string, leaveDates: string[], obs: string, isShortNotice: boolean) => {
 
     // 1. Check schedule conflicts
     const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
@@ -114,15 +100,16 @@ export default function LeaveRequests() {
       employee_id: empId,
       leave_dates: leaveDates,
       days_requested: leaveDates.length,
-      observations: finalObs || null,
+      observations: obs || null,
       team_id: roleInfo?.team_id,
       requested_by: user?.id ?? null,
       status: 'pending',
+      is_short_notice: isShortNotice,
     });
 
     if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
-    toast.success(hasShortNotice
-      ? 'Pedido enviado! ⚠️ Sujeito à análise da coordenação (antecedência < 10 dias).'
+    toast.success(isShortNotice
+      ? 'Pedido enviado! ⚠️ Sujeito à análise (antecedência < 10 dias).'
       : 'Pedido de folga enviado!');
     setOpen(false);
     load();
@@ -247,15 +234,22 @@ export default function LeaveRequests() {
                       <p className="text-xs text-muted-foreground">
                         {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                       </p>
-                      {r.observations && (
-                        r.observations.includes('SUJEITO À ANÁLISE') ? (
-                          <div className="flex items-center gap-1.5 mt-1 px-2 py-1 rounded-md bg-amber-50 border border-amber-200 w-fit">
-                            <AlertTriangle size={12} className="text-amber-600 shrink-0" />
-                            <span className="text-[11px] font-semibold text-amber-700">Sujeito à análise — antecedência inferior a 10 dias</span>
+                      {r.is_short_notice && (
+                        <div className="flex flex-col gap-1.5 mt-2">
+                          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-amber-50 border border-amber-200 w-fit">
+                            <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                            <span className="text-xs font-bold text-amber-700">EXCEÇÃO — ANTECEDÊNCIA &lt; 10 DIAS</span>
                           </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>
-                        )
+                          {r.observations && (
+                            <div className="pl-1 border-l-2 border-amber-300 ml-1">
+                              <p className="text-xs font-medium text-amber-900">Justificativa:</p>
+                              <p className="text-xs text-amber-800 italic mt-0.5">{r.observations}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {!r.is_short_notice && r.observations && (
+                        <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>
                       )}
                       {r.requested_by && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">

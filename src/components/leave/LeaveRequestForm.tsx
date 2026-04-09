@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -15,7 +16,7 @@ interface Employee {
 interface Props {
   employees: Employee[];
   getBalance: (empId: string) => number;
-  onSubmit: (empId: string, dates: string[], obs: string) => Promise<void>;
+  onSubmit: (empId: string, dates: string[], obs: string, isShortNotice: boolean) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedTerm, setAcceptedTerm] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -92,23 +94,29 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const isRangeStart = (day: number) => getDateStr(day) === rangeStart;
   const isRangeEnd = (day: number) => getDateStr(day) === (rangeEnd ?? rangeStart);
 
+  // Check if any selected date is within the 10-day advance window
+  const hasShortNoticeDates = useMemo(() => {
+    return selectedDates.some(d => d < minAdvanceDateStr);
+  }, [selectedDates, minAdvanceDateStr]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!empId || selectedDates.length === 0) return;
+    
+    if (hasShortNoticeDates) {
+      if (obs.trim().length < 5) return; // Need justification
+      if (!acceptedTerm) return; // Need acceptance
+    }
+    
     setSubmitting(true);
     try {
-      await onSubmit(empId, selectedDates, obs);
+      await onSubmit(empId, selectedDates, obs, hasShortNoticeDates);
     } finally {
       setSubmitting(false);
     }
   };
 
   const balance = empId ? getBalance(empId) : 0;
-
-  // Check if any selected date is within the 10-day advance window
-  const hasShortNoticeDates = useMemo(() => {
-    return selectedDates.some(d => d < minAdvanceDateStr);
-  }, [selectedDates, minAdvanceDateStr]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -209,16 +217,52 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
         )}
       </div>
 
-      {/* Observations */}
+      {/* Observations / Justification */}
       <div className="space-y-1.5">
-        <Label>Observações (opcional)</Label>
-        <Input value={obs} onChange={e => setObs(e.target.value)} placeholder="Motivo da folga..." />
+        <Label className={cn(hasShortNoticeDates && 'text-amber-700 font-bold')}>
+          {hasShortNoticeDates ? 'Justificativa da Exceção (Obrigatório)' : 'Observações (opcional)'}
+        </Label>
+        <Input 
+          value={obs} 
+          onChange={e => setObs(e.target.value)} 
+          placeholder={hasShortNoticeDates ? "Motivo da folga em curto prazo..." : "Motivo da folga..."} 
+          required={hasShortNoticeDates}
+          minLength={hasShortNoticeDates ? 5 : undefined}
+          className={cn(hasShortNoticeDates && !obs.trim() && 'border-amber-400 focus-visible:ring-amber-400')}
+        />
+        {hasShortNoticeDates && (
+          <p className="text-[10px] text-amber-700 font-medium pt-1">
+            Por ter menos de 10 dias, é necessário justificar o pedido para a coordenação.
+          </p>
+        )}
       </div>
+
+      {/* Short Notice Exception Checkbox */}
+      {hasShortNoticeDates && (
+        <div className="flex items-start space-x-2 bg-amber-50/50 p-3 rounded-lg border border-amber-200">
+          <Checkbox 
+            id="terms" 
+            checked={acceptedTerm} 
+            onCheckedChange={(checked) => setAcceptedTerm(checked as boolean)}
+            className="mt-0.5"
+          />
+          <Label 
+            htmlFor="terms" 
+            className="text-sm font-medium leading-tight text-amber-900 cursor-pointer"
+          >
+            Estou ciente de que o prazo regulamentar da Secretaria é de 10 dias de antecedência. Solicito esta folga em caráter de exceção devido a imprevisto.
+          </Label>
+        </div>
+      )}
 
       {/* Submit */}
       <div className="flex gap-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="flex-1" disabled={!empId || selectedDates.length === 0 || submitting}>
+        <Button 
+          type="submit" 
+          className={cn("flex-1", hasShortNoticeDates && 'bg-amber-600 hover:bg-amber-700')} 
+          disabled={!empId || selectedDates.length === 0 || submitting || (hasShortNoticeDates && (!acceptedTerm || obs.trim().length < 5))}
+        >
           {submitting ? 'Enviando...' : `Solicitar ${selectedDates.length} dia(s)`}
         </Button>
       </div>
