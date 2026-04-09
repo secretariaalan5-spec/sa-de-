@@ -217,104 +217,95 @@ export default function LeaveRequests() {
                 const StatusIcon = cfg.icon;
                 const empBalance = getBalance(r.employee_id);
                 return (
-                  <div key={r.id} className="page-card flex flex-col p-4 sm:p-5 gap-4">
-                    {/* Header Section */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className={cn('p-2.5 rounded-xl shrink-0 mt-0.5',
-                          r.status === 'pending' && 'bg-warning/15',
-                          r.status === 'approved' && 'bg-accent/15',
-                          r.status === 'rejected' && 'bg-destructive/15',
-                        )}>
-                          <StatusIcon size={20} className={cn(
-                            r.status === 'pending' && 'text-warning-foreground',
-                            r.status === 'approved' && 'text-accent',
-                            r.status === 'rejected' && 'text-destructive',
-                          )} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-foreground text-sm sm:text-base tracking-tight">{getEmpName(r.employee_id) ?? '—'}</h4>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">
-                              {r.days_requested} {r.days_requested > 1 ? 'dias' : 'dia'}
-                            </Badge>
-                            <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                              {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
-                            </span>
-                          </div>
-                        </div>
+                  <div key={r.id} className="page-card p-3 sm:p-4 hover:border-primary/30 transition-colors flex flex-col">
+                    {/* Top Row: Title & Status Badge */}
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', 
+                          r.status === 'pending' ? 'bg-warning' : 
+                          r.status === 'approved' ? 'bg-accent' : 'bg-destructive'
+                        )} />
+                        <h4 className="font-semibold text-foreground text-sm leading-none">{getEmpName(r.employee_id) ?? '—'}</h4>
                       </div>
-
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <div className="flex items-center gap-2">
-                          {canApprove && r.status === 'pending' && (
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent/10"
-                                onClick={() => handleDecision(r.id, 'approved')}
-                                title={empBalance < r.days_requested ? 'Saldo insuficiente para aprovar' : 'Aprovar'}
-                              >
-                                <Check size={16} className={cn(empBalance < r.days_requested ? 'text-muted-foreground' : 'text-accent')} />
-                              </Button>
-                              <Button
-                                variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10"
-                                onClick={() => handleDecision(r.id, 'rejected')}
-                                title="Negar"
-                              >
-                                <X size={16} className="text-destructive" />
-                              </Button>
-                            </div>
-                          )}
-                          <Badge variant={cfg.variant} className="shadow-sm">{cfg.label}</Badge>
-                        </div>
-                        {r.status === 'pending' && (
-                          <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium pr-1">
-                            Saldo: <strong className={cn(empBalance >= r.days_requested ? 'text-primary' : 'text-destructive')}>{empBalance}</strong>
-                          </span>
-                        )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={cn("text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm tracking-wider",
+                          r.status === 'pending' ? 'bg-warning/15 text-warning-foreground' : 
+                          r.status === 'approved' ? 'bg-accent/15 text-accent' : 'bg-destructive/15 text-destructive'
+                        )}>
+                          {cfg.label}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Middle: Observations & Exceções */}
+                    {/* DATES ROW: Clearly shows how many days and exact dates */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 mb-3">
+                      <div className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                        {r.days_requested} {r.days_requested > 1 ? 'dias' : 'dia'}:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {r.leave_dates?.map(d => (
+                          <span key={d} className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-secondary/60 text-secondary-foreground border border-border shadow-sm">
+                            {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Exceção e Observação (Only if exists) */}
                     {(r.is_short_notice || r.observations) && (
-                      <div className="bg-muted/30 rounded-lg p-3 sm:p-4 border border-border/50">
+                      <div className={cn("mb-3 p-2.5 rounded-md text-xs", 
+                        r.is_short_notice ? "bg-amber-50 border border-amber-200" : "bg-muted/40 border border-border/50"
+                      )}>
                         {r.is_short_notice && (
-                          <div className="flex items-center gap-2 text-amber-700 bg-amber-100/60 p-2.5 rounded-md mb-2.5 border border-amber-200 shadow-sm">
-                            <AlertTriangle size={16} className="shrink-0" />
-                            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider">Atenção: Exceção Solicitada (Antecedência &lt; 10 dias)</span>
+                          <div className="flex items-center gap-1.5 text-amber-700 font-bold mb-1">
+                            <AlertTriangle size={13} className="shrink-0" />
+                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 10 DIAS</span>
                           </div>
                         )}
                         {r.observations && (
-                          <div className="space-y-1">
-                            {r.is_short_notice && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Justificativa apresentada:</p>}
-                            <p className="text-sm italic text-foreground/85 border-l-2 border-primary/20 pl-2 ml-1">"{r.observations}"</p>
-                          </div>
+                          <p className={cn("italic", r.is_short_notice ? "text-amber-900" : "text-muted-foreground")}>
+                            "{r.observations}"
+                          </p>
                         )}
                       </div>
                     )}
 
-                    {/* Footer: Metadata & Audit */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1.5 pt-3 border-t border-border/60 text-[10px] sm:text-[11px] text-muted-foreground">
-                      {r.requested_by && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground/70 uppercase tracking-widest text-[9px]">Solicitante:</span>
-                          <span className="font-medium text-foreground">{getUserName(r.requested_by) ?? 'Desconhecido'}</span>
-                          <span className="opacity-40">•</span>
-                          <span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      )}
-                      {(r.status === 'approved' || r.status === 'rejected') && r.decided_by && (
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn('font-semibold uppercase tracking-widest text-[9px]', r.status === 'approved' ? 'text-accent/80' : 'text-destructive/80')}>
-                            {r.status === 'approved' ? 'Aprovador:' : 'Avaliador:'}
+                    {/* Footer: Balance, Audit, Actions */}
+                    <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border text-[9px] sm:text-[10px] text-muted-foreground">
+                      <div className="flex flex-col gap-0.5">
+                        <span>
+                          Solicitado por {getUserName(r.requested_by) ?? 'Desconhecido'} em {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        </span>
+                        {r.decided_by && (
+                          <span>
+                            {r.status === 'approved' ? 'Aprovado' : 'Negado'} por {getUserName(r.decided_by) ?? 'Desconhecido'} em {r.decided_at && new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           </span>
-                          <span className="font-medium text-foreground">{getUserName(r.decided_by) ?? 'Desconhecido'}</span>
-                          {r.decided_at && (
-                            <>
-                              <span className="opacity-40">•</span>
-                              <span className="text-muted-foreground">{new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                            </>
-                          )}
+                        )}
+                        {r.status === 'pending' && (
+                          <span className="text-foreground/70">
+                            Saldo atual do profissional: <b className={cn("text-[11px]", empBalance >= r.days_requested ? 'text-primary' : 'text-destructive')}>{empBalance}</b>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions for Pending */}
+                      {canApprove && r.status === 'pending' && (
+                        <div className="flex gap-2 shrink-0 ml-2">
+                          <Button
+                            size="sm" 
+                            variant="outline"
+                            className="h-7 px-3 text-[11px] font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                            onClick={() => handleDecision(r.id, 'rejected')}
+                          >
+                            Negar
+                          </Button>
+                          <Button
+                            size="sm" 
+                            className="h-7 px-3 text-[11px] font-bold bg-accent hover:bg-accent/90 text-white shadow-sm transition-colors"
+                            onClick={() => handleDecision(r.id, 'approved')}
+                          >
+                            Aprovar
+                          </Button>
                         </div>
                       )}
                     </div>
