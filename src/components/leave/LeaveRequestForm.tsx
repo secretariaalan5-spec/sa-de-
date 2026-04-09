@@ -70,7 +70,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const minAdvanceDateStr = minAdvanceDate.toISOString().split('T')[0];
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const isPast = (day: number) => getDateStr(day) < todayStr;
+  const isPast = (day: number) => getDateStr(day) <= todayStr;
   const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
 
   const handleDayClick = (day: number) => {
