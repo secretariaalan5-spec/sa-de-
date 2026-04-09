@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCog, Phone } from 'lucide-react';
+import { Users, UserCog } from 'lucide-react';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface UnitDetailDialogProps {
@@ -136,9 +137,9 @@ export function UnitDetailDialog({ unitId, unitName, open, onOpenChange }: UnitD
                                       target="_blank"
                                       rel="noreferrer"
                                       title="Conversar no WhatsApp"
-                                      className="text-xs text-muted-foreground hover:text-green-500 hover:font-medium transition-all flex items-center gap-1.5 mt-1 w-fit"
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[11px] font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 w-fit mt-1"
                                     >
-                                      <Phone size={12} className="text-green-500" />
+                                      <WhatsAppIcon size={13} />
                                       {emp.phone}
                                     </a>
                                   )}

@@ -9,9 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
+
+const getWhatsAppLink = (phone: string) => {
+  const clean = phone.replace(/\D/g, '');
+  return `https://wa.me/${clean.startsWith('55') ? clean : '55' + clean}`;
+};
 
 interface Employee {
   id: string; name: string; category_id: string | null;
@@ -267,22 +273,19 @@ export default function Employees() {
                   {cat && <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>{cat.name}</Badge>}
                   <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
                 </div>
-                {(isAdmin || isRH || isChief || isManager) && emp.phone && (() => {
-                  const phoneClean = emp.phone!.replace(/\D/g, '');
-                  const waLink = `https://wa.me/${phoneClean.startsWith('55') ? phoneClean : '55' + phoneClean}`;
-                  return (
-                    <a
-                      href={waLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-[10px] text-green-500 mt-1 flex items-center gap-1 hover:text-green-400 transition-colors hover:underline"
-                    >
-                      <Phone size={10} className="text-green-500" />
-                      {emp.phone}
-                    </a>
-                  );
-                })()}
+                {(isAdmin || isRH || isChief || isManager) && emp.phone && (
+                  <a
+                    href={getWhatsAppLink(emp.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Abrir conversa no WhatsApp"
+                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[11px] font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 w-fit"
+                  >
+                    <WhatsAppIcon size={13} />
+                    {emp.phone}
+                  </a>
+                )}
                 <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
                     <Eye size={12} /> Ver Histórico
@@ -310,23 +313,22 @@ export default function Employees() {
               {filtered.map(emp => (
                 <tr key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailEmp(emp)}>
                   <td className="font-medium">{emp.name}</td>
-                  <td className="text-xs text-muted-foreground">
-                    {(isAdmin || isRH || isChief || isManager) && emp.phone ? (() => {
-                      const phoneClean = emp.phone!.replace(/\D/g, '');
-                      const waLink = `https://wa.me/${phoneClean.startsWith('55') ? phoneClean : '55' + phoneClean}`;
-                      return (
-                        <a
-                          href={waLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-green-500 hover:text-green-400 transition-colors hover:underline"
-                        >
-                          <Phone size={12} className="text-green-500" />
-                          {emp.phone}
-                        </a>
-                      );
-                    })() : '—'}
+                  <td className="text-xs">
+                    {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
+                      <a
+                        href={getWhatsAppLink(emp.phone)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Abrir conversa no WhatsApp"
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200"
+                      >
+                        <WhatsAppIcon size={13} />
+                        {emp.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td>{getCat(emp.category_id)?.name ?? '—'}</td>
                   <td>{getUnitName(emp.unit_id)}</td>
