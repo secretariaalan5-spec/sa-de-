@@ -286,7 +286,7 @@ export default function Employees() {
                     {emp.phone}
                   </a>
                 )}
-                <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
                     <Eye size={12} /> Ver Histórico
                   </Button>
