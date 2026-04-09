@@ -142,13 +142,13 @@ export default function AuditLogs() {
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-muted text-muted-foreground uppercase text-xs">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
               <tr>
-                <th className="px-4 py-3 font-medium">Data/Hora</th>
-                <th className="px-4 py-3 font-medium">Ação</th>
-                <th className="px-4 py-3 font-medium">Módulo</th>
-                <th className="px-4 py-3 font-medium">Ator (Quem fez)</th>
-                <th className="px-4 py-3 font-medium text-right">Detalhes</th>
+                <th className="px-5 py-4 font-semibold">Data/Hora</th>
+                <th className="px-5 py-4 font-semibold">Ação</th>
+                <th className="px-5 py-4 font-semibold">Módulo</th>
+                <th className="px-5 py-4 font-semibold">Ator (Quem fez)</th>
+                <th className="px-5 py-4 font-semibold text-right">Detalhes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -158,29 +158,31 @@ export default function AuditLogs() {
                 <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Nenhum log encontrado nos filtros.</td></tr>
               ) : (
                 filteredLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground font-mono text-xs">
+                  <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-muted-foreground font-mono text-xs">
                       {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <Badge variant="outline" className={getActionColor(log.action)}>
                         {log.action}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-5 py-3.5 font-medium text-foreground">
                       {getTableNameText(log.table_name)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       {log.actorProfile?.display_name ? (
-                        <span className="font-semibold">{log.actorProfile.display_name}</span>
+                        <span className="font-semibold text-foreground">{log.actorProfile.display_name}</span>
                       ) : (
                         <span className="text-muted-foreground italic text-xs">Id: {log.actor_id || 'Sistema'}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setDetailLog(log)}>
-                        <Eye size={14} className="mr-1.5" /> Inspecionar
-                      </Button>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="sm" className="h-8 hover:bg-primary/10 hover:text-primary transition-colors text-xs" onClick={() => setDetailLog(log)}>
+                          <Eye size={14} className="mr-1.5" /> Inspecionar
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))

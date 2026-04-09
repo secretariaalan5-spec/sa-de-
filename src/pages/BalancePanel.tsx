@@ -154,42 +154,44 @@ export default function BalancePanel() {
           <p className="text-muted-foreground">Nenhum profissional encontrado</p>
         </div>
       ) : (
-        <div className="page-card overflow-x-auto">
-          <table className="schedule-table w-full">
-            <thead>
-              <tr>
-                <th className="text-left">Profissional</th>
-                <th className="text-left hidden sm:table-cell">Categoria</th>
-                <th className="text-left hidden sm:table-cell">Unidade</th>
-                <th className="text-center">Extras</th>
-                <th className="text-center">Usados</th>
-                <th className="text-center">Saldo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(row => (
-                <tr key={row.employee.id}>
-                  <td className="font-medium">{row.employee.name}</td>
-                  <td className="hidden sm:table-cell text-muted-foreground text-sm">{row.categoryName}</td>
-                  <td className="hidden sm:table-cell text-muted-foreground text-sm">{row.unitName}</td>
-                  <td className="text-center">
-                    <Badge variant="secondary" className="font-mono">+{row.extras}</Badge>
-                  </td>
-                  <td className="text-center">
-                    <Badge variant="secondary" className="font-mono text-destructive">-{row.used}</Badge>
-                  </td>
-                  <td className="text-center">
-                    <Badge
-                      variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                      className="font-mono font-bold"
-                    >
-                      {row.balance}
-                    </Badge>
-                  </td>
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-5 py-4 font-semibold">Profissional</th>
+                  <th className="px-5 py-4 font-semibold hidden sm:table-cell">Categoria</th>
+                  <th className="px-5 py-4 font-semibold hidden sm:table-cell">Unidade</th>
+                  <th className="px-5 py-4 font-semibold text-center">Extras</th>
+                  <th className="px-5 py-4 font-semibold text-center">Usados</th>
+                  <th className="px-5 py-4 font-semibold text-center">Saldo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(row => (
+                  <tr key={row.employee.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-foreground">{row.employee.name}</td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.categoryName}</td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.unitName}</td>
+                    <td className="px-5 py-3.5 text-center">
+                      <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">+{row.extras}</Badge>
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive">-{row.used}</Badge>
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      <Badge
+                        variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
+                        className="font-mono font-bold shadow-none"
+                      >
+                        {row.balance > 0 ? `+${row.balance}` : row.balance}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

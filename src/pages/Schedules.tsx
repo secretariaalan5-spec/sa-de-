@@ -256,24 +256,37 @@ export default function Schedules() {
             <p className="text-muted-foreground">Nenhuma escala neste mês</p>
           </div>
         ) : (
-          <div className="page-card overflow-x-auto">
-            <table className="schedule-table">
-              <thead><tr><th className="text-left">Funcionário</th><th className="text-left">Data</th><th className="text-left">Tipo</th>{canCreate && <th className="text-right">Ações</th>}</tr></thead>
-              <tbody>
-                {monthSchedules.map(s => (
-                  <tr key={s.id}>
-                    <td className="font-medium">{getEmpName(s.employee_id)}</td>
-                    <td>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td><Badge variant="default">Extra (+2)</Badge></td>
-                    {canCreate && (
-                      <td className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}><Trash2 size={16} className="text-destructive" /></Button>
-                      </td>
-                    )}
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-5 py-4 font-semibold">Funcionário</th>
+                    <th className="px-5 py-4 font-semibold">Data</th>
+                    <th className="px-5 py-4 font-semibold">Tipo</th>
+                    {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {monthSchedules.map(s => (
+                    <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
+                      <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                      <td className="px-5 py-3.5"><Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">Extra (+2)</Badge></td>
+                      {canCreate && (
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       )}

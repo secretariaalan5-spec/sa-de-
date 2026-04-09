@@ -184,27 +184,29 @@ export default function Transfers() {
           <p className="text-muted-foreground">Nenhuma transferência registrada</p>
         </div>
       ) : (
-        <div className="page-card overflow-x-auto">
-          <table className="schedule-table">
-            <thead>
-              <tr>
-                <th className="text-left">Funcionário</th>
-                <th className="text-left">De</th>
-                <th className="text-left">Para</th>
-                <th className="text-left">Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeTransfers.map(t => (
-                <tr key={t.id}>
-                  <td className="font-medium">{getEmpName(t.employee_id) ?? '—'}</td>
-                  <td>{getUnitName(t.from_unit_id)}</td>
-                  <td>{getUnitName(t.to_unit_id)}</td>
-                  <td>{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</td>
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-5 py-4 font-semibold">Funcionário</th>
+                  <th className="px-5 py-4 font-semibold">De</th>
+                  <th className="px-5 py-4 font-semibold">Para</th>
+                  <th className="px-5 py-4 font-semibold">Data</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {activeTransfers.map(t => (
+                  <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(t.employee_id) ?? '—'}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(t.from_unit_id)}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground font-medium text-primary">{getUnitName(t.to_unit_id)}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

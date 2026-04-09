@@ -110,16 +110,23 @@ export default function Units() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {units.map(u => (
-            <div key={u.id} onClick={() => setDetailUnit(u)} className="page-card flex items-center gap-3 cursor-pointer hover:border-primary/50 transition-colors group">
-              <Building2 size={20} className="text-primary" />
-              <span className="font-medium flex-1">{u.name}</span>
+            <div key={u.id} onClick={() => setDetailUnit(u)} className="page-card p-4 hover:border-primary/30 transition-all flex items-center justify-between group shadow-sm cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-border/50 bg-primary/10">
+                  <Building2 size={16} className="text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-foreground text-sm tracking-tight">{u.name}</span>
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Unidade</span>
+                </div>
+              </div>
               {isAdmin && (
                 <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => openEditDialog(e, u)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => openEditDialog(e, u)}>
                     <Pencil size={14} />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => handleDelete(e, u.id)}>
-                    <Trash2 size={14} className="text-destructive" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0" onClick={(e) => handleDelete(e, u.id)}>
+                    <Trash2 size={14} />
                   </Button>
                 </div>
               )}

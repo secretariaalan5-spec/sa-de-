@@ -306,43 +306,59 @@ export default function Employees() {
           })}
         </div>
       ) : (
-        <div className="page-card overflow-x-auto">
-          <table className="schedule-table">
-            <thead><tr><th className="text-left">Nome</th><th className="text-left">WhatsApp</th><th className="text-left">Categoria</th><th className="text-left">Unidade</th><th className="text-right">Ações</th></tr></thead>
-            <tbody>
-              {filtered.map(emp => (
-                <tr key={emp.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailEmp(emp)}>
-                  <td className="font-medium">{emp.name}</td>
-                  <td className="text-xs">
-                    {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
-                      <a
-                        href={getWhatsAppLink(emp.phone)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Abrir conversa no WhatsApp"
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200"
-                      >
-                        <WhatsAppIcon size={13} />
-                        {emp.phone}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td>{getCat(emp.category_id)?.name ?? '—'}</td>
-                  <td>{getUnitName(emp.unit_id)}</td>
-                  <td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={16} /></Button>
-                      {canEdit && <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={16} /></Button>}
-                      {canDelete && <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={16} className="text-destructive" /></Button>}
-                    </div>
-                  </td>
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-6">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-5 py-4 font-semibold">Nome</th>
+                  <th className="px-5 py-4 font-semibold">WhatsApp</th>
+                  <th className="px-5 py-4 font-semibold">Categoria</th>
+                  <th className="px-5 py-4 font-semibold">Unidade</th>
+                  <th className="px-5 py-4 font-semibold text-right">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(emp => (
+                  <tr key={emp.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailEmp(emp)}>
+                    <td className="px-5 py-3.5 font-medium text-foreground">{emp.name}</td>
+                    <td className="px-5 py-3.5">
+                      {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
+                        <a
+                          href={getWhatsAppLink(emp.phone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Abrir conversa no WhatsApp"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-sm transition-all duration-200"
+                        >
+                          <WhatsAppIcon size={14} />
+                          <span className="text-xs">{emp.phone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-muted-foreground">
+                      {getCat(emp.category_id) ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border" style={{ backgroundColor: `${getCat(emp.category_id)?.color}15`, borderColor: `${getCat(emp.category_id)?.color}30`, color: getCat(emp.category_id)?.color }}>
+                          {getCat(emp.category_id)?.name}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(emp.unit_id)}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
+                        {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={14} /></Button>}
+                        {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={14} /></Button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
