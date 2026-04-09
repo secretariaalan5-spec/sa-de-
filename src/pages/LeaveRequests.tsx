@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, CalendarOff, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, CalendarOff, Check, X, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LeaveRequestForm from '@/components/leave/LeaveRequestForm';
 
@@ -68,19 +68,20 @@ export default function LeaveRequests() {
   useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
   const handleRequest = async (empId: string, leaveDates: string[], obs: string) => {
-    // 0. Check 10 days advance notice (Business Logic Skill)
+    // 0. Check 10 days advance notice — allow but flag as "sujeito à análise"
     const minDate = new Date();
     minDate.setDate(minDate.getDate() + 10);
     minDate.setHours(0, 0, 0, 0);
 
-    const tooEarlyDates = leaveDates.filter(d => {
+    const hasShortNotice = leaveDates.some(d => {
       const date = new Date(d + 'T12:00:00');
       return date < minDate;
     });
 
-    if (tooEarlyDates.length > 0) {
-      toast.error(`Pedido recusado: Antecedência mínima de 10 dias exigida pela prefeitura.`);
-      return;
+    let finalObs = obs;
+    if (hasShortNotice) {
+      const shortNoticeNote = '⚠️ SUJEITO À ANÁLISE — Antecedência inferior a 10 dias';
+      finalObs = obs ? `${shortNoticeNote} | ${obs}` : shortNoticeNote;
     }
 
     // 1. Check schedule conflicts
@@ -113,14 +114,16 @@ export default function LeaveRequests() {
       employee_id: empId,
       leave_dates: leaveDates,
       days_requested: leaveDates.length,
-      observations: obs || null,
+      observations: finalObs || null,
       team_id: roleInfo?.team_id,
       requested_by: user?.id ?? null,
       status: 'pending',
     });
 
     if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
-    toast.success('Pedido de folga enviado!');
+    toast.success(hasShortNotice
+      ? 'Pedido enviado! ⚠️ Sujeito à análise da coordenação (antecedência < 10 dias).'
+      : 'Pedido de folga enviado!');
     setOpen(false);
     load();
   };
@@ -244,7 +247,16 @@ export default function LeaveRequests() {
                       <p className="text-xs text-muted-foreground">
                         {r.days_requested} dia(s) • {r.leave_dates?.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                       </p>
-                      {r.observations && <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>}
+                      {r.observations && (
+                        r.observations.includes('SUJEITO À ANÁLISE') ? (
+                          <div className="flex items-center gap-1.5 mt-1 px-2 py-1 rounded-md bg-amber-50 border border-amber-200 w-fit">
+                            <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                            <span className="text-[11px] font-semibold text-amber-700">Sujeito à análise — antecedência inferior a 10 dias</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-0.5 italic">"{r.observations}"</p>
+                        )
+                      )}
                       {r.requested_by && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           Solicitado por: <span className="font-medium">{getUserName(r.requested_by) ?? 'Desconhecido'}</span>

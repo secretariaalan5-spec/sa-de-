@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Employee {
@@ -65,14 +65,16 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
     return dates;
   }, [rangeStart, rangeEnd]);
 
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 10);
-  const minDateStr = minDate.toISOString().split('T')[0];
+  const minAdvanceDate = new Date();
+  minAdvanceDate.setDate(minAdvanceDate.getDate() + 10);
+  const minAdvanceDateStr = minAdvanceDate.toISOString().split('T')[0];
 
-  const isPastMinAdvance = (day: number) => getDateStr(day) < minDateStr;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isPast = (day: number) => getDateStr(day) < todayStr;
+  const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
 
   const handleDayClick = (day: number) => {
-    if (isPastMinAdvance(day)) return;
+    if (isPast(day)) return;
     const dateStr = getDateStr(day);
     if (!rangeStart || (rangeStart && rangeEnd)) {
       setRangeStart(dateStr);
@@ -103,6 +105,11 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
 
   const balance = empId ? getBalance(empId) : 0;
 
+  // Check if any selected date is within the 10-day advance window
+  const hasShortNoticeDates = useMemo(() => {
+    return selectedDates.some(d => d < minAdvanceDateStr);
+  }, [selectedDates, minAdvanceDateStr]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Employee selector */}
@@ -125,7 +132,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
       <div className="space-y-2">
         <Label>Período da folga</Label>
         <p className="text-xs text-muted-foreground">
-          {!rangeStart ? 'Clique na data de início (mín. 10 dias de antecedência)' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
+          {!rangeStart ? 'Clique na data de início' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
         </p>
 
         <div className="bg-muted/30 rounded-xl p-3 border border-border">
@@ -148,22 +155,24 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
               const inRange = isInRange(day);
               const start = isRangeStart(day);
               const end = isRangeEnd(day);
-              const disabled = isPastMinAdvance(day);
+              const pastDay = isPast(day);
+              const shortNotice = !pastDay && isUnderMinAdvance(day);
               return (
                 <button
                   key={day}
                   type="button"
-                  disabled={disabled}
+                  disabled={pastDay}
                   onClick={() => handleDayClick(day)}
                   className={cn(
                     'h-9 rounded-md text-sm font-medium transition-all relative',
-                    disabled && 'opacity-30 cursor-not-allowed text-muted-foreground',
-                    !disabled && inRange && !start && !end && 'bg-primary/15 text-primary',
-                    !disabled && start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
-                    !disabled && end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
-                    !disabled && start && end && 'rounded-md',
-                    !disabled && !inRange && 'hover:bg-muted text-foreground',
-                    !disabled && isToday(day) && !inRange && 'ring-1 ring-primary',
+                    pastDay && 'opacity-30 cursor-not-allowed text-muted-foreground',
+                    !pastDay && shortNotice && !inRange && 'text-amber-600 bg-amber-50 hover:bg-amber-100',
+                    !pastDay && inRange && !start && !end && 'bg-primary/15 text-primary',
+                    !pastDay && start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
+                    !pastDay && end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
+                    !pastDay && start && end && 'rounded-md',
+                    !pastDay && !inRange && !shortNotice && 'hover:bg-muted text-foreground',
+                    !pastDay && isToday(day) && !inRange && 'ring-1 ring-primary',
                   )}
                 >
                   {day}
@@ -174,17 +183,28 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
         </div>
 
         {selectedDates.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            <Badge variant="outline" className="text-xs">
-              {new Date(selectedDates[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-              {selectedDates.length > 1 && (
-                <> → {new Date(selectedDates[selectedDates.length - 1] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</>
-              )}
-            </Badge>
-            <Badge variant="secondary" className="text-xs">{selectedDates.length} dia(s)</Badge>
-            <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive" onClick={() => { setRangeStart(null); setRangeEnd(null); }}>
-              Limpar
-            </Button>
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="outline" className="text-xs">
+                {new Date(selectedDates[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                {selectedDates.length > 1 && (
+                  <> → {new Date(selectedDates[selectedDates.length - 1] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</>
+                )}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">{selectedDates.length} dia(s)</Badge>
+              <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive" onClick={() => { setRangeStart(null); setRangeEnd(null); }}>
+                Limpar
+              </Button>
+            </div>
+            {hasShortNoticeDates && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold">Antecedência inferior a 10 dias</p>
+                  <p className="text-[11px] mt-0.5 opacity-80">Este pedido ficará sujeito à análise da coordenação por não cumprir o prazo mínimo exigido pela prefeitura.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
