@@ -302,7 +302,7 @@ export default function LeaveRequests() {
 
       {/* Leave Request Dialog with Calendar */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Solicitar Folga</DialogTitle>
             <DialogDescription>Selecione o período clicando na data de início e fim.</DialogDescription>

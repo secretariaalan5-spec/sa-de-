@@ -209,7 +209,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold">Antecedência inferior a 10 dias</p>
-                  <p className="text-[11px] mt-0.5 opacity-80">Este pedido ficará sujeito à análise da coordenação por não cumprir o prazo mínimo exigido pela prefeitura.</p>
+                  <p className="text-[11px] mt-0.5 opacity-80">Este pedido ficará sujeito à análise da coordenação por não cumprir o prazo mínimo exigido pela Secretaria.</p>
                 </div>
               </div>
             )}
