@@ -157,6 +157,9 @@ export default function Employees() {
     : isManager ? 'Profissionais da sua unidade'
     : 'Todos os profissionais';
 
+  const showCategoryFilter = isAdmin || isRH || isManager || (isChief && (roleInfo?.category_ids?.length ?? 0) > 1);
+  const showUnitFilter = isAdmin || isRH || isChief;
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -203,20 +206,24 @@ export default function Employees() {
           <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
           <Input placeholder="Buscar profissional..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
-        <Select value={filterCat} onValueChange={setFilterCat}>
-          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas Categorias</SelectItem>
-            {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterUnit} onValueChange={setFilterUnit}>
-          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas Unidades</SelectItem>
-            {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {showCategoryFilter && (
+          <Select value={filterCat} onValueChange={setFilterCat}>
+            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Categorias</SelectItem>
+              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {showUnitFilter && (
+          <Select value={filterUnit} onValueChange={setFilterUnit}>
+            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Unidades</SelectItem>
+              {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <div className="flex bg-muted rounded-lg p-0.5">
           <button onClick={() => setViewMode('cards')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'cards' && 'active')}><LayoutGrid size={14} /></button>
           <button onClick={() => setViewMode('table')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'table' && 'active')}><List size={14} /></button>
