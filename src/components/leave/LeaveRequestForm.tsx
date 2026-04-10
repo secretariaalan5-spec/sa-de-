@@ -77,7 +77,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   };
 
   const todayStr = getLocalTodayStr();
-  const isPast = (day: number) => getDateStr(day) < todayStr;
+  const isPast = (day: number) => getDateStr(day) <= todayStr;
   const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
 
   const handleDayClick = (day: number) => {
