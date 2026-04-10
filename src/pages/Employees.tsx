@@ -68,8 +68,15 @@ export default function Employees() {
       supabase.from('categories').select('id, name, color').eq('active', true).eq('team_id', teamId),
       supabase.from('units').select('id, name').eq('active', true).eq('team_id', teamId),
     ]);
+    
+    let fetchedCategories = c.data ?? [];
+    // Filtramos no frontend para que o Chief apenas veja a categoria dele no combobox
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      fetchedCategories = fetchedCategories.filter(cat => roleInfo.category_ids?.includes(cat.id));
+    }
+
     setEmployees(e.data ?? []);
-    setCategories(c.data ?? []);
+    setCategories(fetchedCategories);
     setUnits(u.data ?? []);
   };
 
