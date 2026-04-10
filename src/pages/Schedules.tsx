@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-react';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Schedule {
@@ -162,7 +162,19 @@ export default function Schedules() {
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? '—';
   const today = new Date();
-  const isToday = (day: number) => day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  today.setHours(0, 0, 0, 0);
+  
+  const isToday = (day: number) => {
+    const d = new Date(year, month, day);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() === today.getTime();
+  };
+
+  const isPast = (day: number) => {
+    const d = new Date(year, month, day);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  };
 
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -234,15 +246,38 @@ export default function Schedules() {
               if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
               const daySchedules = schedulesForDay(day);
               return (
-                <div key={day} className={cn('bg-card min-h-[80px] p-1.5 relative transition-colors', isToday(day) && 'ring-2 ring-primary ring-inset')}>
-                  <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
-                  <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
-                    {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className={cn('text-[10px] px-1.5 py-0.5 rounded truncate', s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary')} title={`${getEmpName(s.employee_id)} (${s.type})`}>
-                        {getEmpName(s.employee_id)}
-                      </div>
-                    ))}
-                    {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
+                <div key={day} className={cn(
+                  'bg-card min-h-[80px] p-1.5 relative transition-colors border-r border-b border-border/40', 
+                  isToday(day) && 'bg-primary/5 ring-1 ring-primary/20 ring-inset',
+                  isPast(day) && 'bg-slate-50/50 dark:bg-slate-900/20'
+                )}>
+                  <span className={cn(
+                    'text-[10px] font-bold inline-flex items-center justify-center w-5 h-5 rounded-full mb-1', 
+                    isToday(day) ? 'bg-primary text-primary-foreground shadow-sm' : isPast(day) ? 'text-muted-foreground/60' : 'text-foreground'
+                  )}>
+                    {day}
+                  </span>
+                  <div className="mt-0.5 space-y-1 overflow-y-auto max-h-[55px] scrollbar-hide">
+                    {daySchedules.map(s => {
+                      const past = isPast(day);
+                      return (
+                        <div 
+                          key={s.id} 
+                          className={cn(
+                            'text-[9px] px-1.5 py-1 rounded-md truncate font-medium flex items-center gap-1 shadow-sm border',
+                            past 
+                              ? 'bg-slate-100/80 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' 
+                              : s.type === 'extra' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800' 
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800'
+                          )} 
+                          title={`${getEmpName(s.employee_id)} (${s.type})`}
+                        >
+                          {past && <CheckCircle2 size={8} className="shrink-0" />}
+                          <span className="truncate">{getEmpName(s.employee_id)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
