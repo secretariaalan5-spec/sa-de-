@@ -311,16 +311,6 @@ export default function Invites() {
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
   const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
-      case 'rh': return 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800';
-      case 'category_chief': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-      case 'unit_manager': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
-    }
-  };
-
   // Group user_roles by user_id for display (chiefs may have multiple rows)
   const groupedUsers = useMemo(() => {
     const map = new Map<string, { user_id: string; role: string; category_ids: string[]; unit_id: string | null; created_at: string }>();
@@ -742,15 +732,14 @@ export default function Invites() {
                                 {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
                                 <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col justify-center">
+                              <div className="flex flex-col">
                                 <span className="font-bold text-foreground text-sm">{name}</span>
+                                <span className="text-[10px] text-muted-foreground truncate w-[100px] sm:w-auto" title={userRole.user_id}>{userRole.user_id}</span>
                               </div>
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-widest ${getRoleBadgeColor(userRole.role)}`}>
-                              {roleLabels[userRole.role] || userRole.role}
-                            </Badge>
+                            <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[userRole.role] || userRole.role}</Badge>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex flex-wrap gap-1.5">
