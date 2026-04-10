@@ -311,6 +311,16 @@ export default function Invites() {
   const getCatName = (id: string | null) => categories.find((category) => category.id === id)?.name ?? '—';
   const getUnitName = (id: string | null) => units.find((unit) => unit.id === id)?.name ?? '—';
 
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
+      case 'rh': return 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800';
+      case 'category_chief': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
+      case 'unit_manager': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800';
+      default: return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+    }
+  };
+
   // Group user_roles by user_id for display (chiefs may have multiple rows)
   const groupedUsers = useMemo(() => {
     const map = new Map<string, { user_id: string; role: string; category_ids: string[]; unit_id: string | null; created_at: string }>();
@@ -454,7 +464,7 @@ export default function Invites() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-3">
           <TabsTrigger value="approvals" className="gap-1 relative">
             <ShieldAlert size={14} /> Aprovações
             {pendingApprovals.filter(a => a.status === 'pending').length > 0 && (
@@ -463,7 +473,6 @@ export default function Invites() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="category-invites" className="gap-1"><Users size={14} /> Categorias ({categoryInvites.length})</TabsTrigger>
           <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users size={14} /> Equipe ({groupedUsers.length})</TabsTrigger>
         </TabsList>
@@ -536,87 +545,7 @@ export default function Invites() {
           )}
         </TabsContent>
 
-        <TabsContent value="category-invites" className="mt-4">
-          {categoryInvites.length === 0 ? (
-            <div className="empty-state">
-              <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
-              <p className="text-muted-foreground">Nenhum convite de categoria criado</p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Label</th>
-                      <th className="py-3 px-4">Categorias</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Aceito por</th>
-                      <th className="py-3 px-4">Gerado em</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {categoryInvites.map((invite) => (
-                      <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
-                        <td className="py-3 px-4 font-semibold text-foreground/90">{invite.label || 'Sem Rótulo'}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {invite.category_ids.map(cid => (
-                              <Badge key={cid} variant="secondary" className="text-[10px] font-medium bg-secondary/50">{getCatName(cid)}</Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest">
-                            {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Utilizado' : 'Inativo'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          {invite.accepted_by ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7 border border-border/50">
-                                {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs font-semibold text-foreground">{getProfileName(invite.accepted_by)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic font-medium">— Aguardando —</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                            {invite.is_active && !invite.accepted_by && (
-                              <Button 
-                                variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} 
-                                className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5"
-                              >
-                                <Copy size={14} /> Link
-                              </Button>
-                            )}
-                            <Button 
-                              variant="ghost" size="icon" onClick={async () => {
-                                if (!confirm('Tem certeza que deseja excluir este convite?')) return;
-                                const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
-                                if (error) { toast.error(error.message || 'Erro ao excluir convite.'); return; }
-                                toast.success('Convite excluído!'); load();
-                              }} 
-                              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 size={15} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </TabsContent>
+
 
         <TabsContent value="invites" className="mt-4">
           {invites.length === 0 ? (
@@ -723,7 +652,6 @@ export default function Invites() {
                     <tr>
                       <th className="py-3 px-4">Participante</th>
                       <th className="py-3 px-4">Nível de Acesso</th>
-                      <th className="py-3 px-4">Categoria(s)</th>
                       <th className="py-3 px-4">Unidade Base</th>
                       <th className="py-3 px-4">Data de Ingresso</th>
                       <th className="py-3 px-4 text-right">Ações</th>
@@ -740,23 +668,15 @@ export default function Invites() {
                                 {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
                                 <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col">
+                              <div className="flex flex-col justify-center">
                                 <span className="font-bold text-foreground text-sm">{name}</span>
-                                <span className="text-[10px] text-muted-foreground truncate w-[100px] sm:w-auto" title={userRole.user_id}>{userRole.user_id}</span>
                               </div>
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[userRole.role] || userRole.role}</Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex flex-wrap gap-1.5">
-                              {userRole.category_ids.length > 0
-                                ? userRole.category_ids.map(cid => (
-                                    <Badge key={cid} variant="outline" className="text-[10px] font-semibold border-border/60">{getCatName(cid)}</Badge>
-                                  ))
-                                : <span className="text-xs text-muted-foreground italic font-medium">— Global —</span>}
-                            </div>
+                            <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-widest ${getRoleBadgeColor(userRole.role)}`}>
+                              {roleLabels[userRole.role] || userRole.role}
+                            </Badge>
                           </td>
                           <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
                             {userRole.unit_id ? getUnitName(userRole.unit_id) : <span className="text-muted-foreground italic font-medium">—</span>}
