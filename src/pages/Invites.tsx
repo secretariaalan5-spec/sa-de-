@@ -188,6 +188,7 @@ export default function Invites() {
 
       const { error } = await supabase.from('category_invites').insert({
         token: token,
+        team_id: roleInfo.team_id,
         admin_id: user?.id ?? null,
         category_ids: selectedCategoryIds,
         max_uses: 1,
