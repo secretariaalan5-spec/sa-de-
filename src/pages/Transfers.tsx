@@ -24,7 +24,7 @@ interface Schedule { employee_id: string; date: string; }
 interface LeaveReq { employee_id: string; status: string; }
 
 export default function Transfers() {
-  const { roleInfo, isAdmin, isChief } = useAuthContext();
+  const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -42,9 +42,17 @@ export default function Transfers() {
     const teamId = roleInfo?.team_id;
     if (!teamId) return;
 
+    let employeesQuery = supabase.from('employees').select('id, name, unit_id').eq('active', true).eq('team_id', teamId).order('name');
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
+    }
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
+      employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
+    }
+
     const [t, e, u, s, lr] = await Promise.all([
       supabase.from('transfer_history').select('*').eq('team_id', teamId).order('transferred_at', { ascending: false }).limit(200),
-      supabase.from('employees').select('id, name, unit_id').eq('active', true).eq('team_id', teamId).order('name'),
+      employeesQuery,
       supabase.from('units').select('id, name').eq('active', true),
       supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).gte('date', today).limit(200),
       supabase.from('leave_requests').select('employee_id, status').eq('team_id', teamId).eq('status', 'pending').limit(100),

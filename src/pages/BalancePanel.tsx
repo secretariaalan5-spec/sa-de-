@@ -35,14 +35,22 @@ interface BalanceRow {
 }
 
 export default function BalancePanel() {
-  const { roleInfo } = useAuthContext();
+  const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
   const [rows, setRows] = useState<BalanceRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true);
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
+    }
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
+      employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
+    }
+
     const [empRes, credRes, catRes, unitRes] = await Promise.all([
-      supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true),
+      employeesQuery,
       supabase.from('leave_credits').select('employee_id, amount, origin'),
       supabase.from('categories').select('id, name, color'),
       supabase.from('units').select('id, name'),

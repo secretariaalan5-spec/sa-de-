@@ -44,17 +44,24 @@ export default function Dashboard() {
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-    let empQuery = supabase.from('employees').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('active', true);
-    let schQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).gte('date', monthStart).lt('date', monthEnd);
-    let leavesQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'pending');
-    let approvedQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'approved');
-    let recentQuery = supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').eq('team_id', teamId).order('created_at', { ascending: false }).limit(5);
-    let extrasQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd);
+    const empQuery = supabase.from('employees').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('active', true);
+    const schQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).gte('date', monthStart).lt('date', monthEnd);
+    const leavesQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'pending');
+    const approvedQuery = supabase.from('leave_requests').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('status', 'approved');
+    const recentQuery = supabase.from('leave_requests').select('id, employee_id, status, days_requested, created_at').eq('team_id', teamId).order('created_at', { ascending: false }).limit(5);
+    const extrasQuery = supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('team_id', teamId).eq('type', 'extra').gte('date', monthStart).lt('date', monthEnd);
     let empListQuery = supabase.from('employees').select('id, name').eq('team_id', teamId).eq('active', true);
+    
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      empListQuery = empListQuery.in('category_id', roleInfo.category_ids);
+    }
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
+      empListQuery = empListQuery.eq('unit_id', roleInfo.unit_id);
+    }
 
     // First get active employee IDs to filter all queries
-    const { data: activeEmps } = await supabase.from('employees').select('id, name').eq('team_id', teamId).eq('active', true);
-    const activeIds = (activeEmps ?? []).map(e => e.id);
+    const { data: activeEmps } = await empListQuery;
+    const activeIds = (activeEmps ?? []).map((e: any) => e.id);
     setEmployees(activeEmps ?? []);
 
     if (activeIds.length === 0) {

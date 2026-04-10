@@ -51,9 +51,18 @@ export default function LeaveRequests() {
     const teamId = roleInfo?.team_id;
     if (!teamId) return;
 
+    let employeesQuery = supabase.from('employees').select('id, name').eq('active', true).eq('team_id', teamId).order('name');
+    
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
+    }
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
+      employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
+    }
+
     const [r, e, s, c, p] = await Promise.all([
       supabase.from('leave_requests').select('*').eq('team_id', teamId).order('created_at', { ascending: false }).limit(300),
-      supabase.from('employees').select('id, name').eq('active', true).eq('team_id', teamId).order('name'),
+      employeesQuery,
       supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).limit(500),
       supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId),
       supabase.from('profiles').select('user_id, display_name'),

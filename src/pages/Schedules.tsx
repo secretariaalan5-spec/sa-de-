@@ -43,10 +43,10 @@ export default function Schedules() {
     const teamId = roleInfo?.team_id;
     if (!teamId) return;
 
-    let schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
+    const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
     let employeesQuery = supabase.from('employees').select('id, name, category_id').eq('active', true).eq('team_id', teamId).order('name');
-    let lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
-    let pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
+    const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
+    const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
 
     // Filtro Explícito: Chefe de Categoria só pode escalar seus próprios funcionários
     if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {

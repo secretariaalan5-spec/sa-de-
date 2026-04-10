@@ -52,8 +52,19 @@ export default function Employees() {
   const load = async () => {
     if (!roleInfo?.team_id) return;
     const teamId = roleInfo.team_id;
+
+    let employeesQuery = supabase.from('employees').select('*').eq('active', true).eq('team_id', teamId).order('name');
+    
+    // Segregação de Dados:
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
+    }
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
+      employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
+    }
+
     const [e, c, u] = await Promise.all([
-      supabase.from('employees').select('*').eq('active', true).eq('team_id', teamId).order('name'),
+      employeesQuery,
       supabase.from('categories').select('id, name, color').eq('active', true).eq('team_id', teamId),
       supabase.from('units').select('id, name').eq('active', true).eq('team_id', teamId),
     ]);
@@ -192,24 +203,20 @@ export default function Employees() {
           <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
           <Input placeholder="Buscar profissional..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
-        {(isAdmin || isRH) && (
-          <>
-            <Select value={filterCat} onValueChange={setFilterCat}>
-              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Categorias</SelectItem>
-                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterUnit} onValueChange={setFilterUnit}>
-              <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Unidades</SelectItem>
-                {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </>
-        )}
+        <Select value={filterCat} onValueChange={setFilterCat}>
+          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas Categorias</SelectItem>
+            {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterUnit} onValueChange={setFilterUnit}>
+          <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas Unidades</SelectItem>
+            {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <div className="flex bg-muted rounded-lg p-0.5">
           <button onClick={() => setViewMode('cards')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'cards' && 'active')}><LayoutGrid size={14} /></button>
           <button onClick={() => setViewMode('table')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'table' && 'active')}><List size={14} /></button>
