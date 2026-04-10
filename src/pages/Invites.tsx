@@ -84,7 +84,7 @@ export default function Invites() {
   const [role, setRole] = useState('unit_manager');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [unitId, setUnitId] = useState('');
-  const [activeTab, setActiveTab] = useState('approvals');
+  const [activeTab, setActiveTab] = useState('users');
   const [searchUsers, setSearchUsers] = useState('');
   const [userUnitFilter, setUserUnitFilter] = useState('all');
   const [userCategoryFilter, setUserCategoryFilter] = useState('all');
@@ -350,16 +350,19 @@ export default function Invites() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Convites & Participantes</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Equipe e Acessos</h1>
+          <p className="text-muted-foreground text-sm">Gerencie os membros do sistema, aprove entradas e gere convites.</p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus size={16} /> Novo Convite</Button>
+            <Button className="gap-2 shadow-sm"><Plus size={16} /> Novo Convite</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Criar Convite</DialogTitle>
-              <DialogDescription>Gere um link de convite para novo usuário.</DialogDescription>
+              <DialogTitle>Criar Link de Convite</DialogTitle>
+              <DialogDescription>Gere um link seguro para cadastrar um novo integrante.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-1.5">
@@ -416,56 +419,40 @@ export default function Invites() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full">Criar Convite</Button>
+              <Button type="submit" className="w-full">Gerar Link Mágico</Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Pending approvals alert */}
-      {pendingApprovals.filter(a => a.status === 'pending').length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+      {/* Pending approvals alert (Top Banner) */}
+      {pendingApprovals.filter(a => a.status === 'pending').length > 0 && activeTab !== 'approvals' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fade-in shadow-sm">
           <ShieldAlert className="text-amber-600 flex-shrink-0" size={24} />
           <div className="flex-1">
-            <p className="font-semibold text-amber-800">{pendingApprovals.filter(a => a.status === 'pending').length} solicitação(ões) aguardando aprovação</p>
-            <p className="text-xs text-amber-600">Revise as solicitações na aba "Aprovações"</p>
+            <p className="font-semibold text-amber-800">{pendingApprovals.filter(a => a.status === 'pending').length} pessoa(s) aguardando liberação de acesso</p>
+            <p className="text-xs text-amber-600">Um administrador precisa verificar a identidade antes de liberar o login.</p>
           </div>
-          <Button size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-100" onClick={() => setActiveTab('approvals')}>Revisar</Button>
+          <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white shadow-none" onClick={() => setActiveTab('approvals')}>Revisar Agora</Button>
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-amber-500">{pendingApprovals.filter(a => a.status === 'pending').length}</p>
-          <p className="text-xs text-muted-foreground">Pendentes</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-primary">{availableInvites}</p>
-          <p className="text-xs text-muted-foreground">Disponíveis</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold">{usedInvites}</p>
-          <p className="text-xs text-muted-foreground">Usados</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-accent-foreground">{groupedUsers.length}</p>
-          <p className="text-xs text-muted-foreground">Participantes</p>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-4">
-          <TabsTrigger value="approvals" className="gap-1 relative">
-            <ShieldAlert size={14} /> Aprovações
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-3 max-w-[600px] mb-6">
+          <TabsTrigger value="users" className="gap-2 font-semibold">
+            <Users size={16} /> Membros da Equipe
+          </TabsTrigger>
+          <TabsTrigger value="approvals" className="gap-2 font-semibold relative">
+            <CheckCircle2 size={16} /> Aprovações
             {pendingApprovals.filter(a => a.status === 'pending').length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4.5 h-4.5 flex items-center justify-center font-bold px-1.5 border-2 border-background">
                 {pendingApprovals.filter(a => a.status === 'pending').length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="category-invites" className="gap-1"><Users size={14} /> Categorias ({categoryInvites.length})</TabsTrigger>
-          <TabsTrigger value="invites" className="gap-1"><Mail size={14} /> Convites ({invites.length})</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1"><Users size={14} /> Equipe ({groupedUsers.length})</TabsTrigger>
+          <TabsTrigger value="links" className="gap-2 font-semibold">
+            <Mail size={16} /> Links Gerados
+          </TabsTrigger>
         </TabsList>
 
         {/* ========== APPROVALS TAB ========== */}
@@ -536,138 +523,143 @@ export default function Invites() {
           )}
         </TabsContent>
 
-        <TabsContent value="category-invites" className="mt-4">
-          {categoryInvites.length === 0 ? (
-            <div className="empty-state">
-              <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
-              <p className="text-muted-foreground">Nenhum convite de categoria criado</p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Label</th>
-                      <th className="py-3 px-4">Categorias</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Aceito por</th>
-                      <th className="py-3 px-4">Gerado em</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {categoryInvites.map((invite) => (
-                      <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
-                        <td className="py-3 px-4 font-semibold text-foreground/90">{invite.label || 'Sem Rótulo'}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1.5">
-                            {invite.category_ids.map(cid => (
-                              <Badge key={cid} variant="secondary" className="text-[10px] font-medium bg-secondary/50">{getCatName(cid)}</Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest">
-                            {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Utilizado' : 'Inativo'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          {invite.accepted_by ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7 border border-border/50">
-                                {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs font-semibold text-foreground">{getProfileName(invite.accepted_by)}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic font-medium">— Aguardando —</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                            {invite.is_active && !invite.accepted_by && (
-                              <Button 
-                                variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} 
-                                className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5"
-                              >
-                                <Copy size={14} /> Link
-                              </Button>
-                            )}
-                            <Button 
-                              variant="ghost" size="icon" onClick={async () => {
-                                if (!confirm('Tem certeza que deseja excluir este convite?')) return;
-                                const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
-                                if (error) { toast.error(error.message || 'Erro ao excluir convite.'); return; }
-                                toast.success('Convite excluído!'); load();
-                              }} 
-                              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 size={15} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        <TabsContent value="links" className="mt-4 space-y-8">
+          {/* REGULAR INVITES */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
+              <Mail size={18} className="text-muted-foreground" /> Links de Convite Padrão
+            </h2>
+            {invites.length === 0 ? (
+              <div className="empty-state">
+                <Mail className="mx-auto mb-3 text-muted-foreground" size={40} />
+                <p className="text-muted-foreground">Nenhum convite padrão criado.</p>
               </div>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="invites" className="mt-4">
-          {invites.length === 0 ? (
-            <div className="empty-state">
-              <Mail className="mx-auto mb-3 text-muted-foreground" size={40} />
-              <p className="text-muted-foreground">Nenhum convite criado</p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Nível</th>
-                      <th className="py-3 px-4">Escopo</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Criado em</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {invites.map((invite) => (
-                      <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
-                        <td className="py-3 px-4">
-                          <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[invite.role] || invite.role}</Badge>
-                        </td>
-                        <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
-                          {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : 'Global / Admin'}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={invite.used ? 'secondary' : 'default'} className="text-[9px] uppercase font-bold tracking-widest">
-                            {invite.used ? 'Utilizado' : 'Disponível'}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                            {!invite.used && (
-                              <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5">
-                                <Copy size={14} /> Link
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                              <Trash2 size={15} />
-                            </Button>
-                          </div>
-                        </td>
+            ) : (
+              <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
+                      <tr>
+                        <th className="py-3 px-4">Nível</th>
+                        <th className="py-3 px-4">Escopo</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Criado em</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {invites.map((invite) => (
+                        <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
+                          <td className="py-3 px-4">
+                            <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[invite.role] || invite.role}</Badge>
+                          </td>
+                          <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
+                            {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : 'Global / Admin'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={invite.used ? 'secondary' : 'default'} className="text-[9px] uppercase font-bold tracking-widest">
+                              {invite.used ? 'Utilizado' : 'Disponível'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                              {!invite.used && (
+                                <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5">
+                                  <Copy size={14} /> Link
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 size={15} />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* CATEGORY CHIEF INVITES (Only show if there are some) */}
+          {categoryInvites.length > 0 && (
+            <div className="space-y-3">
+               <h2 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
+                <Users size={18} className="text-muted-foreground" /> Limites Múltiplos (Chefes de Categoria)
+              </h2>
+              <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
+                      <tr>
+                        <th className="py-3 px-4">Label</th>
+                        <th className="py-3 px-4">Categorias</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Aceito por</th>
+                        <th className="py-3 px-4">Gerado em</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {categoryInvites.map((invite) => (
+                        <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
+                          <td className="py-3 px-4 font-semibold text-foreground/90">{invite.label || 'Sem Rótulo'}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {invite.category_ids.map(cid => (
+                                <Badge key={cid} variant="secondary" className="text-[10px] font-medium bg-secondary/50">{getCatName(cid)}</Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest">
+                              {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Utilizado' : 'Inativo'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            {invite.accepted_by ? (
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7 border border-border/50">
+                                  {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
+                                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs font-semibold text-foreground">{getProfileName(invite.accepted_by)}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic font-medium">— Aguardando —</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                              {invite.is_active && !invite.accepted_by && (
+                                <Button 
+                                  variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} 
+                                  className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5"
+                                >
+                                  <Copy size={14} /> Link
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" size="icon" onClick={async () => {
+                                  if (!confirm('Tem certeza que deseja excluir este convite?')) return;
+                                  const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
+                                  if (error) { toast.error(error.message || 'Erro ao excluir convite.'); return; }
+                                  toast.success('Convite excluído!'); load();
+                                }} 
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 size={15} />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
