@@ -71,8 +71,13 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   minAdvanceDate.setDate(minAdvanceDate.getDate() + 10);
   const minAdvanceDateStr = minAdvanceDate.toISOString().split('T')[0];
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isPast = (day: number) => getDateStr(day) <= todayStr;
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const todayStr = getLocalTodayStr();
+  const isPast = (day: number) => getDateStr(day) < todayStr;
   const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
 
   const handleDayClick = (day: number) => {
