@@ -52,6 +52,8 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   const totalExtras = credits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
   const totalUsed = Math.abs(credits.filter(c => c.amount < 0).reduce((s, c) => s + c.amount, 0));
 
+  const fmtCredit = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ',');
+
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
 
   const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -74,15 +76,15 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
             {/* Balance summary */}
             <div className="grid grid-cols-3 gap-3 mb-2">
               <div className="rounded-xl border border-border p-3 text-center">
-                <p className="text-lg font-bold text-primary">+{totalExtras}</p>
+                <p className="text-lg font-bold text-primary">+{fmtCredit(totalExtras)}</p>
                 <p className="text-[10px] text-muted-foreground">Créditos</p>
               </div>
               <div className="rounded-xl border border-border p-3 text-center">
-                <p className="text-lg font-bold text-destructive">-{totalUsed}</p>
+                <p className="text-lg font-bold text-destructive">-{fmtCredit(totalUsed)}</p>
                 <p className="text-[10px] text-muted-foreground">Usados</p>
               </div>
               <div className="rounded-xl border border-border p-3 text-center">
-                <p className={cn('text-lg font-bold', balance > 0 ? 'text-primary' : balance < 0 ? 'text-destructive' : 'text-foreground')}>{balance}</p>
+                <p className={cn('text-lg font-bold', balance > 0 ? 'text-primary' : balance < 0 ? 'text-destructive' : 'text-foreground')}>{fmtCredit(balance)}</p>
                 <p className="text-[10px] text-muted-foreground">Saldo</p>
               </div>
             </div>
@@ -159,7 +161,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                       <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 text-sm">
                         <div>
                           <span className={cn('font-mono font-bold', c.amount > 0 ? 'text-primary' : 'text-destructive')}>
-                            {c.amount > 0 ? '+' : ''}{c.amount}
+                            {c.amount > 0 ? '+' : ''}{fmtCredit(c.amount)}
                           </span>
                           <span className="text-xs text-muted-foreground ml-2">
                             {c.origin === 'extra_shift' ? 'Escala extra' : c.origin === 'leave_used' ? 'Folga utilizada' : c.origin}

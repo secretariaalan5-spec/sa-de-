@@ -95,6 +95,8 @@ export default function BalancePanel() {
     r.unitName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const fmtCredit = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ',');
+
   const totalExtras = rows.reduce((s, r) => s + r.extras, 0);
   const totalUsed = rows.reduce((s, r) => s + r.used, 0);
   const totalBalance = rows.reduce((s, r) => s + r.balance, 0);
@@ -118,7 +120,7 @@ export default function BalancePanel() {
             <TrendingUp size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-primary">{totalExtras}</p>
+            <p className="text-2xl font-bold text-primary">{fmtCredit(totalExtras)}</p>
             <p className="text-xs text-muted-foreground">Créditos ganhos</p>
           </div>
         </div>
@@ -127,7 +129,7 @@ export default function BalancePanel() {
             <TrendingDown size={20} className="text-destructive" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-destructive">{totalUsed}</p>
+            <p className="text-2xl font-bold text-destructive">{fmtCredit(totalUsed)}</p>
             <p className="text-xs text-muted-foreground">Créditos usados</p>
           </div>
         </div>
@@ -136,7 +138,7 @@ export default function BalancePanel() {
             <ArrowUpDown size={20} className="text-accent-foreground" />
           </div>
           <div>
-            <p className="text-2xl font-bold">{totalBalance}</p>
+            <p className="text-2xl font-bold">{fmtCredit(totalBalance)}</p>
             <p className="text-xs text-muted-foreground">Saldo total</p>
           </div>
         </div>
@@ -182,17 +184,17 @@ export default function BalancePanel() {
                     <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.categoryName}</td>
                     <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.unitName}</td>
                     <td className="px-5 py-3.5 text-center">
-                      <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">+{row.extras}</Badge>
+                      <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">+{fmtCredit(row.extras)}</Badge>
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive">-{row.used}</Badge>
+                      <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive">-{fmtCredit(row.used)}</Badge>
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       <Badge
                         variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
                         className="font-mono font-bold shadow-none"
                       >
-                        {row.balance > 0 ? `+${row.balance}` : row.balance}
+                        {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
                       </Badge>
                     </td>
                   </tr>

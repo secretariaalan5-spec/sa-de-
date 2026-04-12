@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-react';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Schedule {
@@ -16,20 +16,25 @@ interface Schedule {
   employee_id: string;
   date: string;
   type: string;
+  shift_type: string;
+  credit_amount: number;
   unit_id: string | null;
   created_at: string;
 }
 
 interface Employee { id: string; name: string; category_id: string | null; }
+interface Holiday { id: string; date: string; name: string; }
 
 export default function Schedules() {
   const { roleInfo, isAdmin, isChief, isRH, isManager } = useAuthContext();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
   const [empId, setEmpId] = useState('');
   const [type, setType] = useState('extra');
+  const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
@@ -47,15 +52,17 @@ export default function Schedules() {
     let employeesQuery = supabase.from('employees').select('id, name, category_id').eq('active', true).eq('team_id', teamId).order('name');
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
+    const holidaysQuery = supabase.from('holidays').select('id, date, name').eq('team_id', teamId).order('date');
 
     // Filtro Explícito: Chefe de Categoria só pode escalar seus próprios funcionários
     if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
       employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
     }
 
-    const [s, e, lr, pendingLr] = await Promise.all([schedulesQuery, employeesQuery, lrQuery, pendingLrQuery]);
+    const [s, e, lr, pendingLr, h] = await Promise.all([schedulesQuery, employeesQuery, lrQuery, pendingLrQuery, holidaysQuery]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
+    setHolidays(h.data ?? []);
 
     // Build a map of employee_id -> approved + pending leave dates
     const leaveMap: Record<string, string[]> = {};
@@ -67,7 +74,7 @@ export default function Schedules() {
   };
 
   useEffect(() => { load(); }, [roleInfo?.team_id]);
-  useDataSubscription(['schedules', 'employees', 'leave_requests'], load);
+  useDataSubscription(['schedules', 'employees', 'leave_requests', 'holidays'], load);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
@@ -81,6 +88,25 @@ export default function Schedules() {
   }, [firstDayOfWeek, daysInMonth]);
 
   const getDateStr = (day: number) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  const holidayDatesSet = useMemo(() => new Set(holidays.map(h => h.date)), [holidays]);
+
+  const isHoliday = (dateStr: string) => holidayDatesSet.has(dateStr);
+  const isWeekend = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.getDay() === 0 || d.getDay() === 6;
+  };
+
+  /** Calculate credit amount for a given date and shift type */
+  const calcCredit = (dateStr: string, shift: 'full' | 'half'): number => {
+    const base = (isWeekend(dateStr) || isHoliday(dateStr)) ? 2 : 1;
+    return shift === 'half' ? base / 2 : base;
+  };
+
+  /** Total credits for all selected dates with current shift type */
+  const totalCreditsPreview = useMemo(() => {
+    return selectedDates.reduce((sum, d) => sum + calcCredit(d, shiftType), 0);
+  }, [selectedDates, shiftType, holidayDatesSet]);
 
   const schedulesForDay = (day: number) => {
     const dateStr = getDateStr(day);
@@ -135,6 +161,7 @@ export default function Schedules() {
       employee_id: empId,
       date,
       type,
+      shift_type: shiftType,
       team_id: roleInfo.team_id,
       created_by: user?.id ?? null,
     }));
@@ -145,17 +172,19 @@ export default function Schedules() {
       return;
     }
 
-    toast.success(`${selectedDates.length} escala(s) extra criada(s)! +2 créditos por escala.`);
+    const creditText = totalCreditsPreview % 1 === 0 ? totalCreditsPreview.toString() : totalCreditsPreview.toFixed(1);
+    toast.success(`${selectedDates.length} escala(s) criada(s)! +${creditText} crédito(s) total.`);
     setOpen(false);
     setEmpId('');
     setSelectedDates([]);
     setType('extra');
+    setShiftType('full');
     load();
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('schedules').delete().eq('id', id);
-    if (error) { toast.error('Erro ao remover escala.'); return; }
+    if (error) { toast.error(error.message || 'Erro ao remover escala.'); return; }
     toast.success('Escala removida. Créditos devolvidos automaticamente.');
     load();
   };
@@ -188,6 +217,20 @@ export default function Schedules() {
   const isDayScheduledForSelected = (day: number) => {
     if (!empId) return false;
     return isAlreadyScheduled(empId, getDateStr(day));
+  };
+
+  const formatCredit = (amount: number) => {
+    if (amount % 1 === 0) return amount.toString();
+    return amount.toFixed(1).replace('.', ',');
+  };
+
+  const getHolidayName = (dateStr: string) => holidays.find(h => h.date === dateStr)?.name;
+
+  /** Badge label for credit in list view */
+  const creditBadgeLabel = (s: Schedule) => {
+    const amt = Number(s.credit_amount) || 0;
+    const shiftLabel = s.shift_type === 'half' ? '½T' : '';
+    return `Extra +${formatCredit(amt)}${shiftLabel ? ` ${shiftLabel}` : ''}`;
   };
 
   return (
@@ -233,13 +276,26 @@ export default function Schedules() {
             {calendarDays.map((day, i) => {
               if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
               const daySchedules = schedulesForDay(day);
+              const dateStr = getDateStr(day);
+              const holidayName = getHolidayName(dateStr);
+              const wkend = isWeekend(dateStr);
               return (
-                <div key={day} className={cn('bg-card min-h-[80px] p-1.5 relative transition-colors', isToday(day) && 'ring-2 ring-primary ring-inset')}>
-                  <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
+                <div key={day} className={cn(
+                  'bg-card min-h-[80px] p-1.5 relative transition-colors',
+                  isToday(day) && 'ring-2 ring-primary ring-inset',
+                  (wkend || holidayName) && 'bg-amber-50/50 dark:bg-amber-950/20'
+                )}>
+                  <div className="flex items-center gap-1">
+                    <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
+                    {holidayName && <span className="text-[8px] text-amber-600 dark:text-amber-400 truncate" title={holidayName}>🎉</span>}
+                  </div>
                   <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
                     {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className={cn('text-[10px] px-1.5 py-0.5 rounded truncate', s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary')} title={`${getEmpName(s.employee_id)} (${s.type})`}>
-                        {getEmpName(s.employee_id)}
+                      <div key={s.id} className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded truncate',
+                        s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
+                      )} title={`${getEmpName(s.employee_id)} (${s.shift_type === 'half' ? '½ turno' : 'integral'}) +${formatCredit(Number(s.credit_amount))}`}>
+                        {getEmpName(s.employee_id)} {s.shift_type === 'half' && '½'}
                       </div>
                     ))}
                     {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
@@ -263,27 +319,49 @@ export default function Schedules() {
                   <tr>
                     <th className="px-5 py-4 font-semibold">Funcionário</th>
                     <th className="px-5 py-4 font-semibold">Data</th>
-                    <th className="px-5 py-4 font-semibold">Tipo</th>
+                    <th className="px-5 py-4 font-semibold">Turno</th>
+                    <th className="px-5 py-4 font-semibold">Créditos</th>
                     {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {monthSchedules.map(s => (
-                    <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
-                      <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
-                      <td className="px-5 py-3.5 text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                      <td className="px-5 py-3.5"><Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">Extra (+2)</Badge></td>
-                      {canCreate && (
-                        <td className="px-5 py-3.5 text-right">
-                          <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
-                              <Trash2 size={14} />
-                            </Button>
-                          </div>
+                  {monthSchedules.map(s => {
+                    const amt = Number(s.credit_amount) || 0;
+                    const holidayName = getHolidayName(s.date);
+                    return (
+                      <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
+                        <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
+                        <td className="px-5 py-3.5 text-muted-foreground">
+                          <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                          {holidayName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {holidayName}</span>}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="px-5 py-3.5">
+                          <Badge variant="secondary" className={cn(
+                            'shadow-none text-xs',
+                            s.shift_type === 'half'
+                              ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
+                              : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
+                          )}>
+                            {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">
+                            +{formatCredit(amt)}
+                          </Badge>
+                        </td>
+                        {canCreate && (
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -296,7 +374,7 @@ export default function Schedules() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Criar Escala</DialogTitle>
-            <DialogDescription>Selecione o funcionário, tipo e clique nos dias do calendário.</DialogDescription>
+            <DialogDescription>Selecione o funcionário, turno e clique nos dias do calendário.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -308,9 +386,50 @@ export default function Schedules() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
-              Tipo: <span className="font-medium text-foreground">Extra (+2 créditos por escala)</span>
-            </p>
+
+            {/* Shift Type Selector */}
+            <div className="space-y-1.5">
+              <Label>Turno</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShiftType('full')}
+                  className={cn(
+                    'flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium',
+                    shiftType === 'full'
+                      ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40'
+                  )}
+                >
+                  <Sun size={16} />
+                  Integral
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShiftType('half')}
+                  className={cn(
+                    'flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium',
+                    shiftType === 'half'
+                      ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm dark:bg-orange-950/30 dark:border-orange-400 dark:text-orange-400'
+                      : 'border-border bg-card text-muted-foreground hover:border-orange-300'
+                  )}
+                >
+                  <Moon size={16} />
+                  Meio Turno
+                </button>
+              </div>
+            </div>
+
+            {/* Credit rules info */}
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1">
+              <p className="font-semibold text-foreground text-sm mb-1.5">📋 Regra de Créditos</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <span>Dia da semana (integral):</span><span className="font-mono font-bold text-primary">+1</span>
+                <span>Dia da semana (½ turno):</span><span className="font-mono font-bold text-primary">+0,5</span>
+                <span>Fds / Feriado (integral):</span><span className="font-mono font-bold text-primary">+2</span>
+                <span>Fds / Feriado (½ turno):</span><span className="font-mono font-bold text-primary">+1</span>
+              </div>
+            </div>
 
             {/* Mini calendar */}
             <div>
@@ -331,19 +450,31 @@ export default function Schedules() {
                   const hasLeave = isDayLeaveForSelected(day);
                   const hasSchedule = isDayScheduledForSelected(day);
                   const blocked = hasLeave || hasSchedule;
+                  const wkend = isWeekend(dateStr);
+                  const holiday = isHoliday(dateStr);
+                  const holidayName = getHolidayName(dateStr);
+                  const credit = calcCredit(dateStr, shiftType);
                   return (
                     <button
                       key={day}
                       type="button"
                       onClick={() => !blocked && toggleDate(dateStr)}
                       disabled={blocked}
-                      title={hasLeave ? 'Folga aprovada neste dia' : hasSchedule ? 'Já escalado neste dia' : ''}
+                      title={
+                        hasLeave ? 'Folga aprovada neste dia'
+                        : hasSchedule ? 'Já escalado neste dia'
+                        : holidayName ? `🎉 ${holidayName} (+${formatCredit(credit)})`
+                        : wkend ? `Final de semana (+${formatCredit(credit)})`
+                        : `Dia da semana (+${formatCredit(credit)})`
+                      }
                       className={cn(
-                        'h-8 rounded-md text-sm font-medium transition-all',
+                        'h-8 rounded-md text-sm font-medium transition-all relative',
                         blocked
                           ? 'bg-destructive/15 text-destructive/50 cursor-not-allowed line-through'
                           : selected
                           ? 'bg-primary text-primary-foreground shadow-sm'
+                          : (wkend || holiday)
+                          ? 'bg-amber-100/60 text-amber-800 hover:bg-amber-200/80 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
                           : 'hover:bg-muted text-foreground',
                         isToday(day) && !selected && !blocked && 'ring-1 ring-primary'
                       )}
@@ -354,25 +485,49 @@ export default function Schedules() {
                 })}
               </div>
               {empId && (
-                <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/15 inline-block" /> Folga / Já escalado</span>
+                <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/15 inline-block" /> Folga / Escalado</span>
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-primary inline-block" /> Selecionado</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 dark:bg-amber-900/50 inline-block" /> Fds / Feriado (×2)</span>
                 </div>
               )}
             </div>
 
             {selectedDates.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {selectedDates.sort().map(d => (
-                  <Badge key={d} variant="secondary" className="text-xs cursor-pointer" onClick={() => toggleDate(d)}>
-                    {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ✕
-                  </Badge>
-                ))}
-              </div>
+              <>
+                <div className="flex flex-wrap gap-1">
+                  {selectedDates.sort().map(d => {
+                    const credit = calcCredit(d, shiftType);
+                    const wkend = isWeekend(d);
+                    const holiday = isHoliday(d);
+                    return (
+                      <Badge
+                        key={d}
+                        variant="secondary"
+                        className={cn(
+                          'text-xs cursor-pointer gap-1',
+                          (wkend || holiday) && 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                        )}
+                        onClick={() => toggleDate(d)}
+                      >
+                        {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        <span className="font-mono text-[10px] opacity-70">+{formatCredit(credit)}</span>
+                        ✕
+                      </Badge>
+                    );
+                  })}
+                </div>
+
+                {/* Total credits preview */}
+                <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
+                  <span className="text-sm font-medium">Total de créditos</span>
+                  <span className="text-lg font-bold text-primary font-mono">+{formatCredit(totalCreditsPreview)}</span>
+                </div>
+              </>
             )}
 
             <Button onClick={handleAdd} className="w-full" disabled={!empId || selectedDates.length === 0}>
-              Criar {selectedDates.length} Escala{selectedDates.length !== 1 ? 's' : ''}
+              Criar {selectedDates.length} Escala{selectedDates.length !== 1 ? 's' : ''} (+{formatCredit(totalCreditsPreview)} créditos)
             </Button>
           </div>
         </DialogContent>

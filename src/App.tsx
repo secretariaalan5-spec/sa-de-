@@ -19,6 +19,7 @@ import Invites from "./pages/Invites";
 import Profile from "./pages/Profile";
 import BalancePanel from "./pages/BalancePanel";
 import AuditLogs from "./pages/AuditLogs";
+import Holidays from "./pages/Holidays";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/perfil" element={<Profile />} />
               <Route path="/saldo" element={<BalancePanel />} />
               <Route path="/auditoria" element={<AuditLogs />} />
+              <Route path="/feriados" element={<Holidays />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
