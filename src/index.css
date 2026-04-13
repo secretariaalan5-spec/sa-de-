@@ -115,6 +115,17 @@
   html, body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    /* Native app feel */
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    touch-action: pan-x pan-y;
+  }
+
+  /* Allow text selection in inputs and textareas */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   /* Hierarquia tipográfica padrão */
@@ -357,13 +368,82 @@
   transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─── Safe Area (Mobile) ──────────────────────────────────────────────── */
+/* ─── Safe Area & Native Insets ───────────────────────────────────────── */
 .safe-area-bottom {
-  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 12px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 12px) + 8px);
 }
 
 .env-pt {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.25rem);
+}
+
+/* Mobile main content area: accounts for fixed header + bottom nav */
+.mobile-main-content {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+}
+
+/* ─── Native App Transitions ─────────────────────────────────────────── */
+@keyframes nativeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: nativeFadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Bottom sheet slide up */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* ─── Native Touch Feedback ──────────────────────────────────────────── */
+.native-press {
+  transition: transform 80ms ease, opacity 80ms ease;
+}
+
+.native-press:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Bottom nav active pill indicator */
+.nav-pill-indicator {
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent rubber-banding on iOS standalone */
+@media (display-mode: standalone) {
+  html {
+    overflow: hidden;
+    height: 100%;
+  }
+  body {
+    overflow: hidden;
+    height: 100%;
+  }
+  #root {
+    overflow: hidden;
+    height: 100%;
+  }
 }
 
 /* ─── Impressão ───────────────────────────────────────────────────────── */
