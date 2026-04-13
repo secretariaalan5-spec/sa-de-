@@ -22,13 +22,15 @@ interface Schedule {
   created_at: string;
 }
 
-interface Employee { id: string; name: string; category_id: string | null; }
+interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; }
+interface Unit { id: string; name: string; }
 interface Holiday { id: string; date: string; name: string; }
 
 export default function Schedules() {
   const { roleInfo, isAdmin, isChief, isRH, isManager } = useAuthContext();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
@@ -49,7 +51,8 @@ export default function Schedules() {
     if (!teamId) return;
 
     const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
-    let employeesQuery = supabase.from('employees').select('id, name, category_id').eq('active', true).eq('team_id', teamId).order('name');
+    let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true).eq('team_id', teamId).order('name');
+    const unitsQuery = supabase.from('units').select('id, name').eq('team_id', teamId);
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
     const holidaysQuery = supabase.from('holidays').select('id, date, name').eq('team_id', teamId).order('date');
@@ -59,9 +62,10 @@ export default function Schedules() {
       employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
     }
 
-    const [s, e, lr, pendingLr, h] = await Promise.all([schedulesQuery, employeesQuery, lrQuery, pendingLrQuery, holidaysQuery]);
+    const [s, e, u, lr, pendingLr, h] = await Promise.all([schedulesQuery, employeesQuery, unitsQuery, lrQuery, pendingLrQuery, holidaysQuery]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
+    setUnits(u.data ?? []);
     setHolidays(h.data ?? []);
 
     // Build a map of employee_id -> approved + pending leave dates
@@ -74,7 +78,15 @@ export default function Schedules() {
   };
 
   useEffect(() => { load(); }, [roleInfo?.team_id]);
-  useDataSubscription(['schedules', 'employees', 'leave_requests', 'holidays'], load);
+  useDataSubscription(['schedules', 'employees', 'leave_requests', 'holidays', 'units'], load);
+
+  const unitMap = useMemo(() => {
+    const map = new Map<string, string>();
+    units.forEach(u => map.set(u.id, u.name));
+    return map;
+  }, [units]);
+
+  const getUnitName = (unitId: string | null) => unitId ? (unitMap.get(unitId) ?? '') : '';
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
@@ -369,66 +381,69 @@ export default function Schedules() {
         )
       )}
 
-      {/* Create Schedule Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Criar Escala</DialogTitle>
-            <DialogDescription>Selecione o funcionário, turno e clique nos dias do calendário.</DialogDescription>
+            <DialogDescription>Selecione o funcionário, turno e clique nos dias.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Funcionário</Label>
               <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
+                  {employees.map(e => {
+                    const unit = getUnitName(e.unit_id);
+                    return (
+                      <SelectItem key={e.id} value={e.id}>
+                        <span>{e.name}</span>
+                        {unit && <span className="text-muted-foreground text-xs ml-2">• {unit}</span>}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Shift Type Selector */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label>Turno</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setShiftType('full')}
                   className={cn(
-                    'flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium',
+                    'flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium',
                     shiftType === 'full'
                       ? 'border-primary bg-primary/10 text-primary shadow-sm'
                       : 'border-border bg-card text-muted-foreground hover:border-primary/40'
                   )}
                 >
-                  <Sun size={16} />
+                  <Sun size={14} />
                   Integral
                 </button>
                 <button
                   type="button"
                   onClick={() => setShiftType('half')}
                   className={cn(
-                    'flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium',
+                    'flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium',
                     shiftType === 'half'
                       ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm dark:bg-orange-950/30 dark:border-orange-400 dark:text-orange-400'
                       : 'border-border bg-card text-muted-foreground hover:border-orange-300'
                   )}
                 >
-                  <Moon size={16} />
+                  <Moon size={14} />
                   Meio Turno
                 </button>
               </div>
             </div>
 
-            {/* Credit rules info */}
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1">
-              <p className="font-semibold text-foreground text-sm mb-1.5">📋 Regra de Créditos</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <span>Dia da semana (integral):</span><span className="font-mono font-bold text-primary">+1</span>
-                <span>Dia da semana (½ turno):</span><span className="font-mono font-bold text-primary">+0,5</span>
-                <span>Fds / Feriado (integral):</span><span className="font-mono font-bold text-primary">+2</span>
-                <span>Fds / Feriado (½ turno):</span><span className="font-mono font-bold text-primary">+1</span>
-              </div>
+            {/* Credit rules - compact */}
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+              <span className="font-semibold text-foreground whitespace-nowrap">📋 Créditos:</span>
+              <span>Semana <b className="text-primary">+1</b>/<b className="text-primary">+0,5</b></span>
+              <span>Fds/Feriado <b className="text-primary">+2</b>/<b className="text-primary">+1</b></span>
             </div>
 
             {/* Mini calendar */}
