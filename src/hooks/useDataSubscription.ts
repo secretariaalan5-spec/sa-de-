@@ -29,15 +29,7 @@ export function useDataSubscription(tables: string[], onUpdate: (payload?: any) 
         .subscribe();
     });
 
-    // Fallback Discreto: Atualização forçada a cada 2 segundos (se a aba estiver ativa)
-    const intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        savedCallback.current();
-      }
-    }, 2000);
-
     return () => {
-      clearInterval(intervalId);
       channels.forEach(channel => {
         supabase.removeChannel(channel);
       });
