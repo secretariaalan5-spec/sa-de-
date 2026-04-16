@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/untyped-client';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -32,6 +33,7 @@ interface Category {
 }
 
 export default function AcceptInvite() {
+  const { refreshRole } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [invite, setInvite] = useState<CategoryInvite | null>(null);
@@ -121,9 +123,10 @@ export default function AcceptInvite() {
         return;
       }
 
-      // Direct approval (legacy flow or already approved)
+      // Direct approval — refresh role in AuthContext so sidebar updates immediately
       toast.success(data.message || 'Convite aceito!');
-      setTimeout(() => navigate('/'), 2000);
+      await refreshRole();
+      navigate('/', { replace: true });
     } catch {
       toast.error('Erro ao processar convite.');
     } finally {

@@ -70,7 +70,6 @@ export default function Register() {
 
         // Fallback: navigate to dashboard
         navigate('/', { replace: true });
-        window.location.reload();
       });
       return;
     }

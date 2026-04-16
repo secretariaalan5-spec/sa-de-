@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
+import { Loader2 } from "lucide-react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AcceptInvite from "./pages/AcceptInvite";
@@ -26,17 +27,22 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuthContext();
-  if (loading) return null;
-  if (!session) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+function AuthLoadingScreen() {
+  return (
+    <div className="h-screen w-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verificando acesso...</p>
+      </div>
+    </div>
+  );
 }
 
-function RootRedirect() {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthContext();
-  if (loading) return null;
-  return <Navigate to={session ? "/" : "/login"} replace />;
+  if (loading) return <AuthLoadingScreen />;
+  if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;  
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {

@@ -9,6 +9,8 @@ interface AuthContextType {
   pendingStatus: PendingStatus;
   loading: boolean;
   signOut: () => Promise<void>;
+  /** Re-fetches the current user's role from the DB. Use after RPCs that assign roles. */
+  refreshRole: () => Promise<void>;
   isAdmin: boolean;
   isRH: boolean;
   isChief: boolean;

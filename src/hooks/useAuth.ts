@@ -19,135 +19,187 @@ export function useAuth() {
   const [pendingStatus, setPendingStatus] = useState<PendingStatus>(null);
   const [loading, setLoading] = useState(true);
   const processingRef = useRef(false);
+  // Generation counter to discard stale parallel handleSession calls
+  const sessionGenRef = useRef(0);
 
   const fetchRole = useCallback(async (userId: string): Promise<boolean> => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role, category_id, unit_id, team_id')
-      .eq('user_id', userId);
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, category_id, unit_id, team_id')
+        .eq('user_id', userId);
 
-    if (data && data.length > 0) {
-      const first = data[0];
-      const categoryIds = data.map((r: any) => r.category_id).filter(Boolean) as string[];
-      const teamId = data.find((r: any) => r.team_id)?.team_id ?? first.team_id;
-      setRoleInfo({
-        role: first.role as UserRole,
-        category_id: first.category_id,
-        category_ids: categoryIds,
-        unit_id: first.unit_id,
-        team_id: teamId,
-      });
-      setPendingStatus(null); // Has role = no pending
-      return true;
+      // Network / RLS error — don't treat as "no role"
+      if (error) {
+        console.error('fetchRole error:', error.message);
+        return false;
+      }
+
+      if (data && data.length > 0) {
+        const first = data[0];
+        const categoryIds = data
+          .map((r: any) => r.category_id)
+          .filter(Boolean) as string[];
+        const teamId =
+          data.find((r: any) => r.team_id)?.team_id ?? first.team_id;
+        setRoleInfo({
+          role: first.role as UserRole,
+          category_id: first.category_id,
+          category_ids: categoryIds,
+          unit_id: first.unit_id,
+          team_id: teamId,
+        });
+        setPendingStatus(null); // Has role = not pending
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('fetchRole exception:', err);
+      return false;
     }
-    return false;
   }, []);
 
   const fetchPendingStatus = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from('pending_approvals')
-      .select('status')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('pending_approvals')
+        .select('status')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (data) {
-      setPendingStatus(data.status as PendingStatus);
-    } else {
-      setPendingStatus(null);
+      if (error) {
+        console.error('fetchPendingStatus error:', error.message);
+        return;
+      }
+
+      setPendingStatus(data ? (data.status as PendingStatus) : null);
+    } catch (err) {
+      console.error('fetchPendingStatus exception:', err);
     }
   }, []);
 
-  const processPendingInvite = useCallback(async (userId: string) => {
-    // Try to get token from URL pathname first, then localStorage
-    let token: string | null = null;
+  const processPendingInvite = useCallback(
+    async (userId: string) => {
+      // Try token from URL path → query string → localStorage
+      let token: string | null = null;
 
-    if (window.location.pathname.startsWith('/registro/')) {
-      token = window.location.pathname.split('/registro/')[1];
-    }
-
-    if (!token) {
-      const urlParams = new URLSearchParams(window.location.search);
-      token = urlParams.get('token');
-    }
-
-    if (!token) {
-      token = localStorage.getItem('pending_invite_token');
-    }
-
-    if (!token || processingRef.current) return;
-    processingRef.current = true;
-
-    try {
-      const { data, error } = await supabase.rpc('accept_invite_by_token', {
-        p_token: token
-      });
-
-      if (error) {
-        console.error('RPC Error processing invite:', error);
-      } else {
-        console.log('Invite processed:', data);
+      if (window.location.pathname.startsWith('/registro/')) {
+        token = window.location.pathname.split('/registro/')[1];
+      }
+      if (!token) {
+        const urlParams = new URLSearchParams(window.location.search);
+        token = urlParams.get('token');
+      }
+      if (!token) {
+        token = localStorage.getItem('pending_invite_token');
       }
 
-      // After processing, check if user got a role (admin pre-approved) or is pending
-      const hasRole = await fetchRole(userId);
-      if (!hasRole) {
-        await fetchPendingStatus(userId);
-      }
-    } catch (err) {
-      console.error('Error processing invite:', err);
-    } finally {
-      // ALWAYS clean up token immediately to prevent account switching
-      localStorage.removeItem('pending_invite_token');
+      if (!token || processingRef.current) return;
+      processingRef.current = true;
 
-      if (window.location.search.includes('token=')) {
-        window.history.replaceState({}, '', window.location.pathname);
+      try {
+        const { data, error } = await supabase.rpc('accept_invite_by_token', {
+          p_token: token,
+        });
+        if (error) {
+          console.error('RPC Error processing invite:', error);
+        } else {
+          console.log('Invite processed:', data);
+        }
+
+        // Re-check role assignment
+        const hasRole = await fetchRole(userId);
+        if (!hasRole) {
+          await fetchPendingStatus(userId);
+        }
+      } catch (err) {
+        console.error('Error processing invite:', err);
+      } finally {
+        // Always clean up to prevent token reuse on account switch
+        localStorage.removeItem('pending_invite_token');
+        if (window.location.search.includes('token=')) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+        processingRef.current = false;
       }
-      processingRef.current = false;
-    }
-  }, [fetchRole, fetchPendingStatus]);
+    },
+    [fetchRole, fetchPendingStatus],
+  );
 
   useEffect(() => {
+    // Each effect run gets its own generation; stale calls are discarded.
+    const currentGen = ++sessionGenRef.current;
     let initialSessionHandled = false;
 
-    const handleSession = async (session: Session | null) => {
-      setSession(session);
-      if (session?.user) {
-        const hasRole = await fetchRole(session.user.id);
+    const handleSession = async (incomingSession: Session | null) => {
+      // Discard if a newer handleSession has started
+      if (currentGen !== sessionGenRef.current) return;
+
+      setSession(incomingSession);
+
+      if (incomingSession?.user) {
+        const hasRole = await fetchRole(incomingSession.user.id);
         if (!hasRole) {
-          await processPendingInvite(session.user.id);
-          // If still no role after processing invite, check pending status
-          const hasRoleNow = await fetchRole(session.user.id);
+          await processPendingInvite(incomingSession.user.id);
+          // Re-check after invite processing
+          const hasRoleNow = await fetchRole(incomingSession.user.id);
           if (!hasRoleNow) {
-            await fetchPendingStatus(session.user.id);
+            await fetchPendingStatus(incomingSession.user.id);
           }
         }
       } else {
         setRoleInfo(null);
         setPendingStatus(null);
       }
+
+      // Only the first call unlocks the app loading gate
       if (!initialSessionHandled) {
         initialSessionHandled = true;
         setLoading(false);
       }
     };
 
-    // Set up listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => handleSession(session), 0);
+    // Subscribe FIRST to catch auth events during getSession()
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, incomingSession) => {
+      // setTimeout defers so getSession() resolves first on initial load
+      setTimeout(() => handleSession(incomingSession), 0);
     });
 
-    // Then check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleSession(session);
-    });
+    // Check current session; also handles the loading=false on error
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => handleSession(s))
+      .catch((err) => {
+        console.error('getSession failed:', err);
+        setLoading(false); // Unblock app even if session check fails
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      // Bump generation so any in-flight handleSession for this effect is discarded
+      sessionGenRef.current++;
+    };
   }, [fetchRole, processPendingInvite, fetchPendingStatus]);
 
+  /**
+   * Forces a re-fetch of the current user's role.
+   * Call this after an RPC that assigns a role (e.g. accept_category_invite)
+   * so the UI updates without a full page reload.
+   */
+  const refreshRole = useCallback(async () => {
+    const {
+      data: { session: s },
+    } = await supabase.auth.getSession();
+    if (!s?.user) return;
+    const hasRole = await fetchRole(s.user.id);
+    if (!hasRole) await fetchPendingStatus(s.user.id);
+  }, [fetchRole, fetchPendingStatus]);
+
   const signOut = useCallback(async () => {
-    // Clear ALL sensitive data on logout
     localStorage.removeItem('pending_invite_token');
     await supabase.auth.signOut();
     setSession(null);
@@ -168,6 +220,7 @@ export function useAuth() {
     pendingStatus,
     loading,
     signOut,
+    refreshRole,
     isAdmin,
     isRH,
     isChief,
