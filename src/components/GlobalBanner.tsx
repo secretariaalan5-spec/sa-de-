@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
-import { X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { X, AlertCircle, Info, AlertTriangle, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import logoSaude from '@/assets/logo-saude.png';
 
 interface BannerNotification {
   id: string;
