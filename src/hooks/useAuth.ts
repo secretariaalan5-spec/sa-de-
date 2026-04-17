@@ -109,11 +109,8 @@ export function useAuth() {
           console.log('Invite processed:', data);
         }
 
-        // Re-check role assignment
-        const hasRole = await fetchRole(userId);
-        if (!hasRole) {
-          await fetchPendingStatus(userId);
-        }
+        // We do NOT call fetchRole/fetchPendingStatus here anymore.
+        // We let handleSession do it right after.
       } catch (err) {
         console.error('Error processing invite:', err);
       } finally {
@@ -122,10 +119,13 @@ export function useAuth() {
         if (window.location.search.includes('token=')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
+        if (window.location.pathname.startsWith('/registro/')) {
+          window.history.replaceState({}, '', '/');
+        }
         processingRef.current = false;
       }
     },
-    [fetchRole, fetchPendingStatus],
+    [],
   );
 
   useEffect(() => {
@@ -140,14 +140,12 @@ export function useAuth() {
       setSession(incomingSession);
 
       if (incomingSession?.user) {
+        // ALWAYS try to process any pending invite token available in URL or LocalStorage
+        await processPendingInvite(incomingSession.user.id);
+
         const hasRole = await fetchRole(incomingSession.user.id);
         if (!hasRole) {
-          await processPendingInvite(incomingSession.user.id);
-          // Re-check after invite processing
-          const hasRoleNow = await fetchRole(incomingSession.user.id);
-          if (!hasRoleNow) {
-            await fetchPendingStatus(incomingSession.user.id);
-          }
+          await fetchPendingStatus(incomingSession.user.id);
         }
       } else {
         setRoleInfo(null);

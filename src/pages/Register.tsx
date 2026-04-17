@@ -36,49 +36,12 @@ export default function Register() {
   const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
-    // If the user already has an active session and lands here with a token,
-    // they are trying to accept an invite. Process it directly.
-    if (session && token) {
-      setSubmitting(true);
-      supabase.rpc('accept_invite_by_token', { p_token: token }).then(({ data, error }) => {
-        // Always clean up token from localStorage
-        localStorage.removeItem('pending_invite_token');
-
-        if (error) {
-          toast.error(error.message || 'Erro ao processar convite');
-          setSubmitting(false);
-          return;
-        }
-
-        // The RPC now returns status: 'pending' instead of creating the role directly
-        if (data?.status === 'pending') {
-          setRequestSent(true);
-          setSubmitting(false);
-          return;
-        }
-
-        if (data?.status === 'already_approved') {
-          navigate('/', { replace: true });
-          return;
-        }
-
-        if (data?.status === 'rejected') {
-          toast.error('Sua solicitação foi recusada pelo administrador.');
-          setSubmitting(false);
-          return;
-        }
-
-        // Fallback: navigate to dashboard
-        navigate('/', { replace: true });
-      });
-      return;
-    }
-
-    // If the user already has a role assigned and no token is being processed, redirect
-    if (roleInfo && !token) {
+    // useAuth.ts takes care of processing the token in the background
+    // once a session is established. We just wait for it to finish.
+    if (session && (roleInfo || pendingStatus)) {
       navigate('/', { replace: true });
     }
-  }, [session, roleInfo, navigate, token]);
+  }, [session, roleInfo, pendingStatus, navigate]);
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
