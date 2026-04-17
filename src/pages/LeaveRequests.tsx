@@ -118,7 +118,7 @@ export default function LeaveRequests() {
 
     if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
     toast.success(isShortNotice
-      ? 'Pedido enviado! ⚠️ Sujeito à análise (antecedência < 10 dias).'
+      ? 'Pedido enviado! ⚠️ Sujeito à análise (antecedência < 7 dias).'
       : 'Pedido de folga enviado!');
     setOpen(false);
     load();
@@ -268,7 +268,7 @@ export default function LeaveRequests() {
                         {r.is_short_notice && (
                           <div className="flex items-center gap-1.5 text-amber-700 font-bold mb-1">
                             <AlertTriangle size={13} className="shrink-0" />
-                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 10 DIAS</span>
+                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
                           </div>
                         )}
                         {r.observations && (

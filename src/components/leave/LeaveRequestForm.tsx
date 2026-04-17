@@ -68,7 +68,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   }, [rangeStart, rangeEnd]);
 
   const minAdvanceDate = new Date();
-  minAdvanceDate.setDate(minAdvanceDate.getDate() + 10);
+  minAdvanceDate.setDate(minAdvanceDate.getDate() + 7);
   const minAdvanceDateStr = minAdvanceDate.toISOString().split('T')[0];
 
   const getLocalTodayStr = () => {
@@ -99,7 +99,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const isRangeStart = (day: number) => getDateStr(day) === rangeStart;
   const isRangeEnd = (day: number) => getDateStr(day) === (rangeEnd ?? rangeStart);
 
-  // Check if any selected date is within the 10-day advance window
+  // Check if any selected date is within the 7-day advance window
   const hasShortNoticeDates = useMemo(() => {
     return selectedDates.some(d => d < minAdvanceDateStr);
   }, [selectedDates, minAdvanceDateStr]);
@@ -213,7 +213,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
               <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-semibold">Antecedência inferior a 10 dias</p>
+                  <p className="text-xs font-semibold">Antecedência inferior a 7 dias</p>
                   <p className="text-[11px] mt-0.5 opacity-80">Este pedido ficará sujeito à análise da coordenação por não cumprir o prazo mínimo exigido pela Secretaria.</p>
                 </div>
               </div>
@@ -237,7 +237,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
         />
         {hasShortNoticeDates && (
           <p className="text-[10px] text-amber-700 font-medium pt-1">
-            Por ter menos de 10 dias, é necessário justificar o pedido para a coordenação.
+            Por ter menos de 7 dias, é necessário justificar o pedido para a coordenação.
           </p>
         )}
       </div>
@@ -255,7 +255,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
             htmlFor="terms" 
             className="text-sm font-medium leading-tight text-amber-900 cursor-pointer"
           >
-            Estou ciente de que o prazo regulamentar da Secretaria é de 10 dias de antecedência. Solicito esta folga em caráter de exceção devido a imprevisto.
+            Estou ciente de que o prazo regulamentar da Secretaria é de 7 dias de antecedência. Solicito esta folga em caráter de exceção devido a imprevisto.
           </Label>
         </div>
       )}
