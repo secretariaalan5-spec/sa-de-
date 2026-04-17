@@ -18,7 +18,8 @@ export function useDataSubscription(tables: string[], onUpdate: (payload?: any) 
   useEffect(() => {
     // Inicia ouvindo cada tabela listada via WebSocket
     const channels = tables.map(table => {
-      return supabase.channel(`public:${table}`)
+      const channelName = `public:${table}-${Math.random().toString(36).substring(7)}`;
+      return supabase.channel(channelName)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table },
