@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,21 +32,28 @@ export default function Profile() {
     professional: 'Profissional',
   };
 
+  const load = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('display_name, avatar_url')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (data) {
+      setDisplayName(data.display_name || '');
+      setAvatarUrl(data.avatar_url);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, avatar_url')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (data) {
-        setDisplayName(data.display_name || '');
-        setAvatarUrl(data.avatar_url);
-      }
-    };
     load();
   }, [user]);
+
+  useDataSubscription(['profiles'], (payload) => {
+    if (payload.new && payload.new.user_id === user?.id) {
+      load();
+    }
+  });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

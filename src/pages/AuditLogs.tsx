@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { ShieldAlert, Search, RefreshCw, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,10 @@ export default function AuditLogs() {
   useEffect(() => {
     loadLogs();
   }, [isAdmin]);
+
+  useDataSubscription(['audit_logs'], (payload) => {
+    loadLogs();
+  });
 
   if (!isAdmin) {
     return (

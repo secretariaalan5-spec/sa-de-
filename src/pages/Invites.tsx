@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -155,6 +156,8 @@ export default function Invites() {
   useEffect(() => {
     load();
   }, [isAdmin]);
+
+  useDataSubscription(['invites', 'category_invites', 'categories', 'units', 'pending_approvals', 'user_roles', 'profiles'], load);
 
   const handleCreate = async (ev: React.FormEvent) => {
     ev.preventDefault();
