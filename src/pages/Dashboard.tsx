@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 interface RecentLeave {
@@ -329,6 +331,8 @@ export default function Dashboard() {
 function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose: () => void; teamId: string }) {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [isGlobalBanner, setIsGlobalBanner] = useState(false);
+  const [priority, setPriority] = useState('info');
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
@@ -360,6 +364,8 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
         title: `📢 ${title}`,
         message,
         link: '/',
+        is_global_banner: isGlobalBanner,
+        priority: priority
       }));
 
       const { error } = await supabase.from('notifications').insert(notifications);
@@ -368,6 +374,8 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
       toast.success(`Comunicado enviado para ${memberIds.length} membro(s) da equipe`);
       setTitle('');
       setMessage('');
+      setIsGlobalBanner(false);
+      setPriority('info');
       onClose();
     } catch (err: any) {
       toast.error('Erro ao enviar: ' + err.message);
@@ -396,6 +404,27 @@ function AnnouncementDialog({ open, onClose, teamId }: { open: boolean; onClose:
           <div className="space-y-2">
             <Label htmlFor="ann-msg">Mensagem</Label>
             <Textarea id="ann-msg" placeholder="Detalhes do comunicado..." value={message} onChange={e => setMessage(e.target.value)} rows={4} />
+          </div>
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2">
+              <Label>Prioridade</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">🔵 Informativo</SelectItem>
+                  <SelectItem value="alert">🟡 Alerta</SelectItem>
+                  <SelectItem value="urgent">🔴 Urgente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2 pt-8">
+              <Checkbox id="global-banner" checked={isGlobalBanner} onCheckedChange={(c) => setIsGlobalBanner(c as boolean)} />
+              <Label htmlFor="global-banner" className="text-sm font-medium leading-none cursor-pointer">
+                Fixar como Banner Global
+              </Label>
+            </div>
           </div>
         </div>
         <DialogFooter>

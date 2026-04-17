@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useRoleDetails } from '@/hooks/useRoleDetails';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { NotificationBell } from '@/components/NotificationBell';
+import { GlobalBanner } from '@/components/GlobalBanner';
 import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
@@ -227,6 +228,8 @@ export function AppShell() {
             </div>
           </header>
         )}
+
+        <GlobalBanner />
 
         <main 
           className={cn(

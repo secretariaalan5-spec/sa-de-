@@ -355,9 +355,11 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_global_banner: boolean | null
           is_read: boolean | null
           link: string | null
           message: string
+          priority: string | null
           team_id: string | null
           title: string
           user_id: string
@@ -365,9 +367,11 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_global_banner?: boolean | null
           is_read?: boolean | null
           link?: string | null
           message: string
+          priority?: string | null
           team_id?: string | null
           title: string
           user_id: string
@@ -375,9 +379,11 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_global_banner?: boolean | null
           is_read?: boolean | null
           link?: string | null
           message?: string
+          priority?: string | null
           team_id?: string | null
           title?: string
           user_id?: string

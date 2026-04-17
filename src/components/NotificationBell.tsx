@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Send, Loader2, Megaphone, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -40,6 +42,9 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [isGlobalBanner, setIsGlobalBanner] = useState(false);
+  const [priority, setPriority] = useState('info');
+  const [targetAudience, setTargetAudience] = useState('managers');
 
   const navigate = useNavigate();
 
@@ -131,44 +136,65 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
     }
     setSending(true);
     try {
-      const { data: managers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('team_id', roleInfo?.team_id)
-        .eq('role', 'unit_manager');
+      let query = supabase.from('user_roles').select('user_id').eq('team_id', roleInfo?.team_id);
+      
+      if (targetAudience === 'managers') {
+        query = query.eq('role', 'unit_manager');
+      }
 
-      if (!managers || managers.length === 0) {
-        toast.info('Nenhum gerente encontrado.');
+      const { data: targets } = await query;
+
+      if (!targets || targets.length === 0) {
+        toast.info('Nenhum destinatário encontrado.');
         setSending(false);
         return;
       }
 
-      // Evita duplicação dedupando unit_managers se um user tiver a role mais de uma vez na mesma team
-      const uniqueManagerIds = Array.from(new Set(managers.map(m => m.user_id)));
+      // Evita duplicação dedupando
+      const uniqueTargetIds = Array.from(new Set(targets.map(m => m.user_id)));
 
-      // O admin deve receber uma cópia no seu painel para poder rastrear o aviso e apagá-lo globalmente
-      if (!uniqueManagerIds.includes(user.id)) {
-        uniqueManagerIds.unshift(user.id);
+      // Garante que todos os administradores também recebam a notificação para terem visibilidade
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('team_id', roleInfo?.team_id)
+        .eq('role', 'admin');
+        
+      if (admins) {
+        admins.forEach(a => {
+          if (!uniqueTargetIds.includes(a.user_id)) {
+            uniqueTargetIds.push(a.user_id);
+          }
+        });
+      }
+
+      // O remetente deve receber uma cópia no seu painel para poder rastrear o aviso e apagá-lo globalmente
+      if (!uniqueTargetIds.includes(user.id)) {
+        uniqueTargetIds.unshift(user.id);
       }
 
       const batchId = crypto.randomUUID();
 
-      const payload = uniqueManagerIds.map(userId => ({
+      const payload = uniqueTargetIds.map(userId => ({
         user_id: userId,
         team_id: roleInfo?.team_id,
         title: title.trim(),
         message: message.trim(),
         link: null,
         sender_id: user.id,
-        batch_id: batchId
+        batch_id: batchId,
+        is_global_banner: isGlobalBanner,
+        priority: isGlobalBanner ? priority : 'info'
       }));
 
       const { error } = await supabase.from('notifications').insert(payload);
       if (error) throw error;
       
-      toast.success(`Comunicado enviado para ${uniqueManagerIds.length} gerente(s).`);
+      toast.success(`Comunicado enviado para ${uniqueTargetIds.length} pessoa(s).`);
       setTitle('');
       setMessage('');
+      setIsGlobalBanner(false);
+      setPriority('info');
       setSendOpen(false);
     } catch (e: any) {
       toast.error('Erro ao enviar: ' + e.message);
@@ -260,13 +286,25 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Megaphone className="h-5 w-5 text-primary" />
-              Comunicado aos Gerentes
+              Enviar Comunicado
             </DialogTitle>
             <DialogDescription>
-              Envie um alerta que aparecerá no ícone de notificações (sino) de todos os Gerentes de Unidade.
+              Envie um alerta para a equipe.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Público Alvo</Label>
+              <Select value={targetAudience} onValueChange={setTargetAudience}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="managers">Apenas Gerentes</SelectItem>
+                  <SelectItem value="all">Todos da Equipe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Assunto</Label>
               <Input
@@ -286,6 +324,32 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
                 maxLength={300}
               />
             </div>
+            <div className="flex items-center gap-2 border p-3 rounded-lg bg-muted/30">
+              <Checkbox id="isGlobalBanner" checked={isGlobalBanner} onCheckedChange={(c) => setIsGlobalBanner(c === true)} />
+              <div className="grid gap-1.5 leading-none">
+                <Label htmlFor="isGlobalBanner" className="cursor-pointer font-medium text-sm">
+                  Exibir como Banner Global
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Mantém a mensagem no topo da tela até que o usuário clique em Dispensar.
+                </p>
+              </div>
+            </div>
+            {isGlobalBanner && (
+              <div className="space-y-2 animate-fade-in">
+                <Label>Prioridade / Cor do Banner</Label>
+                <Select value={priority} onValueChange={setPriority}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="info">Informação (Azul)</SelectItem>
+                    <SelectItem value="warning">Alerta (Laranja)</SelectItem>
+                    <SelectItem value="critical">Crítico (Vermelho)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)} disabled={sending}>Cancelar</Button>
