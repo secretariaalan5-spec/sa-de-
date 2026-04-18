@@ -247,9 +247,10 @@ export function AppShell() {
         {/* Mobile bottom navigation */}
         {isMobile && (
           <nav
-            className="fixed bottom-0 left-0 right-0 z-50 bg-primary shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
-          <div className="flex items-stretch justify-around px-1 bg-primary/95 backdrop-blur-md">
+          <div className="flex items-stretch justify-around px-1">
             {bottomNavItems.map(item => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
               return (
@@ -299,8 +300,8 @@ export function AppShell() {
               </button>
             )}
           </div>
-          {/* iOS safe-area fill — solid primary color to cover home indicator zone */}
-          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+          {/* Failsafe cover para o gap branco: desce abaixo do bottom-0 caso o iOS levante a div inteira */}
+          <div className="absolute top-full left-0 right-0 h-[100px] bg-primary" />
         </nav>
         )}
 
