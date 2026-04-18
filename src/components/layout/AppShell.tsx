@@ -234,8 +234,9 @@ export function AppShell() {
         <main 
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden relative",
-            isMobile ? "p-4 pb-24" : "p-4 lg:p-8"
+            isMobile ? "p-4" : "p-4 lg:p-8"
           )}
+          style={isMobile ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' } : undefined}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -246,8 +247,11 @@ export function AppShell() {
 
         {/* Mobile bottom navigation */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
-          <div className="flex items-stretch justify-around px-2 py-1.5" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}>
+          <nav
+            className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+          <div className="flex items-stretch justify-around px-2 py-1.5">
             {bottomNavItems.map(item => {
               const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
               return (
