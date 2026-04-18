@@ -234,9 +234,8 @@ export function AppShell() {
         <main 
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden relative",
-            isMobile ? "p-4" : "p-4 lg:p-8"
+            isMobile ? "mobile-main-content" : "p-4 lg:p-8"
           )}
-          style={isMobile ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' } : undefined}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >

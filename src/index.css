@@ -435,10 +435,13 @@
   html {
     overflow: hidden;
     height: 100%;
+    /* Fill safe-area-inset-bottom with primary blue so no white gap shows */
+    background-color: hsl(210, 100%, 48%);
   }
   body {
     overflow: hidden;
     height: 100%;
+    background-color: hsl(210, 100%, 48%);
   }
   #root {
     overflow: hidden;
