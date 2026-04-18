@@ -257,19 +257,19 @@ export function AppShell() {
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
-                  className="flex flex-col items-center justify-center pt-2 pb-1.5 px-1 flex-1 min-w-0 native-press"
+                  className="flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1 flex-1 min-w-0 native-press"
                 >
                   <div className={cn(
-                    "relative flex items-center justify-center w-10 h-6 rounded-2xl transition-all duration-300",
+                    "relative flex items-center justify-center w-10 h-5 rounded-xl transition-all duration-300",
                     isActive ? "bg-white/20 scale-105" : "bg-transparent"
                   )}>
-                    <item.icon size={19} className={cn(
+                    <item.icon size={18} className={cn(
                       "transition-all duration-200",
                       isActive ? "text-white" : "text-blue-100/70"
                     )} />
                   </div>
                   <span className={cn(
-                    "text-[10px] mt-0.5 truncate max-w-full transition-all duration-200",
+                    "text-[9px] truncate max-w-full transition-all duration-200",
                     isActive ? "text-white font-semibold" : "text-blue-100/70"
                   )}>
                     {item.label}
@@ -280,20 +280,20 @@ export function AppShell() {
             {hasMore && (
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="flex flex-col items-center justify-center pt-2 pb-1.5 px-1 flex-1 min-w-0 native-press"
+                className="flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1 flex-1 min-w-0 native-press"
               >
                 <div className={cn(
-                    "relative flex items-center justify-center w-10 h-6 rounded-2xl transition-all duration-300",
+                    "relative flex items-center justify-center w-10 h-5 rounded-xl transition-all duration-300",
                     mobileOpen ? "bg-white/20 scale-105" : "bg-transparent"
                   )}>
                   {mobileOpen ? (
-                    <X size={19} className="text-white transition-all duration-200" />
+                    <X size={18} className="text-white transition-all duration-200" />
                   ) : (
-                    <Menu size={19} className="text-blue-100/70 transition-all duration-200" />
+                    <Menu size={18} className="text-blue-100/70 transition-all duration-200" />
                   )}
                 </div>
                 <span className={cn(
-                  "text-[10px] mt-0.5 transition-all duration-200",
+                  "text-[9px] transition-all duration-200",
                   mobileOpen ? "text-white font-semibold" : "text-blue-100/70"
                 )}>Mais</span>
               </button>
