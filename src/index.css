@@ -433,9 +433,8 @@
 /* Prevent rubber-banding on iOS standalone */
 @media (display-mode: standalone) {
   html {
-    overflow: hidden;
+    /* NOTE: No overflow:hidden here — it breaks position:fixed on iOS WebKit */
     height: 100%;
-    /* Fill safe-area-inset-bottom with primary blue so no white gap shows */
     background-color: hsl(210, 100%, 48%);
   }
   body {
