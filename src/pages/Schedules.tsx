@@ -245,6 +245,99 @@ export default function Schedules() {
     return `Extra +${formatCredit(amt)}${shiftLabel ? ` ${shiftLabel}` : ''}`;
   };
 
+  const memoizedCalendar = useMemo(() => (
+    <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+      {weekDays.map(d => (
+        <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">{d}</div>
+      ))}
+      {calendarDays.map((day, i) => {
+        if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
+        const daySchedules = schedulesForDay(day);
+        const dateStr = getDateStr(day);
+        const holidayName = getHolidayName(dateStr);
+        const wkend = isWeekend(dateStr);
+        return (
+          <div key={day} className={cn(
+            'bg-card min-h-[80px] p-1.5 relative transition-colors',
+            isToday(day) && 'ring-2 ring-primary ring-inset',
+            (wkend || holidayName) && 'bg-amber-50/50 dark:bg-amber-950/20'
+          )}>
+            <div className="flex items-center gap-1">
+              <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
+              {holidayName && <span className="text-[8px] text-amber-600 dark:text-amber-400 truncate" title={holidayName}>🎉</span>}
+            </div>
+            <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
+              {daySchedules.slice(0, 3).map(s => (
+                <div key={s.id} className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded truncate',
+                  s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
+                )} title={`${getEmpName(s.employee_id)} (${s.shift_type === 'half' ? '½ turno' : 'integral'}) +${formatCredit(Number(s.credit_amount))}`}>
+                  {getEmpName(s.employee_id)} {s.shift_type === 'half' && '½'}
+                </div>
+              ))}
+              {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ), [calendarDays, month, year, schedules, holidays]);
+
+  const memoizedList = useMemo(() => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+          <tr>
+            <th className="px-5 py-4 font-semibold">Funcionário</th>
+            <th className="px-5 py-4 font-semibold">Data</th>
+            <th className="px-5 py-4 font-semibold">Turno</th>
+            <th className="px-5 py-4 font-semibold">Créditos</th>
+            {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {monthSchedules.map(s => {
+            const amt = Number(s.credit_amount) || 0;
+            const holidayName = getHolidayName(s.date);
+            return (
+              <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
+                <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
+                <td className="px-5 py-3.5 text-muted-foreground">
+                  <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  {holidayName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {holidayName}</span>}
+                </td>
+                <td className="px-5 py-3.5">
+                  <Badge variant="secondary" className={cn(
+                    'shadow-none text-xs',
+                    s.shift_type === 'half'
+                      ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
+                      : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
+                  )}>
+                    {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
+                  </Badge>
+                </td>
+                <td className="px-5 py-3.5">
+                  <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">
+                    +{formatCredit(amt)}
+                  </Badge>
+                </td>
+                {canCreate && (
+                  <td className="px-5 py-3.5 text-right">
+                    <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  ), [monthSchedules, canCreate, holidays]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -281,43 +374,7 @@ export default function Schedules() {
 
       {viewMode === 'calendar' ? (
         <div className="page-card p-3">
-          {useMemo(() => (
-            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-            {weekDays.map(d => (
-              <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">{d}</div>
-            ))}
-            {calendarDays.map((day, i) => {
-              if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
-              const daySchedules = schedulesForDay(day);
-              const dateStr = getDateStr(day);
-              const holidayName = getHolidayName(dateStr);
-              const wkend = isWeekend(dateStr);
-              return (
-                <div key={day} className={cn(
-                  'bg-card min-h-[80px] p-1.5 relative transition-colors',
-                  isToday(day) && 'ring-2 ring-primary ring-inset',
-                  (wkend || holidayName) && 'bg-amber-50/50 dark:bg-amber-950/20'
-                )}>
-                  <div className="flex items-center gap-1">
-                    <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
-                    {holidayName && <span className="text-[8px] text-amber-600 dark:text-amber-400 truncate" title={holidayName}>🎉</span>}
-                  </div>
-                  <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
-                    {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded truncate',
-                        s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
-                      )} title={`${getEmpName(s.employee_id)} (${s.shift_type === 'half' ? '½ turno' : 'integral'}) +${formatCredit(Number(s.credit_amount))}`}>
-                        {getEmpName(s.employee_id)} {s.shift_type === 'half' && '½'}
-                      </div>
-                    ))}
-                    {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          ), [calendarDays, month, year, schedules, holidays])}
+          {memoizedCalendar}
         </div>
       ) : (
         monthSchedules.length === 0 ? (
@@ -327,60 +384,7 @@ export default function Schedules() {
           </div>
         ) : (
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
-            {useMemo(() => (
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-                  <tr>
-                    <th className="px-5 py-4 font-semibold">Funcionário</th>
-                    <th className="px-5 py-4 font-semibold">Data</th>
-                    <th className="px-5 py-4 font-semibold">Turno</th>
-                    <th className="px-5 py-4 font-semibold">Créditos</th>
-                    {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {monthSchedules.map(s => {
-                    const amt = Number(s.credit_amount) || 0;
-                    const holidayName = getHolidayName(s.date);
-                    return (
-                      <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
-                        <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
-                        <td className="px-5 py-3.5 text-muted-foreground">
-                          <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                          {holidayName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {holidayName}</span>}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <Badge variant="secondary" className={cn(
-                            'shadow-none text-xs',
-                            s.shift_type === 'half'
-                              ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
-                              : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
-                          )}>
-                            {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
-                          </Badge>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">
-                            +{formatCredit(amt)}
-                          </Badge>
-                        </td>
-                        {canCreate && (
-                          <td className="px-5 py-3.5 text-right">
-                            <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
-                                <Trash2 size={14} />
-                              </Button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            ), [monthSchedules, canCreate, holidays])}
+            {memoizedList}
           </div>
         )
       )}

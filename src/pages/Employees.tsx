@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -167,6 +167,107 @@ export default function Employees() {
   const showCategoryFilter = isAdmin || isRH || isManager || (isChief && (roleInfo?.category_ids?.length ?? 0) > 1);
   const showUnitFilter = isAdmin || isRH || isChief;
 
+  const memoizedCards = useMemo(() => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      {filtered.map(emp => {
+        const cat = getCat(emp.category_id);
+        return (
+          <div key={emp.id} className="prof-card group cursor-pointer" onClick={() => setDetailEmp(emp)}>
+            <div className="h-1 rounded-full mb-3" style={{ backgroundColor: cat?.color ?? 'hsl(var(--muted))' }} />
+            <p className="font-semibold text-sm">{emp.name}</p>
+            <div className="flex items-center gap-2 mt-2">
+              {cat && <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>{cat.name}</Badge>}
+              <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
+            </div>
+            {(isAdmin || isRH || isChief || isManager) && emp.phone && (
+              <a
+                href={getWhatsAppLink(emp.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Abrir conversa no WhatsApp"
+                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[11px] font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 w-fit"
+              >
+                <WhatsAppIcon size={13} />
+                {emp.phone}
+              </a>
+            )}
+            <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
+                <Eye size={12} /> Ver Histórico
+              </Button>
+              {canEdit && (
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="h-7 text-xs gap-1">
+                  <Pencil size={12} /> Editar
+                </Button>
+              )}
+              {canDelete && (
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
+                  <Trash2 size={12} /> Remover
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ), [filtered, categories, units, canEdit, canDelete]);
+
+  const memoizedTable = useMemo(() => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+          <tr>
+            <th className="px-5 py-4 font-semibold">Nome</th>
+            <th className="px-5 py-4 font-semibold">WhatsApp</th>
+            <th className="px-5 py-4 font-semibold">Categoria</th>
+            <th className="px-5 py-4 font-semibold">Unidade</th>
+            <th className="px-5 py-4 font-semibold text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {filtered.map(emp => (
+            <tr key={emp.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailEmp(emp)}>
+              <td className="px-5 py-3.5 font-medium text-foreground">{emp.name}</td>
+              <td className="px-5 py-3.5">
+                {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
+                  <a
+                    href={getWhatsAppLink(emp.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Abrir conversa no WhatsApp"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-sm transition-all duration-200"
+                  >
+                    <WhatsAppIcon size={14} />
+                    <span className="text-xs">{emp.phone}</span>
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground text-xs">—</span>
+                )}
+              </td>
+              <td className="px-5 py-3.5 text-muted-foreground">
+                {getCat(emp.category_id) ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border" style={{ backgroundColor: `${getCat(emp.category_id)?.color}15`, borderColor: `${getCat(emp.category_id)?.color}30`, color: getCat(emp.category_id)?.color }}>
+                    {getCat(emp.category_id)?.name}
+                  </span>
+                ) : '—'}
+              </td>
+              <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(emp.unit_id)}</td>
+              <td className="px-5 py-3.5 text-right">
+                <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
+                  {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={14} /></Button>}
+                  {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={14} /></Button>}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ), [filtered, categories, units, canEdit, canDelete]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -283,107 +384,10 @@ export default function Employees() {
           <p className="text-muted-foreground">Nenhum profissional encontrado</p>
         </div>
       ) : viewMode === 'cards' ? (
-        {useMemo(() => (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map(emp => {
-            const cat = getCat(emp.category_id);
-            return (
-              <div key={emp.id} className="prof-card group cursor-pointer" onClick={() => setDetailEmp(emp)}>
-                <div className="h-1 rounded-full mb-3" style={{ backgroundColor: cat?.color ?? 'hsl(var(--muted))' }} />
-                <p className="font-semibold text-sm">{emp.name}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  {cat && <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>{cat.name}</Badge>}
-                  <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
-                </div>
-                {(isAdmin || isRH || isChief || isManager) && emp.phone && (
-                  <a
-                    href={getWhatsAppLink(emp.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Abrir conversa no WhatsApp"
-                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[11px] font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 w-fit"
-                  >
-                    <WhatsAppIcon size={13} />
-                    {emp.phone}
-                  </a>
-                )}
-                <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
-                    <Eye size={12} /> Ver Histórico
-                  </Button>
-                  {canEdit && (
-                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="h-7 text-xs gap-1">
-                      <Pencil size={12} /> Editar
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
-                      <Trash2 size={12} /> Remover
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        ), [filtered, categories, units, canEdit, canDelete])}
+        memoizedCards
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-6">
-          {useMemo(() => (
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Nome</th>
-                  <th className="px-5 py-4 font-semibold">WhatsApp</th>
-                  <th className="px-5 py-4 font-semibold">Categoria</th>
-                  <th className="px-5 py-4 font-semibold">Unidade</th>
-                  <th className="px-5 py-4 font-semibold text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map(emp => (
-                  <tr key={emp.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailEmp(emp)}>
-                    <td className="px-5 py-3.5 font-medium text-foreground">{emp.name}</td>
-                    <td className="px-5 py-3.5">
-                      {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
-                        <a
-                          href={getWhatsAppLink(emp.phone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          title="Abrir conversa no WhatsApp"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-sm transition-all duration-200"
-                        >
-                          <WhatsAppIcon size={14} />
-                          <span className="text-xs">{emp.phone}</span>
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground">
-                      {getCat(emp.category_id) ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border" style={{ backgroundColor: `${getCat(emp.category_id)?.color}15`, borderColor: `${getCat(emp.category_id)?.color}30`, color: getCat(emp.category_id)?.color }}>
-                          {getCat(emp.category_id)?.name}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(emp.unit_id)}</td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
-                        {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={14} /></Button>}
-                        {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={14} /></Button>}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
-          ), [filtered, categories, units, canEdit, canDelete])}
+          {memoizedTable}
         </div>
       )}
     </div>
