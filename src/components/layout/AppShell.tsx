@@ -93,10 +93,10 @@ export function AppShell() {
     const deltaX = touchStartX.current - touchEndX;
     const deltaY = touchStartY.current - touchEndY;
     
-    // Min swipe distance of 50px, mostly horizontal
-    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      if ((e.target as Element).closest('.overflow-x-auto, .schedule-table')) {
-         return; // Don't swipe if touching a horizontal scroll area (like tables)
+    // Min swipe distance of 50px, strongly horizontal (2x more horizontal than vertical)
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 2.0) {
+      if ((e.target as Element).closest('.overflow-x-auto, .schedule-table, .calendar-grid, [role="slider"]')) {
+         return; // Don't swipe if touching a horizontal scroll area or interactive controls
       }
       
       const currentIndex = bottomNavItems.findIndex(item => item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to));

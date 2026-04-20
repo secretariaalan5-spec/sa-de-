@@ -283,7 +283,8 @@ export default function Employees() {
           <p className="text-muted-foreground">Nenhum profissional encontrado</p>
         </div>
       ) : viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {useMemo(() => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map(emp => {
             const cat = getCat(emp.category_id);
             return (
@@ -326,9 +327,11 @@ export default function Employees() {
             );
           })}
         </div>
+        ), [filtered, categories, units, canEdit, canDelete])}
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-6">
-          <div className="overflow-x-auto">
+          {useMemo(() => (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
                 <tr>
@@ -379,7 +382,8 @@ export default function Employees() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          ), [filtered, categories, units, canEdit, canDelete])}
         </div>
       )}
     </div>

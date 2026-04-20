@@ -281,7 +281,8 @@ export default function Schedules() {
 
       {viewMode === 'calendar' ? (
         <div className="page-card p-3">
-          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+          {useMemo(() => (
+            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
             {weekDays.map(d => (
               <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">{d}</div>
             ))}
@@ -316,6 +317,7 @@ export default function Schedules() {
               );
             })}
           </div>
+          ), [calendarDays, month, year, schedules, holidays])}
         </div>
       ) : (
         monthSchedules.length === 0 ? (
@@ -325,7 +327,8 @@ export default function Schedules() {
           </div>
         ) : (
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
-            <div className="overflow-x-auto">
+            {useMemo(() => (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
                   <tr>
@@ -377,6 +380,7 @@ export default function Schedules() {
                 </tbody>
               </table>
             </div>
+            ), [monthSchedules, canCreate, holidays])}
           </div>
         )
       )}

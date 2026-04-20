@@ -156,6 +156,8 @@
    */
   .page-card {
     @apply bg-card rounded-xl p-5 border border-border shadow-sm;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 100px;
   }
 
   .stat-card {
@@ -235,6 +237,8 @@
   /* ── Card de profissional com cor de categoria ── */
   .prof-card {
     @apply flex flex-col p-4 border rounded-xl transition-all hover:shadow-md bg-card;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 120px;
   }
 
   .prof-card--nurse {
