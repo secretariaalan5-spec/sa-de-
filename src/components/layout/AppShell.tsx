@@ -48,6 +48,7 @@ export function AppShell() {
   // Gesture refs
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+  const swipeDirection = useRef<'none' | 'horizontal' | 'vertical'>('none');
 
   useEffect(() => {
     if (!user) return;
@@ -82,25 +83,38 @@ export function AppShell() {
     if (!isMobile) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    swipeDirection.current = 'none';
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile || swipeDirection.current !== 'none') return;
+    
+    const deltaX = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    
+    // Determine direction after 10px of movement
+    if (deltaX > 10 || deltaY > 10) {
+      swipeDirection.current = deltaX > deltaY ? 'horizontal' : 'vertical';
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!isMobile) return;
+    if (!isMobile || swipeDirection.current !== 'horizontal') return;
+    
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
     
-    // Check if swipe was mostly horizontal
     const deltaX = touchStartX.current - touchEndX;
     const deltaY = touchStartY.current - touchEndY;
     
-    // Min swipe distance of 50px, strongly horizontal (2x more horizontal than vertical)
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 2.0) {
-      if ((e.target as Element).closest('.overflow-x-auto, .schedule-table, .calendar-grid, [role="slider"]')) {
-         return; // Don't swipe if touching a horizontal scroll area or interactive controls
+    // Min swipe distance of 60px for a clear intent, and must remain horizontal
+    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if ((e.target as Element).closest('.overflow-x-auto, .schedule-table, .calendar-grid, [role="slider"], .no-swipe')) {
+         return; 
       }
       
       const currentIndex = bottomNavItems.findIndex(item => item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to));
-      if (currentIndex === -1) return; // Not on a main tab
+      if (currentIndex === -1) return;
       
       if (deltaX > 0 && currentIndex < bottomNavItems.length - 1) {
          navigate(bottomNavItems[currentIndex + 1].to);
@@ -108,6 +122,7 @@ export function AppShell() {
          navigate(bottomNavItems[currentIndex - 1].to);
       }
     }
+    swipeDirection.current = 'none';
   };
 
   const roleLabels: Record<string, string> = {
@@ -237,6 +252,7 @@ export function AppShell() {
             isMobile ? "mobile-main-content" : "p-4 lg:p-8"
           )}
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <div className="animate-fade-in" key={location.pathname}>
