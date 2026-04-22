@@ -247,7 +247,7 @@ export function AppShell() {
         {/* Mobile bottom navigation */}
         {isMobile && (
           <nav
-            className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.12)] border-t border-white/5"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
           <div className="flex items-stretch justify-around px-1">
@@ -258,20 +258,20 @@ export function AppShell() {
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
-                  className="flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1 flex-1 min-w-0 native-press"
+                  className="flex flex-col items-center justify-center pt-3 pb-2 px-1 flex-1 min-w-0 native-press"
                 >
                   <div className={cn(
-                    "relative flex items-center justify-center w-10 h-5 rounded-xl transition-all duration-300",
-                    isActive ? "bg-white/20 scale-105" : "bg-transparent"
+                    "relative flex items-center justify-center w-12 h-7 rounded-2xl transition-all duration-300",
+                    isActive ? "bg-white/20" : "bg-transparent"
                   )}>
-                    <item.icon size={18} className={cn(
+                    <item.icon size={22} className={cn(
                       "transition-all duration-200",
                       isActive ? "text-white" : "text-blue-100/70"
                     )} />
                   </div>
                   <span className={cn(
-                    "text-[9px] truncate max-w-full transition-all duration-200",
-                    isActive ? "text-white font-semibold" : "text-blue-100/70"
+                    "text-[10px] mt-1 truncate max-w-full transition-all duration-200",
+                    isActive ? "text-white font-bold" : "text-blue-100/70"
                   )}>
                     {item.label}
                   </span>
@@ -281,21 +281,21 @@ export function AppShell() {
             {hasMore && (
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1 flex-1 min-w-0 native-press"
+                className="flex flex-col items-center justify-center pt-3 pb-2 px-1 flex-1 min-w-0 native-press"
               >
                 <div className={cn(
-                    "relative flex items-center justify-center w-10 h-5 rounded-xl transition-all duration-300",
-                    mobileOpen ? "bg-white/20 scale-105" : "bg-transparent"
+                    "relative flex items-center justify-center w-12 h-7 rounded-2xl transition-all duration-300",
+                    mobileOpen ? "bg-white/20" : "bg-transparent"
                   )}>
                   {mobileOpen ? (
-                    <X size={18} className="text-white transition-all duration-200" />
+                    <X size={22} className="text-white transition-all duration-200" />
                   ) : (
-                    <Menu size={18} className="text-blue-100/70 transition-all duration-200" />
+                    <Menu size={22} className="text-blue-100/70 transition-all duration-200" />
                   )}
                 </div>
                 <span className={cn(
-                  "text-[9px] transition-all duration-200",
-                  mobileOpen ? "text-white font-semibold" : "text-blue-100/70"
+                  "text-[10px] mt-1 transition-all duration-200",
+                  mobileOpen ? "text-white font-bold" : "text-blue-100/70"
                 )}>Mais</span>
               </button>
             )}
