@@ -192,30 +192,50 @@ export default function Transfers() {
           <p className="text-muted-foreground">Nenhuma transferência registrada</p>
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-5 py-4 font-semibold">Funcionário</th>
-                  <th className="px-5 py-4 font-semibold">De</th>
-                  <th className="px-5 py-4 font-semibold">Para</th>
-                  <th className="px-5 py-4 font-semibold">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {activeTransfers.map(t => (
-                  <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(t.employee_id) ?? '—'}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(t.from_unit_id)}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground font-medium text-primary">{getUnitName(t.to_unit_id)}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground text-xs">{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Mobile View: Cards */}
+          <div className="space-y-3 sm:hidden mt-2">
+            {activeTransfers.map(t => (
+              <div key={t.id} className="page-card p-3 space-y-2">
+                <div className="flex justify-between items-start">
+                  <p className="font-semibold text-sm">{getEmpName(t.employee_id) ?? '—'}</p>
+                  <span className="text-[10px] text-muted-foreground">{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">{getUnitName(t.from_unit_id)}</span>
+                  <span className="text-primary font-bold">→</span>
+                  <span className="text-primary font-bold">{getUnitName(t.to_unit_id)}</span>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+
+          {/* Desktop View: Table */}
+          <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="px-5 py-4 font-semibold">Funcionário</th>
+                    <th className="px-5 py-4 font-semibold">De</th>
+                    <th className="px-5 py-4 font-semibold">Para</th>
+                    <th className="px-5 py-4 font-semibold">Data</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {activeTransfers.map(t => (
+                    <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(t.employee_id) ?? '—'}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(t.from_unit_id)}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground font-medium text-primary">{getUnitName(t.to_unit_id)}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground text-xs">{new Date(t.transferred_at).toLocaleDateString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

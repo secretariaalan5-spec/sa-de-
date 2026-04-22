@@ -332,7 +332,7 @@ export default function Employees() {
             </SelectContent>
           </Select>
         )}
-        <div className="flex bg-muted rounded-lg p-0.5">
+        <div className="hidden sm:flex bg-muted rounded-lg p-0.5">
           <button onClick={() => setViewMode('cards')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'cards' && 'active')}><LayoutGrid size={14} /></button>
           <button onClick={() => setViewMode('table')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'table' && 'active')}><List size={14} /></button>
         </div>
@@ -383,12 +383,19 @@ export default function Employees() {
           <Users className="mx-auto mb-3 text-muted-foreground" size={40} />
           <p className="text-muted-foreground">Nenhum profissional encontrado</p>
         </div>
-      ) : viewMode === 'cards' ? (
-        memoizedCards
       ) : (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-6">
-          {memoizedTable}
-        </div>
+        <>
+          <div className="sm:hidden">
+            {memoizedCards}
+          </div>
+          <div className="hidden sm:block">
+            {viewMode === 'cards' ? memoizedCards : (
+              <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-6">
+                {memoizedTable}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

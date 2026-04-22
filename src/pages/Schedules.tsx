@@ -246,36 +246,36 @@ export default function Schedules() {
   };
 
   const memoizedCalendar = useMemo(() => (
-    <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+    <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border border-border">
       {weekDays.map(d => (
-        <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-xs font-semibold">{d}</div>
+        <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-[10px] sm:text-xs font-semibold">{d}</div>
       ))}
       {calendarDays.map((day, i) => {
-        if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[80px]" />;
+        if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[60px] sm:min-h-[80px]" />;
         const daySchedules = schedulesForDay(day);
         const dateStr = getDateStr(day);
         const holidayName = getHolidayName(dateStr);
         const wkend = isWeekend(dateStr);
         return (
           <div key={day} className={cn(
-            'bg-card min-h-[80px] p-1.5 relative transition-colors',
-            isToday(day) && 'ring-2 ring-primary ring-inset',
+            'bg-card min-h-[60px] sm:min-h-[80px] p-1 sm:p-1.5 relative transition-colors',
+            isToday(day) && 'ring-1 sm:ring-2 ring-primary ring-inset',
             (wkend || holidayName) && 'bg-amber-50/50 dark:bg-amber-950/20'
           )}>
             <div className="flex items-center gap-1">
-              <span className={cn('text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
+              <span className={cn('text-[10px] sm:text-xs font-medium inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
               {holidayName && <span className="text-[8px] text-amber-600 dark:text-amber-400 truncate" title={holidayName}>🎉</span>}
             </div>
-            <div className="mt-0.5 space-y-0.5 overflow-y-auto max-h-[60px]">
-              {daySchedules.slice(0, 3).map(s => (
+            <div className="mt-0.5 space-y-0.5 overflow-hidden">
+              {daySchedules.slice(0, 2).map(s => (
                 <div key={s.id} className={cn(
-                  'text-[10px] px-1.5 py-0.5 rounded truncate',
+                  'text-[8px] sm:text-[10px] px-1 py-0.5 rounded truncate',
                   s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
-                )} title={`${getEmpName(s.employee_id)} (${s.shift_type === 'half' ? '½ turno' : 'integral'}) +${formatCredit(Number(s.credit_amount))}`}>
-                  {getEmpName(s.employee_id)} {s.shift_type === 'half' && '½'}
+                )} title={`${getEmpName(s.employee_id)}`}>
+                  {getEmpName(s.employee_id).split(' ')[0]}
                 </div>
               ))}
-              {daySchedules.length > 3 && <p className="text-[10px] text-muted-foreground text-center">+{daySchedules.length - 3} mais</p>}
+              {daySchedules.length > 2 && <p className="text-[8px] sm:text-[10px] text-muted-foreground text-center">+{daySchedules.length - 2}</p>}
             </div>
           </div>
         );
@@ -346,7 +346,7 @@ export default function Schedules() {
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex bg-muted rounded-lg p-0.5">
+          <div className="hidden sm:flex bg-muted rounded-lg p-0.5">
             <button onClick={() => setViewMode('calendar')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'calendar' && 'active')}>
               <LayoutGrid size={14} />
             </button>
@@ -373,7 +373,7 @@ export default function Schedules() {
       </div>
 
       {viewMode === 'calendar' ? (
-        <div className="page-card p-3">
+        <div className="page-card p-2 sm:p-3 overflow-hidden">
           {memoizedCalendar}
         </div>
       ) : (
@@ -383,9 +383,38 @@ export default function Schedules() {
             <p className="text-muted-foreground">Nenhuma escala neste mês</p>
           </div>
         ) : (
-          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
-            {memoizedList}
-          </div>
+          <>
+            {/* Mobile List View (Cards) */}
+            <div className="space-y-3 sm:hidden mt-4">
+              {monthSchedules.map(s => (
+                <div key={s.id} className="page-card p-3 flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold text-sm">{getEmpName(s.employee_id)}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary" className="text-[10px]">{s.shift_type === 'half' ? '½T' : 'Integral'}</Badge>
+                      {canCreate && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(s.id)}>
+                          <Trash2 size={12} />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                      +{formatCredit(Number(s.credit_amount))} créditos
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop List View (Table) */}
+            <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+              {memoizedList}
+            </div>
+          </>
         )
       )}
 

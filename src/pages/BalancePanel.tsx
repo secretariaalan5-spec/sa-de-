@@ -164,14 +164,46 @@ export default function BalancePanel() {
           <p className="text-muted-foreground">Nenhum profissional encontrado</p>
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
+      <>
+        {/* Mobile View: Cards */}
+        <div className="space-y-3 sm:hidden mt-2">
+          {filtered.map(row => (
+            <div key={row.employee.id} className="page-card p-3 space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-bold text-foreground">{row.employee.name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{row.categoryName} • {row.unitName}</p>
+                </div>
+                <Badge
+                  variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
+                  className="font-mono font-bold"
+                >
+                  {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                <div className="bg-primary/5 p-2 rounded-lg flex flex-col items-center">
+                  <span className="text-[9px] text-primary uppercase font-bold tracking-tighter">Ganhos</span>
+                  <span className="text-sm font-mono font-bold text-primary">+{fmtCredit(row.extras)}</span>
+                </div>
+                <div className="bg-destructive/5 p-2 rounded-lg flex flex-col items-center">
+                  <span className="text-[9px] text-destructive uppercase font-bold tracking-tighter">Usados</span>
+                  <span className="text-sm font-mono font-bold text-destructive">-{fmtCredit(row.used)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
                 <tr>
                   <th className="px-5 py-4 font-semibold">Profissional</th>
-                  <th className="px-5 py-4 font-semibold hidden sm:table-cell">Categoria</th>
-                  <th className="px-5 py-4 font-semibold hidden sm:table-cell">Unidade</th>
+                  <th className="px-5 py-4 font-semibold">Categoria</th>
+                  <th className="px-5 py-4 font-semibold">Unidade</th>
                   <th className="px-5 py-4 font-semibold text-center">Extras</th>
                   <th className="px-5 py-4 font-semibold text-center">Usados</th>
                   <th className="px-5 py-4 font-semibold text-center">Saldo</th>
@@ -181,8 +213,8 @@ export default function BalancePanel() {
                 {filtered.map(row => (
                   <tr key={row.employee.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-3.5 font-medium text-foreground">{row.employee.name}</td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.categoryName}</td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell text-muted-foreground text-sm">{row.unitName}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground text-sm">{row.categoryName}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground text-sm">{row.unitName}</td>
                     <td className="px-5 py-3.5 text-center">
                       <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">+{fmtCredit(row.extras)}</Badge>
                     </td>
@@ -203,6 +235,7 @@ export default function BalancePanel() {
             </table>
           </div>
         </div>
+      </>
       )}
     </div>
   );

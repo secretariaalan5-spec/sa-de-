@@ -387,6 +387,29 @@
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
 }
 
+@media (max-width: 640px) {
+  .mobile-only { display: block !important; }
+  .desktop-only { display: none !important; }
+  
+  /* Force tables to hide or adapt */
+  .mobile-hide-table table {
+    display: none;
+  }
+}
+
+@media (min-width: 641px) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+}
+
+.native-press {
+  transition: transform 0.1s ease;
+}
+.native-press:active {
+  transform: scale(0.96);
+}
+
+
 /* ─── Native App Transitions ─────────────────────────────────────────── */
 @keyframes nativeFadeIn {
   from {

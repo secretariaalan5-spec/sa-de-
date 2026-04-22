@@ -560,51 +560,84 @@ export default function Invites() {
                   <p className="text-muted-foreground">Nenhum convite padrão criado</p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                        <tr>
-                          <th className="py-3 px-4">Nível</th>
-                          <th className="py-3 px-4">Escopo</th>
-                          <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4">Criado em</th>
-                          <th className="py-3 px-4 text-right">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/50">
-                        {invites.map((invite) => (
-                          <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
-                            <td className="py-3 px-4">
-                              <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[invite.role] || invite.role}</Badge>
-                            </td>
-                            <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
-                              {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : 'Global / Admin'}
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={invite.used ? 'secondary' : 'default'} className="text-[9px] uppercase font-bold tracking-widest">
-                                {invite.used ? 'Utilizado' : 'Disponível'}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                                {!invite.used && (
-                                  <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5">
-                                    <Copy size={14} /> Link
-                                  </Button>
-                                )}
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                                  <Trash2 size={15} />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="space-y-3 sm:hidden mt-2">
+                    {invites.map((invite) => (
+                      <div key={invite.id} className="page-card p-3 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[invite.role] || invite.role}</Badge>
+                          <Badge variant={invite.used ? 'secondary' : 'default'} className="text-[9px] uppercase font-bold tracking-widest">
+                            {invite.used ? 'Utilizado' : 'Disponível'}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-xs font-semibold text-foreground/80">
+                            {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : 'Global / Admin'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1 border-t">
+                          {!invite.used && (
+                            <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5">
+                              <Copy size={14} /> Link
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden sm:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
+                          <tr>
+                            <th className="py-3 px-4">Nível</th>
+                            <th className="py-3 px-4">Escopo</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4">Criado em</th>
+                            <th className="py-3 px-4 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {invites.map((invite) => (
+                            <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
+                              <td className="py-3 px-4">
+                                <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest bg-secondary/60 text-secondary-foreground">{roleLabels[invite.role] || invite.role}</Badge>
+                              </td>
+                              <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
+                                {invite.category_id ? getCatName(invite.category_id) : invite.unit_id ? getUnitName(invite.unit_id) : 'Global / Admin'}
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge variant={invite.used ? 'secondary' : 'default'} className="text-[9px] uppercase font-bold tracking-widest">
+                                  {invite.used ? 'Utilizado' : 'Disponível'}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                                  {!invite.used && (
+                                    <Button variant="ghost" size="sm" onClick={() => copyLink(invite.token)} className="h-8 text-xs font-semibold hover:bg-accent/10 hover:text-accent gap-1.5">
+                                      <Copy size={14} /> Link
+                                    </Button>
+                                  )}
+                                  <Button variant="ghost" size="icon" onClick={() => handleDeleteInvite(invite.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                                    <Trash2 size={15} />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
@@ -614,76 +647,127 @@ export default function Invites() {
                 <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
                   <Users size={14} /> Convites de Chefia (Geração Automática)
                 </h3>
-                <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-[#1a73e8]/10 text-[#1a73e8] border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                        <tr>
-                          <th className="py-3 px-4">Categorias</th>
-                          <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4">Aceito por</th>
-                          <th className="py-3 px-4">Gerado em</th>
-                          <th className="py-3 px-4 text-right">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/50">
-                        {categoryInvites.map((invite) => (
-                          <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
-                            <td className="py-3 px-4">
-                              <div className="flex flex-wrap gap-1.5">
-                                {invite.category_ids.map(cid => (
-                                  <Badge key={cid} variant="secondary" className="text-[10px] font-medium bg-[#1a73e8]/10 text-[#1a73e8]">{getCatName(cid)}</Badge>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest bg-[#1a73e8] hover:bg-[#1a73e8]">
-                                {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Utilizado' : 'Inativo'}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">
-                              {invite.accepted_by ? (
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-7 w-7 border border-border/50">
-                                    {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
-                                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-xs font-semibold text-foreground">{getProfileName(invite.accepted_by)}</span>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic font-medium">— Aguardando —</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                                {invite.is_active && !invite.accepted_by && (
-                                  <Button 
-                                    variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} 
-                                    className="h-8 text-xs font-semibold hover:bg-[#1a73e8]/10 hover:text-[#1a73e8] gap-1.5"
-                                  >
-                                    <Copy size={14} /> Link
-                                  </Button>
-                                )}
-                                <Button 
-                                  variant="ghost" size="icon" onClick={async () => {
-                                    if (!confirm('Tem certeza que deseja excluir este convite?')) return;
-                                    const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
-                                    if (error) { toast.error(error.message || 'Erro ao excluir convite.'); return; }
-                                    toast.success('Convite excluído!'); load();
-                                  }} 
-                                  className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                                >
-                                  <Trash2 size={15} />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="space-y-3 sm:hidden mt-2">
+                    {categoryInvites.map((invite) => (
+                      <div key={invite.id} className="page-card p-3 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex flex-wrap gap-1">
+                            {invite.category_ids.map(cid => (
+                              <Badge key={cid} variant="secondary" className="text-[9px] bg-[#1a73e8]/10 text-[#1a73e8]">{getCatName(cid)}</Badge>
+                            ))}
+                          </div>
+                          <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest bg-[#1a73e8]">
+                            {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Usado' : 'Inativo'}
+                          </Badge>
+                        </div>
+                        
+                        {invite.accepted_by ? (
+                          <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg">
+                            <Avatar className="h-6 w-6">
+                              {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} />}
+                              <AvatarFallback className="text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs font-semibold">{getProfileName(invite.accepted_by)}</span>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground italic">Aguardando aceitação</p>
+                        )}
+
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <span className="text-[10px] text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</span>
+                          <div className="flex gap-2">
+                            {invite.is_active && !invite.accepted_by && (
+                              <Button variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} className="h-7 text-[10px] hover:bg-[#1a73e8]/10 hover:text-[#1a73e8] gap-1">
+                                <Copy size={12} /> Link
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => {
+                              if (!confirm('Excluir convite?')) return;
+                              await supabase.from('category_invites').delete().eq('id', invite.id);
+                              load();
+                            }}>
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden sm:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-[#1a73e8]/10 text-[#1a73e8] border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
+                          <tr>
+                            <th className="py-3 px-4">Categorias</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4">Aceito por</th>
+                            <th className="py-3 px-4">Gerado em</th>
+                            <th className="py-3 px-4 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {categoryInvites.map((invite) => (
+                            <tr key={invite.id} className="hover:bg-muted/20 transition-colors group">
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {invite.category_ids.map(cid => (
+                                    <Badge key={cid} variant="secondary" className="text-[10px] font-medium bg-[#1a73e8]/10 text-[#1a73e8]">{getCatName(cid)}</Badge>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge variant={invite.is_active && !invite.accepted_by ? 'default' : 'secondary'} className="text-[9px] uppercase font-bold tracking-widest bg-[#1a73e8] hover:bg-[#1a73e8]">
+                                  {invite.is_active && !invite.accepted_by ? 'Ativo' : invite.accepted_by ? 'Utilizado' : 'Inativo'}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                {invite.accepted_by ? (
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7 border border-border/50">
+                                      {getProfileAvatar(invite.accepted_by) && <AvatarImage src={getProfileAvatar(invite.accepted_by)!} alt="" />}
+                                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">{getProfileName(invite.accepted_by).substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-semibold text-foreground">{getProfileName(invite.accepted_by)}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic font-medium">— Aguardando —</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(invite.created_at).toLocaleDateString('pt-BR')}</td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                                  {invite.is_active && !invite.accepted_by && (
+                                    <Button 
+                                      variant="ghost" size="sm" onClick={() => copyCategoryInviteLink(invite.token)} 
+                                      className="h-8 text-xs font-semibold hover:bg-[#1a73e8]/10 hover:text-[#1a73e8] gap-1.5"
+                                    >
+                                      <Copy size={14} /> Link
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="ghost" size="icon" onClick={async () => {
+                                      if (!confirm('Tem certeza que deseja excluir este convite?')) return;
+                                      const { error } = await supabase.from('category_invites').delete().eq('id', invite.id);
+                                      if (error) { toast.error(error.message || 'Erro ao excluir convite.'); return; }
+                                      toast.success('Convite excluído!'); load();
+                                    }} 
+                                    className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                  >
+                                    <Trash2 size={15} />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               </div>
             )}
           </div>
@@ -732,78 +816,120 @@ export default function Invites() {
               <p className="text-muted-foreground">Nenhum participante encontrado</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Participante</th>
-                      <th className="py-3 px-4">Nível de Acesso</th>
-                      <th className="py-3 px-4">Unidade Base</th>
-                      <th className="py-3 px-4">Data de Ingresso</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {filteredUsers.map((userRole) => {
-                      const name = getProfileName(userRole.user_id);
-                      return (
-                        <tr key={userRole.user_id} className="hover:bg-muted/20 transition-colors group">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-border/50 shrink-0 shadow-sm">
-                                {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col justify-center">
-                                <span className="font-bold text-foreground text-sm">{name}</span>
+            <>
+              {/* Mobile View: Cards */}
+              <div className="space-y-3 sm:hidden mt-2">
+                {filteredUsers.map((userRole) => {
+                  const name = getProfileName(userRole.user_id);
+                  return (
+                    <div key={userRole.user_id} className="page-card p-3 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-border/50">
+                          {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} />}
+                          <AvatarFallback className="text-xs font-bold">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-bold text-sm">{name}</p>
+                          <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-widest ${getRoleBadgeColor(userRole.role)}`}>
+                            {roleLabels[userRole.role] || userRole.role}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] pt-2 border-t">
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground">Unidade: {userRole.unit_id ? getUnitName(userRole.unit_id) : '—'}</span>
+                          <span className="text-muted-foreground">Desde: {new Date(userRole.created_at).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          {userRole.role === 'unit_manager' && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setTransferUserId(userRole.user_id); setTransferToUnitId(''); setTransferOpen(true); }}>
+                              <ArrowRightLeft size={14} />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemoveUser(userRole.user_id, name)}>
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop View: Table */}
+              <div className="hidden sm:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-muted/40 text-muted-foreground border-b border-border/50 uppercase text-[10px] tracking-widest font-bold">
+                      <tr>
+                        <th className="py-3 px-4">Participante</th>
+                        <th className="py-3 px-4">Nível de Acesso</th>
+                        <th className="py-3 px-4">Unidade Base</th>
+                        <th className="py-3 px-4">Data de Ingresso</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {filteredUsers.map((userRole) => {
+                        const name = getProfileName(userRole.user_id);
+                        return (
+                          <tr key={userRole.user_id} className="hover:bg-muted/20 transition-colors group">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border border-border/50 shrink-0 shadow-sm">
+                                  {getProfileAvatar(userRole.user_id) && <AvatarImage src={getProfileAvatar(userRole.user_id)!} alt={name} />}
+                                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col justify-center">
+                                  <span className="font-bold text-foreground text-sm">{name}</span>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-widest ${getRoleBadgeColor(userRole.role)}`}>
-                              {roleLabels[userRole.role] || userRole.role}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
-                            {userRole.unit_id ? getUnitName(userRole.unit_id) : <span className="text-muted-foreground italic font-medium">—</span>}
-                          </td>
-                          <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                              {userRole.role === 'unit_manager' && (
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant="outline" className={`text-[9px] uppercase font-bold tracking-widest ${getRoleBadgeColor(userRole.role)}`}>
+                                {roleLabels[userRole.role] || userRole.role}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-xs font-semibold text-foreground/80">
+                              {userRole.unit_id ? getUnitName(userRole.unit_id) : <span className="text-muted-foreground italic font-medium">—</span>}
+                            </td>
+                            <td className="py-3 px-4 text-xs font-medium text-muted-foreground">{new Date(userRole.created_at).toLocaleDateString('pt-BR')}</td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                                {userRole.role === 'unit_manager' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 text-xs font-semibold hover:bg-primary/10 hover:text-primary gap-1.5"
+                                    title="Transferir para outra unidade"
+                                    onClick={() => {
+                                      setTransferUserId(userRole.user_id);
+                                      setTransferToUnitId('');
+                                      setTransferOpen(true);
+                                    }}
+                                  >
+                                    <ArrowRightLeft size={14} /> Transferir
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
-                                  size="sm"
-                                  className="h-8 text-xs font-semibold hover:bg-primary/10 hover:text-primary gap-1.5"
-                                  title="Transferir para outra unidade"
-                                  onClick={() => {
-                                    setTransferUserId(userRole.user_id);
-                                    setTransferToUnitId('');
-                                    setTransferOpen(true);
-                                  }}
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                  title="Remover Usuário Permanentemente"
+                                  onClick={() => handleRemoveUser(userRole.user_id, name)}
                                 >
-                                  <ArrowRightLeft size={14} /> Transferir
+                                  <Trash2 size={15} />
                                 </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                                title="Remover Usuário Permanentemente"
-                                onClick={() => handleRemoveUser(userRole.user_id, name)}
-                              >
-                                <Trash2 size={15} />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

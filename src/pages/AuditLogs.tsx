@@ -144,58 +144,88 @@ export default function AuditLogs() {
         </Button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-              <tr>
-                <th className="px-5 py-4 font-semibold">Data/Hora</th>
-                <th className="px-5 py-4 font-semibold">Ação</th>
-                <th className="px-5 py-4 font-semibold">Módulo</th>
-                <th className="px-5 py-4 font-semibold">Ator (Quem fez)</th>
-                <th className="px-5 py-4 font-semibold text-right">Detalhes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading && logs.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground animate-pulse">Consultando caixa preta...</td></tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Nenhum log encontrado nos filtros.</td></tr>
-              ) : (
-                filteredLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
-                    <td className="px-5 py-3.5 whitespace-nowrap text-muted-foreground font-mono text-xs">
-                      {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge variant="outline" className={getActionColor(log.action)}>
-                        {log.action}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-foreground">
-                      {getTableNameText(log.table_name)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {log.actorProfile?.display_name ? (
-                        <span className="font-semibold text-foreground">{log.actorProfile.display_name}</span>
-                      ) : (
-                        <span className="text-muted-foreground italic text-xs">Id: {log.actor_id || 'Sistema'}</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="sm" className="h-8 hover:bg-primary/10 hover:text-primary transition-colors text-xs" onClick={() => setDetailLog(log)}>
-                          <Eye size={14} className="mr-1.5" /> Inspecionar
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <>
+        {/* Mobile View: Cards */}
+        <div className="space-y-3 sm:hidden mt-2">
+          {loading && logs.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground animate-pulse">Consultando caixa preta...</div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">Nenhum log encontrado.</div>
+          ) : (
+            filteredLogs.map(log => (
+              <div key={log.id} className="page-card p-3 space-y-3">
+                <div className="flex justify-between items-start">
+                  <Badge variant="outline" className={getActionColor(log.action)}>{log.action}</Badge>
+                  <span className="text-[10px] text-muted-foreground font-mono">{format(new Date(log.created_at), "dd/MM/yyyy HH:mm")}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">{getTableNameText(log.table_name)}</p>
+                  <p className="text-xs text-muted-foreground">Ator: {log.actorProfile?.display_name || 'Sistema'}</p>
+                </div>
+                <div className="pt-2 border-t flex justify-end">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDetailLog(log)}>
+                    <Eye size={14} /> Inspecionar
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden sm:block bg-card rounded-xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="px-5 py-4 font-semibold">Data/Hora</th>
+                  <th className="px-5 py-4 font-semibold">Ação</th>
+                  <th className="px-5 py-4 font-semibold">Módulo</th>
+                  <th className="px-5 py-4 font-semibold">Ator (Quem fez)</th>
+                  <th className="px-5 py-4 font-semibold text-right">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading && logs.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-muted-foreground animate-pulse">Consultando caixa preta...</td></tr>
+                ) : filteredLogs.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Nenhum log encontrado nos filtros.</td></tr>
+                ) : (
+                  filteredLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
+                      <td className="px-5 py-3.5 whitespace-nowrap text-muted-foreground font-mono text-xs">
+                        {format(new Date(log.created_at), "dd/MM/yyyy HH:mm:ss")}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Badge variant="outline" className={getActionColor(log.action)}>
+                          {log.action}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-foreground">
+                        {getTableNameText(log.table_name)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {log.actorProfile?.display_name ? (
+                          <span className="font-semibold text-foreground">{log.actorProfile.display_name}</span>
+                        ) : (
+                          <span className="text-muted-foreground italic text-xs">Id: {log.actor_id || 'Sistema'}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex justify-end opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="h-8 hover:bg-primary/10 hover:text-primary transition-colors text-xs" onClick={() => setDetailLog(log)}>
+                            <Eye size={14} className="mr-1.5" /> Inspecionar
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
 
       <Dialog open={!!detailLog} onOpenChange={(o) => !o && setDetailLog(null)}>
         <DialogContent className="max-w-2xl">
