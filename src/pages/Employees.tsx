@@ -7,10 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 
@@ -168,44 +167,103 @@ export default function Employees() {
   const showUnitFilter = isAdmin || isRH || isChief;
 
   const memoizedCards = useMemo(() => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {filtered.map(emp => {
         const cat = getCat(emp.category_id);
+        const initials = emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        
         return (
-          <div key={emp.id} className="prof-card group cursor-pointer" onClick={() => setDetailEmp(emp)}>
-            <div className="h-1 rounded-full mb-3" style={{ backgroundColor: cat?.color ?? 'hsl(var(--muted))' }} />
-            <p className="font-semibold text-sm">{emp.name}</p>
-            <div className="flex items-center gap-2 mt-2">
-              {cat && <Badge variant="secondary" className="text-[10px]" style={{ borderColor: cat.color, color: cat.color }}>{cat.name}</Badge>}
-              <span className="text-[10px] text-muted-foreground">{getUnitName(emp.unit_id)}</span>
+          <div 
+            key={emp.id} 
+            className="prof-card group" 
+            style={{ '--category-color': cat?.color } as React.CSSProperties}
+            onClick={() => setDetailEmp(emp)}
+          >
+            <div className="flex items-start gap-3">
+              <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
+                <AvatarFallback 
+                  className="text-xs font-bold"
+                  style={{ backgroundColor: `${cat?.color}15`, color: cat?.color }}
+                >
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[15px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">
+                  {emp.name}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  {cat && (
+                    <span 
+                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
+                      style={{ 
+                        backgroundColor: `${cat.color}10`, 
+                        borderColor: `${cat.color}30`,
+                        color: cat.color 
+                      }}
+                    >
+                      {cat.name}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            {(isAdmin || isRH || isChief || isManager) && emp.phone && (
-              <a
-                href={getWhatsAppLink(emp.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                title="Abrir conversa no WhatsApp"
-                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[11px] font-medium hover:bg-green-500/20 hover:border-green-500/40 hover:shadow-[0_0_12px_rgba(34,197,94,0.2)] transition-all duration-200 w-fit"
+
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin size={12} className="shrink-0" />
+                <span className="text-[11px] font-medium truncate">{getUnitName(emp.unit_id)}</span>
+              </div>
+
+              {(isAdmin || isRH || isChief || isManager) && emp.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone size={12} className="text-green-500 shrink-0" />
+                  <a
+                    href={getWhatsAppLink(emp.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[11px] font-semibold text-green-600 hover:underline decoration-green-600/30 underline-offset-2"
+                  >
+                    {emp.phone}
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-border/50 flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} 
+                className="h-8 px-2 text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
               >
-                <WhatsAppIcon size={13} />
-                {emp.phone}
-              </a>
-            )}
-            <div className="flex flex-wrap gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} className="h-7 text-xs gap-1">
-                <Eye size={12} /> Ver Histórico
+                <Eye size={14} className="mr-1.5" /> Histórico
               </Button>
-              {canEdit && (
-                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(emp); }} className="h-7 text-xs gap-1">
-                  <Pencil size={12} /> Editar
-                </Button>
-              )}
-              {canDelete && (
-                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
-                  <Trash2 size={12} /> Remover
-                </Button>
-              )}
+              
+              <div className="flex items-center gap-1">
+                {canEdit && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={(e) => { e.stopPropagation(); openEdit(emp); }} 
+                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} 
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         );
