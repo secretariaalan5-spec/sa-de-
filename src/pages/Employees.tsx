@@ -217,15 +217,15 @@ export default function Employees() {
               </div>
               
               {emp.phone && (
-                <div className="flex items-center gap-2">
-                  <WhatsAppIcon size={12} className="text-green-500 shrink-0" />
+                <div className="pt-1">
                   <a
                     href={getWhatsAppLink(emp.phone)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[11px] font-semibold text-green-600 hover:underline decoration-green-600/30 underline-offset-2"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-600 font-bold hover:bg-green-500/20 transition-all text-[11px]"
                   >
+                    <WhatsAppIcon size={12} className="shrink-0" />
                     {emp.phone}
                   </a>
                 </div>
