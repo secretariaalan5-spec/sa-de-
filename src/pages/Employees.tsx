@@ -25,12 +25,14 @@ interface Employee {
 }
 interface Category { id: string; name: string; color: string; }
 interface Unit { id: string; name: string; }
+interface Credit { employee_id: string; amount: number; }
 
 export default function Employees() {
   const { roleInfo, isAdmin, isManager, isChief, isRH } = useAuthContext();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [credits, setCredits] = useState<Credit[]>([]);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editEmp, setEditEmp] = useState<Employee | null>(null);
@@ -62,10 +64,11 @@ export default function Employees() {
       employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
     }
 
-    const [e, c, u] = await Promise.all([
+    const [e, c, u, cr] = await Promise.all([
       employeesQuery,
       supabase.from('categories').select('id, name, color').eq('active', true).eq('team_id', teamId),
       supabase.from('units').select('id, name').eq('active', true).eq('team_id', teamId),
+      supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId),
     ]);
     
     let fetchedCategories = c.data ?? [];
@@ -77,10 +80,11 @@ export default function Employees() {
     setEmployees(e.data ?? []);
     setCategories(fetchedCategories);
     setUnits(u.data ?? []);
+    setCredits(cr.data ?? []);
   };
 
   useEffect(() => { load(); }, []);
-  useDataSubscription(['employees', 'categories', 'units'], load);
+  useDataSubscription(['employees', 'categories', 'units', 'leave_credits'], load);
 
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -166,6 +170,8 @@ export default function Employees() {
   const showCategoryFilter = isAdmin || isRH || isManager || (isChief && (roleInfo?.category_ids?.length ?? 0) > 1);
   const showUnitFilter = isAdmin || isRH || isChief;
 
+  const fmtCredit = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ',');
+
   const memoizedCards = useMemo(() => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {filtered.map(emp => {
@@ -206,6 +212,20 @@ export default function Employees() {
                       {cat.name}
                     </span>
                   )}
+                  {(() => {
+                    const empCredits = credits.filter(cr => cr.employee_id === emp.id);
+                    const balance = empCredits.reduce((s, cr) => s + cr.amount, 0);
+                    return (
+                      <span className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap",
+                        balance > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-600" : 
+                        balance < 0 ? "bg-rose-50 border-rose-200 text-rose-600" : 
+                        "bg-slate-50 border-slate-200 text-slate-600"
+                      )}>
+                        Saldo: {fmtCredit(balance)}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -269,7 +289,7 @@ export default function Employees() {
         );
       })}
     </div>
-  ), [filtered, categories, units, canEdit, canDelete]);
+  ), [filtered, categories, units, credits, canEdit, canDelete]);
 
   const memoizedTable = useMemo(() => (
     <div className="overflow-x-auto">
@@ -280,6 +300,7 @@ export default function Employees() {
             <th className="px-5 py-4 font-semibold">WhatsApp</th>
             <th className="px-5 py-4 font-semibold">Categoria</th>
             <th className="px-5 py-4 font-semibold">Unidade</th>
+            <th className="px-5 py-4 font-semibold">Saldo</th>
             <th className="px-5 py-4 font-semibold text-right">Ações</th>
           </tr>
         </thead>
@@ -312,6 +333,22 @@ export default function Employees() {
                 ) : '—'}
               </td>
               <td className="px-5 py-3.5 text-muted-foreground">{getUnitName(emp.unit_id)}</td>
+              <td className="px-5 py-3.5">
+                {(() => {
+                  const empCredits = credits.filter(cr => cr.employee_id === emp.id);
+                  const balance = empCredits.reduce((s, cr) => s + cr.amount, 0);
+                  return (
+                    <span className={cn(
+                      "font-bold",
+                      balance > 0 ? "text-emerald-600" : 
+                      balance < 0 ? "text-rose-600" : 
+                      "text-slate-400"
+                    )}>
+                      {fmtCredit(balance)}
+                    </span>
+                  );
+                })()}
+              </td>
               <td className="px-5 py-3.5 text-right">
                 <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
@@ -324,7 +361,7 @@ export default function Employees() {
         </tbody>
       </table>
     </div>
-  ), [filtered, categories, units, canEdit, canDelete]);
+  ), [filtered, categories, units, credits, canEdit, canDelete]);
 
   return (
     <div className="space-y-4 animate-fade-in">
