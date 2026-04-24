@@ -184,8 +184,8 @@ export default function Employees() {
             key={emp.id} 
             className="prof-card-simple group" 
             style={{ 
-              backgroundColor: cat ? `${cat.color}12` : undefined,
-              borderColor: cat ? `${cat.color}40` : undefined
+              backgroundColor: cat ? `${cat.color}33` : undefined,
+              borderColor: cat ? `${cat.color}80` : undefined
             }}
             onClick={() => setDetailEmp(emp)}
           >
