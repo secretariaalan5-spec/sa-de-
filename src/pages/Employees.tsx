@@ -195,7 +195,7 @@ export default function Employees() {
               </Badge>
             </div>
             
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className="flex flex-wrap gap-1.5 mb-3">
               {cat && (
                 <span 
                   className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
@@ -208,9 +208,28 @@ export default function Employees() {
                   {cat.name}
                 </span>
               )}
-              <span className="text-[10px] bg-muted text-muted-foreground font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-border">
-                {getUnitName(emp.unit_id)}
-              </span>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin size={12} className="shrink-0 opacity-70" />
+                <span className="text-[11px] font-medium truncate">{getUnitName(emp.unit_id)}</span>
+              </div>
+              
+              {emp.phone && (
+                <div className="flex items-center gap-2">
+                  <WhatsAppIcon size={12} className="text-green-500 shrink-0" />
+                  <a
+                    href={getWhatsAppLink(emp.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[11px] font-semibold text-green-600 hover:underline decoration-green-600/30 underline-offset-2"
+                  >
+                    {emp.phone}
+                  </a>
+                </div>
+              )}
             </div>
 
             <div className="pt-3 border-t border-border flex items-center justify-between">
