@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 
