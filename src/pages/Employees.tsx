@@ -173,102 +173,63 @@ export default function Employees() {
   const fmtCredit = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ',');
 
   const memoizedCards = useMemo(() => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {filtered.map(emp => {
         const cat = getCat(emp.category_id);
-        const initials = emp.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        const empCredits = credits.filter(cr => cr.employee_id === emp.id);
+        const balance = empCredits.reduce((s, cr) => s + cr.amount, 0);
         
         return (
           <div 
             key={emp.id} 
-            className="prof-card group" 
-            style={{ '--category-color': cat?.color } as React.CSSProperties}
+            className="prof-card-simple group" 
             onClick={() => setDetailEmp(emp)}
           >
-            <div className="flex items-start gap-3">
-              <Avatar className="h-10 w-10 border-2 border-background shadow-sm shrink-0">
-                <AvatarFallback 
-                  className="text-xs font-bold"
-                  style={{ backgroundColor: `${cat?.color}15`, color: cat?.color }}
+            <div className="flex justify-between items-start mb-2">
+              <p className="font-bold text-base truncate pr-2">{emp.name}</p>
+              <Badge 
+                variant={balance > 0 ? 'default' : balance < 0 ? 'destructive' : 'secondary'}
+                className="font-mono text-[10px] shrink-0"
+              >
+                {balance > 0 ? `+${fmtCredit(balance)}` : fmtCredit(balance)}
+              </Badge>
+            </div>
+            
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {cat && (
+                <span 
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
+                  style={{ 
+                    backgroundColor: `${cat.color}15`, 
+                    borderColor: `${cat.color}30`,
+                    color: cat.color 
+                  }}
                 >
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-[15px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">
-                  {emp.name}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  {cat && (
-                    <span 
-                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
-                      style={{ 
-                        backgroundColor: `${cat.color}10`, 
-                        borderColor: `${cat.color}30`,
-                        color: cat.color 
-                      }}
-                    >
-                      {cat.name}
-                    </span>
-                  )}
-                  {(() => {
-                    const empCredits = credits.filter(cr => cr.employee_id === emp.id);
-                    const balance = empCredits.reduce((s, cr) => s + cr.amount, 0);
-                    return (
-                      <span className={cn(
-                        "text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap",
-                        balance > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-600" : 
-                        balance < 0 ? "bg-rose-50 border-rose-200 text-rose-600" : 
-                        "bg-slate-50 border-slate-200 text-slate-600"
-                      )}>
-                        Saldo: {fmtCredit(balance)}
-                      </span>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin size={12} className="shrink-0" />
-                <span className="text-[11px] font-medium truncate">{getUnitName(emp.unit_id)}</span>
-              </div>
-
-              {(isAdmin || isRH || isChief || isManager) && emp.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone size={12} className="text-green-500 shrink-0" />
-                  <a
-                    href={getWhatsAppLink(emp.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-[11px] font-semibold text-green-600 hover:underline decoration-green-600/30 underline-offset-2"
-                  >
-                    {emp.phone}
-                  </a>
-                </div>
+                  {cat.name}
+                </span>
               )}
+              <span className="text-[10px] bg-muted text-muted-foreground font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-border">
+                {getUnitName(emp.unit_id)}
+              </span>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-border/50 flex items-center justify-between">
+            <div className="pt-3 border-t border-border flex items-center justify-between">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} 
-                className="h-8 px-2 text-[11px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
+                className="h-7 px-2 text-[11px] font-bold text-muted-foreground hover:text-primary transition-all"
               >
                 <Eye size={14} className="mr-1.5" /> Histórico
               </Button>
               
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 {canEdit && (
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={(e) => { e.stopPropagation(); openEdit(emp); }} 
-                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
                   >
                     <Pencil size={14} />
                   </Button>
@@ -278,7 +239,7 @@ export default function Employees() {
                     variant="ghost" 
                     size="icon" 
                     onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 size={14} />
                   </Button>
