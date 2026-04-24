@@ -183,6 +183,10 @@ export default function Employees() {
           <div 
             key={emp.id} 
             className="prof-card-simple group" 
+            style={{ 
+              backgroundColor: cat ? `${cat.color}05` : undefined,
+              borderColor: cat ? `${cat.color}20` : undefined
+            }}
             onClick={() => setDetailEmp(emp)}
           >
             <div className="flex justify-between items-start mb-2">
