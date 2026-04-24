@@ -182,91 +182,98 @@ export default function Employees() {
         return (
           <div 
             key={emp.id} 
-            className="prof-card-simple group" 
+            className="prof-card-simple group relative overflow-hidden" 
             style={{ 
-              backgroundColor: cat ? `${cat.color}33` : undefined,
-              borderColor: cat ? `${cat.color}80` : undefined
+              backgroundColor: cat ? `${cat.color}40` : undefined,
+              borderColor: cat ? `${cat.color}90` : undefined
             }}
             onClick={() => setDetailEmp(emp)}
           >
-            <div className="flex justify-between items-start mb-2">
-              <p className="font-bold text-base truncate pr-2">{emp.name}</p>
-              <Badge 
-                variant={balance > 0 ? 'default' : balance < 0 ? 'destructive' : 'secondary'}
-                className="font-mono text-[10px] shrink-0"
-              >
-                {balance > 0 ? `+${fmtCredit(balance)}` : fmtCredit(balance)}
-              </Badge>
-            </div>
+            {/* Camada de brilho/contraste para não ofuscar o texto */}
+            <div className="absolute inset-0 bg-white/40 pointer-events-none" />
             
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {cat && (
-                <span 
-                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
-                  style={{ 
-                    backgroundColor: `${cat.color}15`, 
-                    borderColor: `${cat.color}30`,
-                    color: cat.color 
-                  }}
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-2">
+                <p className="font-bold text-base text-foreground tracking-tight truncate pr-2">{emp.name}</p>
+                <Badge 
+                  variant={balance > 0 ? 'default' : balance < 0 ? 'destructive' : 'secondary'}
+                  className="font-mono text-[10px] shadow-sm shrink-0"
                 >
-                  {cat.name}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin size={12} className="shrink-0 opacity-70" />
-                <span className="text-[11px] font-medium truncate">{getUnitName(emp.unit_id)}</span>
+                  {balance > 0 ? `+${fmtCredit(balance)}` : fmtCredit(balance)}
+                </Badge>
               </div>
               
-              {emp.phone && (
-                <div className="pt-1">
-                  <a
-                    href={getWhatsAppLink(emp.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-600 font-bold hover:bg-green-500/20 transition-all text-[11px]"
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {cat && (
+                  <span 
+                    className="text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md border shadow-sm"
+                    style={{ 
+                      backgroundColor: 'white', 
+                      borderColor: `${cat.color}40`,
+                      color: cat.color 
+                    }}
                   >
-                    <WhatsAppIcon size={12} className="shrink-0" />
-                    {emp.phone}
-                  </a>
-                </div>
-              )}
-            </div>
+                    {cat.name}
+                  </span>
+                )}
+              </div>
 
-            <div className="pt-3 border-t border-border flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} 
-                className="h-7 px-2 text-[11px] font-bold text-muted-foreground hover:text-primary transition-all"
-              >
-                <Eye size={14} className="mr-1.5" /> Histórico
-              </Button>
-              
-              <div className="flex items-center gap-0.5">
-                {canEdit && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={(e) => { e.stopPropagation(); openEdit(emp); }} 
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                  >
-                    <Pencil size={14} />
-                  </Button>
+              <div className="space-y-2.5 mb-4">
+                <div className="flex items-center gap-2 text-foreground/80">
+                  <div className="w-5 h-5 rounded-md bg-white/50 flex items-center justify-center border border-black/5">
+                    <MapPin size={10} className="shrink-0" />
+                  </div>
+                  <span className="text-[11px] font-bold truncate">{getUnitName(emp.unit_id)}</span>
+                </div>
+                
+                {emp.phone && (
+                  <div className="pt-0.5">
+                    <a
+                      href={getWhatsAppLink(emp.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-green-500/30 text-green-600 font-extrabold hover:bg-green-50 shadow-sm transition-all text-[11px]"
+                    >
+                      <WhatsAppIcon size={12} className="shrink-0 text-green-500" />
+                      {emp.phone}
+                    </a>
+                  </div>
                 )}
-                {canDelete && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                )}
+              </div>
+
+              <div className="pt-3 border-t border-black/10 flex items-center justify-between">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }} 
+                  className="h-7 px-2 text-[11px] font-bold text-foreground/70 hover:text-primary hover:bg-white/50 transition-all"
+                >
+                  <Eye size={14} className="mr-1.5" /> Histórico
+                </Button>
+                
+                <div className="flex items-center gap-0.5">
+                  {canEdit && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => { e.stopPropagation(); openEdit(emp); }} 
+                      className="h-8 w-8 text-foreground/60 hover:text-primary hover:bg-white/50"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }} 
+                      className="h-8 w-8 text-foreground/60 hover:text-destructive hover:bg-white/50"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
