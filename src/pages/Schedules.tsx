@@ -640,31 +640,30 @@ export default function Schedules() {
                                 setSelectedDates([]);
                                 setOpenCombobox(false);
                               }}
-                              className="relative flex flex-col items-start justify-between p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50 min-h-[90px]"
+                              className="relative flex flex-col items-start p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50 min-h-[95px] h-full"
                               style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
                             >
-                              <div className="font-bold text-sm leading-tight text-left pr-6">
+                              {/* Check icon top-right if selected */}
+                              {empId === e.id && (
+                                <div className="absolute top-2 right-2 bg-white/30 rounded-full p-0.5">
+                                  <Check className="h-3.5 w-3.5" style={{ color: theme.hexText }} />
+                                </div>
+                              )}
+                              <div className="font-bold text-[13px] leading-snug text-left w-full break-words">
                                 {e.name}
                               </div>
-                              <div className="flex gap-1.5 mt-3 flex-wrap">
+                              <div className="flex gap-1.5 mt-auto pt-3 flex-wrap">
                                 {cat && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-white/70 text-black px-1.5 py-0.5 rounded border border-black/10 font-bold whitespace-nowrap">
-                                    <Tag size={10} /> {cat}
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                                    <Tag size={9} /> {cat}
                                   </span>
                                 )}
                                 {unit && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-white/70 text-black px-1.5 py-0.5 rounded border border-black/10 font-bold whitespace-nowrap">
-                                    <MapPin size={10} /> {unit}
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                                    <MapPin size={9} /> {unit}
                                   </span>
                                 )}
                               </div>
-                              
-                              {/* Check icon top-right if selected */}
-                              {empId === e.id && (
-                                <div className="absolute top-2 right-2 bg-white/20 rounded-full p-0.5 backdrop-blur-sm">
-                                  <Check className="h-4 w-4" style={{ color: theme.hexText }} />
-                                </div>
-                              )}
                             </CommandItem>
                           );
                         })}

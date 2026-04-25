@@ -4,10 +4,9 @@ import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, CalendarOff, Check, X, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, CalendarOff, Check, Clock, CheckCircle2, XCircle, AlertTriangle, Tag, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LeaveRequestForm from '@/components/leave/LeaveRequestForm';
 
@@ -25,10 +24,31 @@ interface LeaveReq {
   is_short_notice?: boolean;
 }
 
-interface Employee { id: string; name: string; }
+interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; }
 interface Schedule { employee_id: string; date: string; }
 interface Credit { employee_id: string; amount: number; }
 interface Profile { user_id: string; display_name: string; }
+interface Category { id: string; name: string; }
+interface Unit { id: string; name: string; }
+
+// ─── Color theme by category (same logic as Schedules.tsx) ───────────────────
+const getCategoryTheme = (catName: string) => {
+  if (!catName) return { bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary', hexBg: '#f3f4f6', hexText: '#000000' };
+  const themes = [
+    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700', hexBg: '#0e6931', hexText: '#ffffff' },
+    { bg: 'bg-purple-500/10',  border: 'border-purple-500/30',  text: 'text-purple-700',  hexBg: '#c3addb', hexText: '#000000' },
+    { bg: 'bg-teal-500/10',   border: 'border-teal-500/30',   text: 'text-teal-700',   hexBg: '#95cdca', hexText: '#000000' },
+    { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-700',  hexBg: '#b5d0ac', hexText: '#000000' },
+    { bg: 'bg-rose-500/10',   border: 'border-rose-500/30',   text: 'text-rose-700',   hexBg: '#e6a5b6', hexText: '#000000' },
+    { bg: 'bg-amber-500/10',  border: 'border-amber-500/30',  text: 'text-amber-700',  hexBg: '#f2d48f', hexText: '#000000' },
+    { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-700',   hexBg: '#9cbadd', hexText: '#000000' },
+  ];
+  let hash = 0;
+  for (let i = 0; i < catName.length; i++) {
+    hash = catName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return themes[Math.abs(hash) % themes.length];
+};
 
 export default function LeaveRequests() {
   const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
@@ -37,23 +57,29 @@ export default function LeaveRequests() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
-  const [decidingId, setDecidingId] = useState<string | null>(null); // F3: anti-double-click
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
 
-  const getBalance = (employeeId: string) => {
-    return credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
-  };
+  const getBalance = (employeeId: string) =>
+    credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
 
   const load = async () => {
     const teamId = roleInfo?.team_id;
     if (!teamId) return;
 
-    let employeesQuery = supabase.from('employees').select('id, name').eq('active', true).eq('team_id', teamId).order('name');
-    
+    let employeesQuery = supabase
+      .from('employees')
+      .select('id, name, category_id, unit_id')
+      .eq('active', true)
+      .eq('team_id', teamId)
+      .order('name');
+
     if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
       employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
     }
@@ -61,26 +87,29 @@ export default function LeaveRequests() {
       employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
     }
 
-    const [r, e, s, c, p] = await Promise.all([
+    const [r, e, s, c, p, cats, us] = await Promise.all([
       supabase.from('leave_requests').select('*').eq('team_id', teamId).order('created_at', { ascending: false }).limit(300),
       employeesQuery,
       supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).limit(500),
       supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId),
       supabase.from('profiles').select('user_id, display_name'),
+      supabase.from('categories').select('id, name').eq('team_id', teamId),
+      supabase.from('units').select('id, name').eq('team_id', teamId),
     ]);
+
     setRequests(r.data ?? []);
     setEmployees(e.data ?? []);
     setSchedules(s.data ?? []);
     setCredits(c.data ?? []);
     setProfiles(p.data ?? []);
+    setCategories(cats.data ?? []);
+    setUnits(us.data ?? []);
   };
 
   useEffect(() => { load(); }, [roleInfo?.team_id]);
   useDataSubscription(['leave_requests', 'employees', 'schedules', 'leave_credits'], load);
 
   const handleRequest = async (empId: string, leaveDates: string[], obs: string, isShortNotice: boolean) => {
-
-    // 1. Check schedule conflicts
     const conflictDates = leaveDates.filter(d => schedules.some(s => s.employee_id === empId && s.date === d));
     if (conflictDates.length > 0) {
       const formatted = conflictDates.map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ');
@@ -88,7 +117,6 @@ export default function LeaveRequests() {
       return;
     }
 
-    // 2. Check duplicate leave dates
     const existingLeaves = requests.filter(r => r.employee_id === empId && (r.status === 'pending' || r.status === 'approved'));
     const allExistingDates = existingLeaves.flatMap(r => r.leave_dates ?? []);
     const duplicateDates = leaveDates.filter(d => allExistingDates.includes(d));
@@ -98,7 +126,6 @@ export default function LeaveRequests() {
       return;
     }
 
-    // 3. Check balance
     const balance = getBalance(empId);
     if (balance < leaveDates.length) {
       toast.error(`Saldo insuficiente. Saldo atual: ${balance} crédito(s), solicitado: ${leaveDates.length} dia(s).`);
@@ -126,7 +153,7 @@ export default function LeaveRequests() {
   };
 
   const handleDecision = async (id: string, status: 'approved' | 'rejected') => {
-    if (decidingId) return; // F3: prevent double-click
+    if (decidingId) return;
     if (status === 'approved') {
       const req = requests.find(r => r.id === id);
       if (req) {
@@ -138,7 +165,7 @@ export default function LeaveRequests() {
       }
     }
 
-    setDecidingId(id); // F3: lock buttons
+    setDecidingId(id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
@@ -150,24 +177,17 @@ export default function LeaveRequests() {
       toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
       load();
     } finally {
-      setDecidingId(null); // F3: unlock
+      setDecidingId(null);
     }
   };
 
-  const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? null;
-  const getUserName = (id: string | null) => {
-    if (!id) return null;
-    return profiles.find(p => p.user_id === id)?.display_name || null;
-  };
+  const getEmployee = (id: string) => employees.find(e => e.id === id) ?? null;
+  const getCategoryName = (catId: string | null) => catId ? (categories.find(c => c.id === catId)?.name ?? '') : '';
+  const getUnitName = (unitId: string | null) => unitId ? (units.find(u => u.id === unitId)?.name ?? '') : '';
+  const getUserName = (id: string | null) => id ? (profiles.find(p => p.user_id === id)?.display_name ?? null) : null;
 
   // Filter out leave requests from deleted (inactive) employees
-  const activeRequests = requests.filter(r => getEmpName(r.employee_id) !== null);
-
-  const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: React.ElementType }> = {
-    pending: { label: 'Pendente', variant: 'secondary', icon: Clock },
-    approved: { label: 'Aprovado', variant: 'default', icon: CheckCircle2 },
-    rejected: { label: 'Negado', variant: 'destructive', icon: XCircle },
-  };
+  const activeRequests = requests.filter(r => getEmployee(r.employee_id) !== null);
 
   const filtered = activeRequests.filter(r => activeTab === 'all' ? true : r.status === activeTab);
 
@@ -197,12 +217,12 @@ export default function LeaveRequests() {
         )}
       </div>
 
-      {/* F1: Clickable Summary Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { key: 'pending', count: counts.pending, label: 'Pendentes', color: 'text-warning-foreground', bg: 'bg-warning/10', border: 'border-warning/30' },
-          { key: 'approved', count: counts.approved, label: 'Aprovados', color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-          { key: 'rejected', count: counts.rejected, label: 'Negados', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20' },
+          { key: 'pending',  count: counts.pending,  label: 'Pendentes', color: 'text-amber-600',    bg: 'bg-amber-500/10',      border: 'border-amber-500/30' },
+          { key: 'approved', count: counts.approved, label: 'Aprovados', color: 'text-emerald-600',  bg: 'bg-emerald-500/10',    border: 'border-emerald-500/20' },
+          { key: 'rejected', count: counts.rejected, label: 'Negados',   color: 'text-destructive',  bg: 'bg-destructive/10',    border: 'border-destructive/20' },
         ].map(({ key, count, label, color, bg, border }) => (
           <button
             key={key}
@@ -232,108 +252,144 @@ export default function LeaveRequests() {
               <p className="text-muted-foreground">Nenhum pedido nesta categoria</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filtered.map(r => {
-                const cfg = statusConfig[r.status] ?? statusConfig.pending;
-                const StatusIcon = cfg.icon;
-                const empBalance = getBalance(r.employee_id);
+            <div className="space-y-3">
+              {filtered.map(req => {
+                const emp = getEmployee(req.employee_id);
+                const empName = emp?.name ?? '—';
+                const cat = getCategoryName(emp?.category_id ?? null);
+                const unit = getUnitName(emp?.unit_id ?? null);
+                const theme = getCategoryTheme(cat);
+                const initials = empName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                const empBalance = getBalance(req.employee_id);
+
+                const statusStyle = req.status === 'approved'
+                  ? { label: 'Aprovado', bg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700' }
+                  : req.status === 'rejected'
+                  ? { label: 'Negado', bg: 'bg-destructive/10 border-destructive/30 text-destructive' }
+                  : { label: 'Pendente', bg: 'bg-amber-500/10 border-amber-500/30 text-amber-700' };
+
                 return (
-                  <div key={r.id} className="page-card p-3 sm:p-4 hover:border-primary/30 transition-colors flex flex-col">
-                    {/* Top Row: Title & Status Badge */}
-                    <div className="flex items-start justify-between gap-2 mb-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', 
-                          r.status === 'pending' ? 'bg-warning' : 
-                          r.status === 'approved' ? 'bg-accent' : 'bg-destructive'
-                        )} />
-                        <h4 className="font-semibold text-foreground text-sm leading-none">{getEmpName(r.employee_id) ?? '—'}</h4>
+                  <div key={req.id} className="rounded-xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+
+                    {/* ── Colored Header Strip ─────────────────────────── */}
+                    <div
+                      className="flex items-center gap-3 px-4 py-3"
+                      style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
+                    >
+                      {/* Avatar */}
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border-2 border-white/30"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: theme.hexText }}
+                      >
+                        {initials}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={cn("text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm tracking-wider",
-                          r.status === 'pending' ? 'bg-warning/15 text-warning-foreground' : 
-                          r.status === 'approved' ? 'bg-accent/15 text-accent' : 'bg-destructive/15 text-destructive'
+
+                      {/* Name + badges */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm leading-tight truncate">{empName}</p>
+                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                          {cat && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                              <Tag size={9} /> {cat}
+                            </span>
+                          )}
+                          {unit && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                              <MapPin size={9} /> {unit}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status badge */}
+                      <span className={cn('text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border shrink-0 bg-white/80', statusStyle.bg)}>
+                        {statusStyle.label}
+                      </span>
+                    </div>
+
+                    {/* ── Card Body ────────────────────────────────────── */}
+                    <div className="bg-card px-4 py-3 space-y-2.5">
+
+                      {/* Days + date chips */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5">
+                        <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                          {req.days_requested} {req.days_requested > 1 ? 'dias' : 'dia'}:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {req.leave_dates?.map(d => (
+                            <span key={d} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary/60 text-secondary-foreground border border-border">
+                              {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Short-notice / observations */}
+                      {(req.is_short_notice || req.observations) && (
+                        <div className={cn('p-2.5 rounded-md text-xs',
+                          req.is_short_notice ? 'bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-700' : 'bg-muted/40 border border-border/50'
                         )}>
-                          {cfg.label}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* DATES ROW: Clearly shows how many days and exact dates */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 mb-3">
-                      <div className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                        {r.days_requested} {r.days_requested > 1 ? 'dias' : 'dia'}:
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {r.leave_dates?.map(d => (
-                          <span key={d} className="px-2 py-0.5 rounded-[4px] text-[11px] font-semibold bg-secondary/60 text-secondary-foreground border border-border shadow-sm">
-                            {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Exceção e Observação (Only if exists) */}
-                    {(r.is_short_notice || r.observations) && (
-                      <div className={cn("mb-3 p-2.5 rounded-md text-xs", 
-                        r.is_short_notice ? "bg-amber-50 border border-amber-200" : "bg-muted/40 border border-border/50"
-                      )}>
-                        {r.is_short_notice && (
-                          <div className="flex items-center gap-1.5 text-amber-700 font-bold mb-1">
-                            <AlertTriangle size={13} className="shrink-0" />
-                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
-                          </div>
-                        )}
-                        {r.observations && (
-                          <p className={cn("italic", r.is_short_notice ? "text-amber-900" : "text-muted-foreground")}>
-                            "{r.observations}"
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Footer: Audit trail + F2: Balance badge + F3: Decision buttons */}
-                    <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border gap-2">
-                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                        <span>
-                          Solicitado por <b className="text-foreground">{getUserName(r.requested_by) ?? 'Desconhecido'}</b> em {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                        </span>
-                        {r.decided_by && (
-                          <span>
-                            {r.status === 'approved' ? 'Aprovado' : 'Negado'} por <b className="text-foreground">{getUserName(r.decided_by) ?? 'Desconhecido'}</b> em {r.decided_at && new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* F2: Balance badge + F3: loading buttons */}
-                      {canApprove && r.status === 'pending' && (
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <div className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border',
-                            empBalance >= r.days_requested
-                              ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-                              : 'bg-destructive/10 text-destructive border-destructive/20'
-                          )}>
-                            <span className="opacity-60">Saldo:</span> {empBalance}
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-9 px-4 text-xs font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
-                            disabled={!!decidingId}
-                            onClick={() => handleDecision(r.id, 'rejected')}
-                          >
-                            {decidingId === r.id ? '...' : 'Negar'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="h-9 px-4 text-xs font-bold bg-accent hover:bg-accent/90 text-white shadow-sm transition-colors"
-                            disabled={!!decidingId || empBalance < r.days_requested}
-                            onClick={() => handleDecision(r.id, 'approved')}
-                          >
-                            {decidingId === r.id ? '...' : 'Aprovar'}
-                          </Button>
+                          {req.is_short_notice && (
+                            <div className="flex items-center gap-1.5 text-amber-700 font-bold mb-1 dark:text-amber-400">
+                              <AlertTriangle size={13} className="shrink-0" />
+                              <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
+                            </div>
+                          )}
+                          {req.observations && (
+                            <p className={cn('italic', req.is_short_notice ? 'text-amber-900 dark:text-amber-300' : 'text-muted-foreground')}>
+                              "{req.observations}"
+                            </p>
+                          )}
                         </div>
                       )}
+
+                      {/* Footer: audit + balance + actions */}
+                      <div className="flex items-center justify-between pt-2 border-t border-border gap-2 flex-wrap">
+                        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                          <span>
+                            Solicitado por <b className="text-foreground">{getUserName(req.requested_by) ?? 'Desconhecido'}</b>{' '}
+                            em {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                          {req.decided_by && (
+                            <span>
+                              {req.status === 'approved' ? 'Aprovado' : 'Negado'} por{' '}
+                              <b className="text-foreground">{getUserName(req.decided_by) ?? 'Desconhecido'}</b>{' '}
+                              em {req.decided_at && new Date(req.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Balance + decision buttons */}
+                        {canApprove && req.status === 'pending' && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className={cn(
+                              'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border',
+                              empBalance >= req.days_requested
+                                ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                                : 'bg-destructive/10 text-destructive border-destructive/20'
+                            )}>
+                              <span className="opacity-60">Saldo:</span> {empBalance}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-3 text-xs font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                              disabled={!!decidingId}
+                              onClick={() => handleDecision(req.id, 'rejected')}
+                            >
+                              {decidingId === req.id ? '...' : 'Negar'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+                              disabled={!!decidingId || empBalance < req.days_requested}
+                              onClick={() => handleDecision(req.id, 'approved')}
+                            >
+                              {decidingId === req.id ? '...' : 'Aprovar'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -343,7 +399,7 @@ export default function LeaveRequests() {
         </TabsContent>
       </Tabs>
 
-      {/* Leave Request Dialog with Calendar */}
+      {/* Leave Request Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
