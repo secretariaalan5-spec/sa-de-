@@ -116,15 +116,15 @@ export default function Schedules() {
   const getCategoryName = (catId: string | null) => catId ? (categoryMap.get(catId) ?? '') : '';
 
   const getCategoryTheme = (catName: string) => {
-    if (!catName) return { bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary' };
+    if (!catName) return { bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary', hexBg: '#f3f4f6', hexText: '#000000' };
     const themes = [
-      { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-700 dark:text-blue-400' },
-      { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-400' },
-      { bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-700 dark:text-violet-400' },
-      { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-700 dark:text-rose-400' },
-      { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-700 dark:text-amber-400' },
-      { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-700 dark:text-cyan-400' },
-      { bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/30', text: 'text-fuchsia-700 dark:text-fuchsia-400' },
+      { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-400', hexBg: '#0e6931', hexText: '#ffffff' }, // Verde escuro
+      { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-700 dark:text-purple-400', hexBg: '#c3addb', hexText: '#000000' }, // Roxo claro
+      { bg: 'bg-teal-500/10', border: 'border-teal-500/30', text: 'text-teal-700 dark:text-teal-400', hexBg: '#95cdca', hexText: '#000000' }, // Teal
+      { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-700 dark:text-green-400', hexBg: '#b5d0ac', hexText: '#000000' }, // Verde claro
+      { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-700 dark:text-rose-400', hexBg: '#e6a5b6', hexText: '#000000' }, // Rosa
+      { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-700 dark:text-amber-400', hexBg: '#f2d48f', hexText: '#000000' }, // Amarelo
+      { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-700 dark:text-blue-400', hexBg: '#9cbadd', hexText: '#000000' }, // Azul claro
     ];
     let hash = 0;
     for (let i = 0; i < catName.length; i++) {
@@ -441,7 +441,7 @@ export default function Schedules() {
             </button>
           </div>
           {canCreate && (
-            <Button onClick={() => setOpen(true)} className="gap-2">
+            <Button onClick={() => { setEmpId(''); setSelectedDates([]); setOpen(true); }} className="gap-2">
               <Plus size={16} /> Nova Escala
             </Button>
           )}
@@ -621,12 +621,12 @@ export default function Schedules() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[460px] p-0" align="start">
+                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[540px] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Digite o nome do profissional..." />
-                    <CommandList>
+                    <CommandList className="max-h-[350px]">
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
-                      <CommandGroup>
+                      <CommandGroup className="p-2 [&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-1 sm:[&_[cmdk-group-items]]:grid-cols-2 [&_[cmdk-group-items]]:gap-2">
                         {employees.filter(e => e.active !== false).map((e) => {
                           const unit = getUnitName(e.unit_id);
                           const cat = getCategoryName(e.category_id);
@@ -640,28 +640,31 @@ export default function Schedules() {
                                 setSelectedDates([]);
                                 setOpenCombobox(false);
                               }}
+                              className="relative flex flex-col items-start justify-between p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50 min-h-[90px]"
+                              style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
                             >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-primary shrink-0 transition-opacity",
-                                  empId === e.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col py-1 overflow-hidden">
-                                <span className="font-medium truncate">{e.name}</span>
-                                <div className="flex gap-2 mt-1 flex-wrap">
-                                  {cat && (
-                                    <span className={cn("inline-flex items-center gap-1 text-[10px] px-1.5 py-0 rounded border font-medium", theme.bg, theme.border, theme.text)}>
-                                      <Tag size={10} /> {cat}
-                                    </span>
-                                  )}
-                                  {unit && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] bg-muted text-muted-foreground px-1.5 py-0 rounded border border-border font-medium">
-                                      <MapPin size={10} /> {unit}
-                                    </span>
-                                  )}
-                                </div>
+                              <div className="font-bold text-sm leading-tight text-left pr-6">
+                                {e.name}
                               </div>
+                              <div className="flex gap-1.5 mt-3 flex-wrap">
+                                {cat && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-white/70 text-black px-1.5 py-0.5 rounded border border-black/10 font-bold whitespace-nowrap">
+                                    <Tag size={10} /> {cat}
+                                  </span>
+                                )}
+                                {unit && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-white/70 text-black px-1.5 py-0.5 rounded border border-black/10 font-bold whitespace-nowrap">
+                                    <MapPin size={10} /> {unit}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Check icon top-right if selected */}
+                              {empId === e.id && (
+                                <div className="absolute top-2 right-2 bg-white/20 rounded-full p-0.5 backdrop-blur-sm">
+                                  <Check className="h-4 w-4" style={{ color: theme.hexText }} />
+                                </div>
+                              )}
                             </CommandItem>
                           );
                         })}
