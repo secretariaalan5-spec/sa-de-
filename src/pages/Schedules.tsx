@@ -222,9 +222,16 @@ export default function Schedules() {
     ? 'Escalas da sua categoria'
     : 'Todas as escalas';
 
+  // Set of active employee IDs for filtering displayed schedules
+  const activeEmployeeIds = useMemo(
+    () => new Set(employees.filter(e => e.active !== false).map(e => e.id)),
+    [employees]
+  );
+
   const monthSchedules = schedules.filter(s => {
     const d = new Date(s.date + 'T12:00:00');
-    return d.getMonth() === month && d.getFullYear() === year;
+    // Only show schedules from active employees (deleted employees are hidden)
+    return d.getMonth() === month && d.getFullYear() === year && activeEmployeeIds.has(s.employee_id);
   }).sort((a, b) => a.date.localeCompare(b.date));
 
   // Check if a day has a leave for the selected employee (dialog mini calendar)
@@ -259,7 +266,8 @@ export default function Schedules() {
       ))}
       {calendarDays.map((day, i) => {
         if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[60px] sm:min-h-[80px]" />;
-        const daySchedules = schedulesForDay(day);
+        // Only show schedules from active employees in the calendar
+        const daySchedules = schedulesForDay(day).filter(s => activeEmployeeIds.has(s.employee_id));
         const dateStr = getDateStr(day);
         const holidayName = getHolidayName(dateStr);
         const wkend = isWeekend(dateStr);
