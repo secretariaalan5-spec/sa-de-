@@ -4,11 +4,12 @@ import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star, User, MapPin, Tag, Wallet } from 'lucide-react';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star, User, MapPin, Tag, Wallet, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Schedule {
@@ -38,6 +39,7 @@ export default function Schedules() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
+  const [openCombobox, setOpenCombobox] = useState(false);
   const [empId, setEmpId] = useState('');
   const [type, setType] = useState('extra');
   const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
@@ -112,6 +114,24 @@ export default function Schedules() {
 
   const getUnitName = (unitId: string | null) => unitId ? (unitMap.get(unitId) ?? '') : '';
   const getCategoryName = (catId: string | null) => catId ? (categoryMap.get(catId) ?? '') : '';
+
+  const getCategoryColor = (catName: string) => {
+    if (!catName) return 'bg-primary/10 text-primary border-primary/20';
+    const colors = [
+      'bg-blue-500/10 text-blue-600 border-blue-500/20',
+      'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+      'bg-violet-500/10 text-violet-600 border-violet-500/20',
+      'bg-rose-500/10 text-rose-600 border-rose-500/20',
+      'bg-amber-500/10 text-amber-600 border-amber-500/20',
+      'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+      'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
+    ];
+    let hash = 0;
+    for (let i = 0; i < catName.length; i++) {
+      hash = catName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   const getEmpBalance = (employeeId: string) =>
     credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
@@ -583,30 +603,73 @@ export default function Schedules() {
             <DialogDescription>Selecione o funcionário, turno e clique nos dias.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 flex flex-col">
               <Label>Profissional</Label>
-              <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecione o profissional..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.filter(e => e.active !== false).map(e => {
-                    const unit = getUnitName(e.unit_id);
-                    const cat = getCategoryName(e.category_id);
-                    return (
-                      <SelectItem key={e.id} value={e.id}>
-                        <div className="flex flex-col py-0.5">
-                          <span className="font-medium">{e.name}</span>
-                          <span className="text-muted-foreground text-[11px] flex gap-2">
-                            {cat && <span>📁 {cat}</span>}
-                            {unit && <span>📍 {unit}</span>}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCombobox}
+                    className="w-full justify-between h-11 font-normal bg-card hover:bg-card px-3"
+                  >
+                    {empId ? (
+                      <span className="truncate">{employees.find((e) => e.id === empId)?.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Pesquisar ou selecionar profissional...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[460px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Digite o nome do profissional..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {employees.filter(e => e.active !== false).map((e) => {
+                          const unit = getUnitName(e.unit_id);
+                          const cat = getCategoryName(e.category_id);
+                          const catColor = getCategoryColor(cat);
+                          return (
+                            <CommandItem
+                              key={e.id}
+                              value={e.name}
+                              onSelect={() => {
+                                setEmpId(e.id);
+                                setSelectedDates([]);
+                                setOpenCombobox(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-primary shrink-0 transition-opacity",
+                                  empId === e.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col py-1 overflow-hidden">
+                                <span className="font-medium truncate">{e.name}</span>
+                                <div className="flex gap-2 mt-1 flex-wrap">
+                                  {cat && (
+                                    <span className={cn("inline-flex items-center gap-1 text-[10px] px-1.5 py-0 rounded border font-medium", catColor)}>
+                                      <Tag size={10} /> {cat}
+                                    </span>
+                                  )}
+                                  {unit && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] bg-muted text-muted-foreground px-1.5 py-0 rounded border border-border font-medium">
+                                      <MapPin size={10} /> {unit}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Employee profile card — shown after selection */}
@@ -617,18 +680,19 @@ export default function Schedules() {
               const schedulesThisMonth = getEmpSchedulesThisMonth(empId);
               const cat = getCategoryName(emp.category_id);
               const unit = getUnitName(emp.unit_id);
+              const catColor = getCategoryColor(cat);
               const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
               return (
                 <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
                   {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0 font-bold text-primary text-sm">
+                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm", catColor)}>
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{emp.name}</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {cat && (
-                        <span className="inline-flex items-center gap-1 text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                        <span className={cn("inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border", catColor)}>
                           <Tag size={10} /> {cat}
                         </span>
                       )}
