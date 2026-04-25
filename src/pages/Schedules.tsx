@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star, User, MapPin, Tag, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Schedule {
@@ -25,6 +24,8 @@ interface Schedule {
 
 interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; active?: boolean; }
 interface Unit { id: string; name: string; }
+interface Category { id: string; name: string; }
+interface Credit { employee_id: string; amount: number; }
 interface Holiday { id: string; date: string; name: string; }
 
 export default function Schedules() {
@@ -32,6 +33,8 @@ export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [credits, setCredits] = useState<Credit[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [approvedLeaveDates, setApprovedLeaveDates] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
@@ -55,6 +58,8 @@ export default function Schedules() {
     const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
     let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id, active').eq('team_id', teamId).order('name');
     const unitsQuery = supabase.from('units').select('id, name').eq('team_id', teamId);
+    const categoriesQuery = supabase.from('categories').select('id, name').eq('team_id', teamId);
+    const creditsQuery = supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId);
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
     const holidaysQuery = supabase.from('holidays').select('id, date, name').eq('team_id', teamId).order('date');
@@ -64,17 +69,21 @@ export default function Schedules() {
       employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
     }
 
-    const [s, e, u, lr, pendingLr, h] = await Promise.all([
-      schedulesQuery, 
-      employeesQuery, 
-      unitsQuery, 
-      lrQuery, 
-      pendingLrQuery, 
+    const [s, e, u, cat, cred, lr, pendingLr, h] = await Promise.all([
+      schedulesQuery,
+      employeesQuery,
+      unitsQuery,
+      categoriesQuery,
+      creditsQuery,
+      lrQuery,
+      pendingLrQuery,
       holidaysQuery
     ]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
     setUnits(u.data ?? []);
+    setCategories(cat.data ?? []);
+    setCredits(cred.data ?? []);
     setHolidays(h.data ?? []);
 
     // Build a map of employee_id -> approved + pending leave dates
@@ -87,7 +96,7 @@ export default function Schedules() {
   };
 
   useEffect(() => { load(); }, [roleInfo?.team_id]);
-  useDataSubscription(['schedules', 'employees', 'leave_requests', 'holidays', 'units'], load);
+  useDataSubscription(['schedules', 'employees', 'leave_requests', 'holidays', 'units', 'categories', 'leave_credits'], load);
 
   const unitMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -95,7 +104,23 @@ export default function Schedules() {
     return map;
   }, [units]);
 
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [categories]);
+
   const getUnitName = (unitId: string | null) => unitId ? (unitMap.get(unitId) ?? '') : '';
+  const getCategoryName = (catId: string | null) => catId ? (categoryMap.get(catId) ?? '') : '';
+
+  const getEmpBalance = (employeeId: string) =>
+    credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
+
+  const getEmpSchedulesThisMonth = (employeeId: string) =>
+    schedules.filter(s => {
+      const d = new Date(s.date + 'T12:00:00');
+      return s.employee_id === employeeId && d.getMonth() === month && d.getFullYear() === year;
+    }).length;
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
@@ -559,22 +584,78 @@ export default function Schedules() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Funcionário</Label>
+              <Label>Profissional</Label>
               <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Selecione o profissional..." />
+                </SelectTrigger>
                 <SelectContent>
-                  {employees.filter(e => (e as any).active !== false).map(e => {
+                  {employees.filter(e => e.active !== false).map(e => {
                     const unit = getUnitName(e.unit_id);
+                    const cat = getCategoryName(e.category_id);
                     return (
                       <SelectItem key={e.id} value={e.id}>
-                        <span>{e.name}</span>
-                        {unit && <span className="text-muted-foreground text-xs ml-2">• {unit}</span>}
+                        <div className="flex flex-col py-0.5">
+                          <span className="font-medium">{e.name}</span>
+                          <span className="text-muted-foreground text-[11px] flex gap-2">
+                            {cat && <span>📁 {cat}</span>}
+                            {unit && <span>📍 {unit}</span>}
+                          </span>
+                        </div>
                       </SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Employee profile card — shown after selection */}
+            {empId && (() => {
+              const emp = employees.find(e => e.id === empId);
+              if (!emp) return null;
+              const balance = getEmpBalance(empId);
+              const schedulesThisMonth = getEmpSchedulesThisMonth(empId);
+              const cat = getCategoryName(emp.category_id);
+              const unit = getUnitName(emp.unit_id);
+              const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+              return (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0 font-bold text-primary text-sm">
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{emp.name}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {cat && (
+                        <span className="inline-flex items-center gap-1 text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                          <Tag size={10} /> {cat}
+                        </span>
+                      )}
+                      {unit && (
+                        <span className="inline-flex items-center gap-1 text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border font-medium">
+                          <MapPin size={10} /> {unit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Stats */}
+                  <div className="flex gap-3 shrink-0 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className={cn('text-base font-bold leading-none', balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                        {balance % 1 === 0 ? balance : balance.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">saldo</span>
+                    </div>
+                    <div className="w-px bg-border" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-base font-bold leading-none text-primary">{schedulesThisMonth}</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">escalas/mês</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Shift Type Selector */}
             <div className="space-y-1">
