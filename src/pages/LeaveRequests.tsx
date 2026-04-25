@@ -39,6 +39,7 @@ export default function LeaveRequests() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
+  const [decidingId, setDecidingId] = useState<string | null>(null); // F3: anti-double-click
 
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
@@ -125,6 +126,7 @@ export default function LeaveRequests() {
   };
 
   const handleDecision = async (id: string, status: 'approved' | 'rejected') => {
+    if (decidingId) return; // F3: prevent double-click
     if (status === 'approved') {
       const req = requests.find(r => r.id === id);
       if (req) {
@@ -136,15 +138,20 @@ export default function LeaveRequests() {
       }
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from('leave_requests')
-      .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() } as any)
-      .eq('id', id);
+    setDecidingId(id); // F3: lock buttons
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() } as any)
+        .eq('id', id);
 
-    if (error) { toast.error(error.message || 'Erro ao processar decisão.'); return; }
-    toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
-    load();
+      if (error) { toast.error(error.message || 'Erro ao processar decisão.'); return; }
+      toast.success(status === 'approved' ? 'Folga aprovada! Créditos deduzidos.' : 'Folga negada.');
+      load();
+    } finally {
+      setDecidingId(null); // F3: unlock
+    }
   };
 
   const getEmpName = (id: string) => employees.find(e => e.id === id)?.name ?? null;
@@ -190,20 +197,25 @@ export default function LeaveRequests() {
         )}
       </div>
 
-      {/* Summary Cards */}
+      {/* F1: Clickable Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-warning-foreground">{counts.pending}</p>
-          <p className="text-xs text-muted-foreground">Pendentes</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-accent">{counts.approved}</p>
-          <p className="text-xs text-muted-foreground">Aprovados</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold text-destructive">{counts.rejected}</p>
-          <p className="text-xs text-muted-foreground">Negados</p>
-        </div>
+        {[
+          { key: 'pending', count: counts.pending, label: 'Pendentes', color: 'text-warning-foreground', bg: 'bg-warning/10', border: 'border-warning/30' },
+          { key: 'approved', count: counts.approved, label: 'Aprovados', color: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+          { key: 'rejected', count: counts.rejected, label: 'Negados', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20' },
+        ].map(({ key, count, label, color, bg, border }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'rounded-xl border p-4 text-center transition-all hover:shadow-sm active:scale-[0.98]',
+              activeTab === key ? `${bg} ${border}` : 'bg-card border-border hover:border-primary/30'
+            )}
+          >
+            <p className={cn('text-2xl font-bold', color)}>{count}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+          </button>
+        ))}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -279,41 +291,46 @@ export default function LeaveRequests() {
                       </div>
                     )}
 
-                    {/* Footer: Balance, Audit, Actions */}
-                    <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border text-[9px] sm:text-[10px] text-muted-foreground">
-                      <div className="flex flex-col gap-0.5">
+                    {/* Footer: Audit trail + F2: Balance badge + F3: Decision buttons */}
+                    <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-border gap-2">
+                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                         <span>
-                          Solicitado por {getUserName(r.requested_by) ?? 'Desconhecido'} em {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          Solicitado por <b className="text-foreground">{getUserName(r.requested_by) ?? 'Desconhecido'}</b> em {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                         </span>
                         {r.decided_by && (
                           <span>
-                            {r.status === 'approved' ? 'Aprovado' : 'Negado'} por {getUserName(r.decided_by) ?? 'Desconhecido'} em {r.decided_at && new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                        )}
-                        {r.status === 'pending' && (
-                          <span className="text-foreground/70">
-                            Saldo atual do profissional: <b className={cn("text-[11px]", empBalance >= r.days_requested ? 'text-primary' : 'text-destructive')}>{empBalance}</b>
+                            {r.status === 'approved' ? 'Aprovado' : 'Negado'} por <b className="text-foreground">{getUserName(r.decided_by) ?? 'Desconhecido'}</b> em {r.decided_at && new Date(r.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           </span>
                         )}
                       </div>
 
-                      {/* Actions for Pending */}
+                      {/* F2: Balance badge + F3: loading buttons */}
                       {canApprove && r.status === 'pending' && (
-                        <div className="flex gap-2 shrink-0 ml-2">
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <div className={cn(
+                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border',
+                            empBalance >= r.days_requested
+                              ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                              : 'bg-destructive/10 text-destructive border-destructive/20'
+                          )}>
+                            <span className="opacity-60">Saldo:</span> {empBalance}
+                          </div>
                           <Button
-                            size="sm" 
+                            size="sm"
                             variant="outline"
-                            className="h-7 px-3 text-[11px] font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                            className="h-9 px-4 text-xs font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                            disabled={!!decidingId}
                             onClick={() => handleDecision(r.id, 'rejected')}
                           >
-                            Negar
+                            {decidingId === r.id ? '...' : 'Negar'}
                           </Button>
                           <Button
-                            size="sm" 
-                            className="h-7 px-3 text-[11px] font-bold bg-accent hover:bg-accent/90 text-white shadow-sm transition-colors"
+                            size="sm"
+                            className="h-9 px-4 text-xs font-bold bg-accent hover:bg-accent/90 text-white shadow-sm transition-colors"
+                            disabled={!!decidingId || empBalance < r.days_requested}
                             onClick={() => handleDecision(r.id, 'approved')}
                           >
-                            Aprovar
+                            {decidingId === r.id ? '...' : 'Aprovar'}
                           </Button>
                         </div>
                       )}

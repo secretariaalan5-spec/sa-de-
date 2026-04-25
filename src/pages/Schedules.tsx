@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon } from 'lucide-react';
+import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 interface Schedule {
@@ -39,6 +40,7 @@ export default function Schedules() {
   const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [filterEmpId, setFilterEmpId] = useState('all');
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const year = currentDate.getFullYear();
@@ -228,11 +230,26 @@ export default function Schedules() {
     [employees]
   );
 
-  const monthSchedules = schedules.filter(s => {
+  const monthSchedules = useMemo(() => schedules.filter(s => {
     const d = new Date(s.date + 'T12:00:00');
-    // Only show schedules from active employees (deleted employees are hidden)
     return d.getMonth() === month && d.getFullYear() === year && activeEmployeeIds.has(s.employee_id);
-  }).sort((a, b) => a.date.localeCompare(b.date));
+  }).sort((a, b) => a.date.localeCompare(b.date)), [schedules, month, year, activeEmployeeIds]);
+
+  // E1: KPI metrics for the current month
+  const kpiMetrics = useMemo(() => {
+    const specialDays = monthSchedules.filter(s => {
+      const d = new Date(s.date + 'T12:00:00');
+      return d.getDay() === 0 || d.getDay() === 6 || holidayDatesSet.has(s.date);
+    }).length;
+    const totalCredits = monthSchedules.reduce((sum, s) => sum + (Number(s.credit_amount) || 0), 0);
+    return { total: monthSchedules.length, specialDays, totalCredits };
+  }, [monthSchedules, holidayDatesSet]);
+
+  // E4: Filtered list schedules by employee
+  const filteredListSchedules = useMemo(() =>
+    filterEmpId === 'all' ? monthSchedules : monthSchedules.filter(s => s.employee_id === filterEmpId),
+    [monthSchedules, filterEmpId]
+  );
 
   // Check if a day has a leave for the selected employee (dialog mini calendar)
   const isDayLeaveForSelected = (day: number) => {
@@ -355,10 +372,19 @@ export default function Schedules() {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* E3: Header with inline month navigation */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Escalas</h1>
-          <p className="text-muted-foreground text-sm">{roleDescription}</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold">Escalas</h1>
+            <p className="text-muted-foreground text-sm">{roleDescription}</p>
+          </div>
+          <div className="flex items-center gap-1 bg-muted/60 rounded-xl border border-border px-2 py-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}><ChevronLeft size={15} /></Button>
+            <span className="text-sm font-semibold capitalize px-1 min-w-[140px] text-center">{monthLabel}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}><ChevronRight size={15} /></Button>
+            <Button variant="ghost" size="sm" onClick={goToday} className="text-xs h-7 px-2 ml-1">Hoje</Button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex bg-muted rounded-lg p-0.5">
@@ -377,14 +403,35 @@ export default function Schedules() {
         </div>
       </div>
 
-      {/* Month navigation */}
-      <div className="flex items-center justify-between bg-card rounded-xl border border-border px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft size={18} /></Button>
-        <div className="flex items-center gap-3">
-          <h2 className="font-semibold capitalize">{monthLabel}</h2>
-          <Button variant="outline" size="sm" onClick={goToday} className="text-xs h-7">Hoje</Button>
+      {/* E1: KPI strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card rounded-xl border border-border p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <CalendarDays size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-xl font-bold leading-none">{kpiMetrics.total}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Escala{kpiMetrics.total !== 1 ? 's' : ''} no mês</p>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight size={18} /></Button>
+        <div className="bg-card rounded-xl border border-border p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+            <Star size={18} className="text-amber-500" />
+          </div>
+          <div>
+            <p className="text-xl font-bold leading-none">{kpiMetrics.specialDays}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Fds / Feriado</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <TrendingUp size={18} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xl font-bold leading-none text-emerald-600">+{formatCredit(kpiMetrics.totalCredits)}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Créditos gerados</p>
+          </div>
+        </div>
       </div>
 
       {viewMode === 'calendar' ? (
@@ -399,9 +446,29 @@ export default function Schedules() {
           </div>
         ) : (
           <>
+            {/* E4: Employee filter for list mode */}
+            <div className="flex items-center gap-3 bg-card rounded-xl border border-border p-3">
+              <Select value={filterEmpId} onValueChange={setFilterEmpId}>
+                <SelectTrigger className="w-[220px] h-9">
+                  <SelectValue placeholder="Filtrar por funcionário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os funcionários</SelectItem>
+                  {employees.filter(e => e.active !== false && monthSchedules.some(s => s.employee_id === e.id)).map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {filterEmpId !== 'all' && (
+                <span className="text-sm text-muted-foreground">
+                  {filteredListSchedules.length} escala{filteredListSchedules.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
             {/* Mobile List View (Cards) */}
-            <div className="space-y-3 sm:hidden mt-4">
-              {monthSchedules.map(s => (
+            <div className="space-y-3 sm:hidden">
+              {filteredListSchedules.map(s => (
                 <div key={s.id} className="page-card p-3 flex flex-col gap-2">
                   <div className="flex justify-between items-start">
                     <div>
@@ -425,9 +492,60 @@ export default function Schedules() {
                 </div>
               ))}
             </div>
-            {/* Desktop List View (Table) */}
-            <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden mt-2">
-              {memoizedList}
+            {/* Desktop List View (Table) — filtered */}
+            <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
+                    <tr>
+                      <th className="px-5 py-4 font-semibold">Funcionário</th>
+                      <th className="px-5 py-4 font-semibold">Data</th>
+                      <th className="px-5 py-4 font-semibold">Turno</th>
+                      <th className="px-5 py-4 font-semibold">Créditos</th>
+                      {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredListSchedules.map(s => {
+                      const amt = Number(s.credit_amount) || 0;
+                      const hName = getHolidayName(s.date);
+                      return (
+                        <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
+                          <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
+                          <td className="px-5 py-3.5 text-muted-foreground">
+                            <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                            {hName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {hName}</span>}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <Badge variant="secondary" className={cn(
+                              'shadow-none text-xs',
+                              s.shift_type === 'half'
+                                ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
+                                : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
+                            )}>
+                              {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
+                            </Badge>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">
+                              +{formatCredit(amt)}
+                            </Badge>
+                          </td>
+                          {canCreate && (
+                            <td className="px-5 py-3.5 text-right">
+                              <div className="flex justify-end opacity-50 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
+                                  <Trash2 size={14} />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )
