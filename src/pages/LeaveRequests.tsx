@@ -263,133 +263,126 @@ export default function LeaveRequests() {
                 const empBalance = getBalance(req.employee_id);
 
                 const statusStyle = req.status === 'approved'
-                  ? { label: 'Aprovado', bg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700' }
+                  ? { label: 'Aprovado', bg: 'bg-white/90 text-emerald-700' }
                   : req.status === 'rejected'
-                  ? { label: 'Negado', bg: 'bg-destructive/10 border-destructive/30 text-destructive' }
-                  : { label: 'Pendente', bg: 'bg-amber-500/10 border-amber-500/30 text-amber-700' };
+                  ? { label: 'Negado', bg: 'bg-white/90 text-destructive' }
+                  : { label: 'Pendente', bg: 'bg-white/90 text-amber-700' };
 
                 return (
-                  <div key={req.id} className="rounded-xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-
-                    {/* ── Colored Header Strip ─────────────────────────── */}
-                    <div
-                      className="flex items-center gap-3 px-4 py-3"
-                      style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
-                    >
-                      {/* Avatar */}
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border-2 border-white/30"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: theme.hexText }}
-                      >
-                        {initials}
-                      </div>
-
-                      {/* Name + badges */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm leading-tight truncate">{empName}</p>
-                        <div className="flex gap-1.5 mt-1 flex-wrap">
-                          {cat && (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                              <Tag size={9} /> {cat}
-                            </span>
-                          )}
-                          {unit && (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                              <MapPin size={9} /> {unit}
-                            </span>
-                          )}
+                  <div 
+                    key={req.id} 
+                    className="rounded-xl border border-black/10 overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3"
+                    style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
+                  >
+                    {/* ── Top Row ─────────────────────────── */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Avatar */}
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border-2 border-white/30"
+                          style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: theme.hexText }}
+                        >
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[15px] leading-tight truncate">{empName}</p>
+                          <div className="flex gap-1.5 mt-1 flex-wrap">
+                            {cat && (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                                <Tag size={9} /> {cat}
+                              </span>
+                            )}
+                            {unit && (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
+                                <MapPin size={9} /> {unit}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-
-                      {/* Status badge */}
-                      <span className={cn('text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border shrink-0 bg-white/80', statusStyle.bg)}>
+                      <span className={cn('text-[10px] uppercase font-bold px-2.5 py-1 rounded-full shrink-0 shadow-sm', statusStyle.bg)}>
                         {statusStyle.label}
                       </span>
                     </div>
 
-                    {/* ── Card Body ────────────────────────────────────── */}
-                    <div className="bg-card px-4 py-3 space-y-2.5">
-
-                      {/* Days + date chips */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5">
-                        <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                          {req.days_requested} {req.days_requested > 1 ? 'dias' : 'dia'}:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {req.leave_dates?.map(d => (
-                            <span key={d} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-secondary/60 text-secondary-foreground border border-border">
-                              {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Short-notice / observations */}
-                      {(req.is_short_notice || req.observations) && (
-                        <div className={cn('p-2.5 rounded-md text-xs',
-                          req.is_short_notice ? 'bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-700' : 'bg-muted/40 border border-border/50'
-                        )}>
-                          {req.is_short_notice && (
-                            <div className="flex items-center gap-1.5 text-amber-700 font-bold mb-1 dark:text-amber-400">
-                              <AlertTriangle size={13} className="shrink-0" />
-                              <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
-                            </div>
-                          )}
-                          {req.observations && (
-                            <p className={cn('italic', req.is_short_notice ? 'text-amber-900 dark:text-amber-300' : 'text-muted-foreground')}>
-                              "{req.observations}"
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Footer: audit + balance + actions */}
-                      <div className="flex items-center justify-between pt-2 border-t border-border gap-2 flex-wrap">
-                        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                          <span>
-                            Solicitado por <b className="text-foreground">{getUserName(req.requested_by) ?? 'Desconhecido'}</b>{' '}
-                            em {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                    {/* ── Days + date chips ────────────────────────────────────── */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 mt-1">
+                      <span className="text-[13px] font-bold opacity-80 whitespace-nowrap">
+                        {req.days_requested} {req.days_requested > 1 ? 'dias solicitados' : 'dia solicitado'}:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {req.leave_dates?.map(d => (
+                          <span key={d} className="px-2 py-0.5 rounded text-[11px] font-bold bg-black/15 border border-black/5" style={{ color: theme.hexText }}>
+                            {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           </span>
-                          {req.decided_by && (
-                            <span>
-                              {req.status === 'approved' ? 'Aprovado' : 'Negado'} por{' '}
-                              <b className="text-foreground">{getUserName(req.decided_by) ?? 'Desconhecido'}</b>{' '}
-                              em {req.decided_at && new Date(req.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                            </span>
-                          )}
-                        </div>
+                        ))}
+                      </div>
+                    </div>
 
-                        {/* Balance + decision buttons */}
-                        {canApprove && req.status === 'pending' && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className={cn(
-                              'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border',
-                              empBalance >= req.days_requested
-                                ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-                                : 'bg-destructive/10 text-destructive border-destructive/20'
-                            )}>
-                              <span className="opacity-60">Saldo:</span> {empBalance}
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-3 text-xs font-bold border-destructive/40 text-destructive hover:bg-destructive hover:text-white transition-colors"
-                              disabled={!!decidingId}
-                              onClick={() => handleDecision(req.id, 'rejected')}
-                            >
-                              {decidingId === req.id ? '...' : 'Negar'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="h-8 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
-                              disabled={!!decidingId || empBalance < req.days_requested}
-                              onClick={() => handleDecision(req.id, 'approved')}
-                            >
-                              {decidingId === req.id ? '...' : 'Aprovar'}
-                            </Button>
+                    {/* ── Short-notice / observations ────────────────────────────────────── */}
+                    {(req.is_short_notice || req.observations) && (
+                      <div className="p-2.5 rounded-md bg-black/10 border border-black/5">
+                        {req.is_short_notice && (
+                          <div className="flex items-center gap-1.5 font-bold mb-1 opacity-90">
+                            <AlertTriangle size={13} className="shrink-0" />
+                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
                           </div>
                         )}
+                        {req.observations && (
+                          <p className="italic text-xs opacity-90 font-medium">
+                            "{req.observations}"
+                          </p>
+                        )}
                       </div>
+                    )}
+
+                    {/* ── Footer: audit + balance + actions ────────────────────────────────────── */}
+                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-black/10 gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5 text-[11px] opacity-80 font-medium">
+                        <span>
+                          Solicitado por <b>{getUserName(req.requested_by) ?? 'Desconhecido'}</b>{' '}
+                          em {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        </span>
+                        {req.decided_by && (
+                          <span>
+                            {req.status === 'approved' ? 'Aprovado' : 'Negado'} por{' '}
+                            <b>{getUserName(req.decided_by) ?? 'Desconhecido'}</b>{' '}
+                            em {req.decided_at && new Date(req.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Balance + decision buttons */}
+                      {canApprove && req.status === 'pending' && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className={cn(
+                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border bg-white/20',
+                            empBalance >= req.days_requested
+                              ? 'border-black/10'
+                              : 'bg-red-500/20 border-red-500/30'
+                          )}>
+                            <span className="opacity-70">Saldo:</span> {empBalance}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-3 text-xs font-bold border border-black/20 hover:bg-black/10 transition-colors"
+                            style={{ color: theme.hexText }}
+                            disabled={!!decidingId}
+                            onClick={() => handleDecision(req.id, 'rejected')}
+                          >
+                            {decidingId === req.id ? '...' : 'Negar'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 px-4 text-xs font-bold bg-black text-white hover:bg-black/80 shadow-sm transition-colors"
+                            disabled={!!decidingId || empBalance < req.days_requested}
+                            onClick={() => handleDecision(req.id, 'approved')}
+                          >
+                            {decidingId === req.id ? '...' : 'Aprovar'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
