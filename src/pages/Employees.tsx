@@ -104,8 +104,10 @@ export default function Employees() {
         team_id: roleInfo.team_id,
       });
       if (error) { toast.error(error.message || 'Erro ao cadastrar funcionário.'); return; }
-      toast.success('Funcionário cadastrado!');
-      setName(''); setPhone(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
+      const addedName = name.trim();
+      setOpen(false);
+      toast.success(`Profissional "${addedName}" cadastrado com sucesso!`);
+      setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
     } finally {
       setIsSubmitting(false);
     }
@@ -128,6 +130,8 @@ export default function Employees() {
       // Se a unidade mudou, registrar em transfer_history
       const newUnitId = unitId || null;
       const oldUnitId = editEmp.unit_id || null;
+      const updatedName = name.trim();
+      setEditOpen(false);
       if (newUnitId !== oldUnitId && (isAdmin || isChief)) {
         const { data: { user: currentUser } } = await supabase.auth.getUser();
         await supabase.from('transfer_history').insert({
@@ -137,11 +141,11 @@ export default function Employees() {
           team_id: roleInfo?.team_id,
           transferred_by: currentUser?.id ?? null,
         });
-        toast.success('Funcionário atualizado e transferência registrada!');
+        toast.success(`Profissional "${updatedName}" atualizado e transferência registrada!`);
       } else {
-        toast.success('Funcionário atualizado!');
+        toast.success(`Profissional "${updatedName}" atualizado com sucesso!`);
       }
-      setEditOpen(false); setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
+      setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
     } finally {
       setIsSubmitting(false);
     }
