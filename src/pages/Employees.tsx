@@ -111,8 +111,20 @@ export default function Employees() {
   const handleAdjustCredit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!adjustEmp || isAdjusting) return;
-    const amount = parseFloat(adjustAmount);
-    if (isNaN(amount) || amount <= 0) { toast.error('Informe um valor válido (maior que zero).'); return; }
+
+    // Reject if "Outro" was clicked but no value entered yet
+    const rawAmount = adjustAmount === 'custom' ? '' : adjustAmount;
+    const amount = parseFloat(rawAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Selecione ou digite uma quantidade de dias válida.');
+      return;
+    }
+    // Security: only allow multiples of 0.5 (e.g., 0.5, 1, 1.5, 2...)
+    if ((amount * 2) % 1 !== 0) {
+      toast.error('Apenas valores múltiplos de 0,5 são permitidos (ex: 1, 1,5, 2, 2,5).');
+      return;
+    }
     if (!adjustNotes.trim()) { toast.error('O campo Motivo é obrigatório.'); return; }
     if (!roleInfo?.team_id) return;
 
@@ -580,7 +592,7 @@ export default function Employees() {
 
           {adjustEmp && (() => {
             const currentBalance = getBalance(adjustEmp.id);
-            const parsedAmount = parseFloat(adjustAmount) || 0;
+            const parsedAmount = adjustAmount === 'custom' ? 0 : (parseFloat(adjustAmount) || 0);
             const delta = adjustType === 'credit' ? parsedAmount : -parsedAmount;
             const newBalance = currentBalance + delta;
             const isNegativeResult = newBalance < 0;
@@ -639,18 +651,63 @@ export default function Employees() {
                   </div>
                 )}
 
-                {/* Amount */}
-                <div className="space-y-1.5">
-                  <Label>Quantidade de dias <span className="text-muted-foreground text-xs">(aceita 0,5)</span></Label>
-                  <Input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    placeholder="Ex: 3 ou 1.5"
-                    value={adjustAmount}
-                    onChange={e => setAdjustAmount(e.target.value)}
-                    required
-                  />
+                {/* Amount — chip selector (safest: only valid multiples of 0.5) */}
+                <div className="space-y-2">
+                  <Label>Quantidade de dias</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 7, 10, 15, 20].map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setAdjustAmount(String(v))}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all',
+                          adjustAmount === String(v)
+                            ? adjustType === 'credit'
+                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
+                              : 'border-rose-500 bg-rose-500 text-white shadow-sm'
+                            : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        )}
+                      >
+                        {v % 1 === 0 ? v : v.toFixed(1).replace('.', ',')}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setAdjustAmount('custom')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all',
+                        adjustAmount === 'custom' || (!['0.5','1','1.5','2','2.5','3','4','5','7','10','15','20',''].includes(adjustAmount) && adjustAmount !== 'custom')
+                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                          : 'border-border text-muted-foreground hover:border-primary/40'
+                      )}
+                    >
+                      Outro
+                    </button>
+                  </div>
+                  {/* Custom input — only shown when "Outro" selected */}
+                  {(adjustAmount === 'custom' || (!['0.5','1','1.5','2','2.5','3','4','5','7','10','15','20',''].includes(adjustAmount))) && (
+                    <div>
+                      <Input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        placeholder="Ex: 6 ou 8.5 (múltiplo de 0,5)"
+                        value={adjustAmount === 'custom' ? '' : adjustAmount}
+                        onChange={e => {
+                          const val = e.target.value;
+                          // Only allow multiples of 0.5
+                          const num = parseFloat(val);
+                          if (val === '' || (num > 0 && (num * 2) % 1 === 0)) {
+                            setAdjustAmount(val || 'custom');
+                          }
+                        }}
+                        className="mt-1"
+                        autoFocus
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Apenas múltiplos de 0,5 (ex: 6, 8,5, 12)</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Notes (required) */}
