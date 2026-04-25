@@ -45,6 +45,7 @@ export default function Employees() {
   const [filterUnit, setFilterUnit] = useState('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canAdd = isAdmin || isManager;
   const canEdit = isAdmin || isChief || isManager;
@@ -88,21 +89,26 @@ export default function Employees() {
 
   const handleAdd = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || isSubmitting) return;
     if (!roleInfo?.team_id) {
       toast.error('Permissões ainda não carregadas. Recarregue a página e tente novamente.');
       return;
     }
-    const { error } = await supabase.from('employees').insert({
-      name: name.trim(),
-      phone: phone.trim() || null,
-      category_id: categoryId || null,
-      unit_id: isManager ? (roleInfo.unit_id ?? null) : (unitId || null),
-      team_id: roleInfo.team_id,
-    });
-    if (error) { toast.error(error.message || 'Erro ao cadastrar funcionário.'); return; }
-    toast.success('Funcionário cadastrado!');
-    setName(''); setPhone(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('employees').insert({
+        name: name.trim(),
+        phone: phone.trim() || null,
+        category_id: categoryId || null,
+        unit_id: isManager ? (roleInfo.unit_id ?? null) : (unitId || null),
+        team_id: roleInfo.team_id,
+      });
+      if (error) { toast.error(error.message || 'Erro ao cadastrar funcionário.'); return; }
+      toast.success('Funcionário cadastrado!');
+      setName(''); setPhone(''); setCategoryId(''); setUnitId(''); setOpen(false); load();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openEdit = (emp: Employee) => {
@@ -111,29 +117,34 @@ export default function Employees() {
 
   const handleEdit = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    if (!editEmp || !name.trim()) return;
-    const updateData: any = { name: name.trim(), phone: phone.trim() || null };
-    if (isAdmin || isChief) { updateData.category_id = categoryId || null; updateData.unit_id = unitId || null; }
-    const { error } = await supabase.from('employees').update(updateData).eq('id', editEmp.id);
-    if (error) { toast.error('Erro ao atualizar funcionário.'); return; }
+    if (!editEmp || !name.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const updateData: any = { name: name.trim(), phone: phone.trim() || null };
+      if (isAdmin || isChief) { updateData.category_id = categoryId || null; updateData.unit_id = unitId || null; }
+      const { error } = await supabase.from('employees').update(updateData).eq('id', editEmp.id);
+      if (error) { toast.error('Erro ao atualizar funcionário.'); return; }
 
-    // Se a unidade mudou, registrar em transfer_history
-    const newUnitId = unitId || null;
-    const oldUnitId = editEmp.unit_id || null;
-    if (newUnitId !== oldUnitId && (isAdmin || isChief)) {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      await supabase.from('transfer_history').insert({
-        employee_id: editEmp.id,
-        from_unit_id: oldUnitId,
-        to_unit_id: newUnitId,
-        team_id: roleInfo?.team_id,
-        transferred_by: currentUser?.id ?? null,
-      });
-      toast.success('Funcionário atualizado e transferência registrada!');
-    } else {
-      toast.success('Funcionário atualizado!');
+      // Se a unidade mudou, registrar em transfer_history
+      const newUnitId = unitId || null;
+      const oldUnitId = editEmp.unit_id || null;
+      if (newUnitId !== oldUnitId && (isAdmin || isChief)) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        await supabase.from('transfer_history').insert({
+          employee_id: editEmp.id,
+          from_unit_id: oldUnitId,
+          to_unit_id: newUnitId,
+          team_id: roleInfo?.team_id,
+          transferred_by: currentUser?.id ?? null,
+        });
+        toast.success('Funcionário atualizado e transferência registrada!');
+      } else {
+        toast.success('Funcionário atualizado!');
+      }
+      setEditOpen(false); setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
+    } finally {
+      setIsSubmitting(false);
     }
-    setEditOpen(false); setEditEmp(null); setName(''); setPhone(''); setCategoryId(''); setUnitId(''); load();
   };
 
   const handleDelete = async (id: string, empName: string) => {
@@ -387,7 +398,9 @@ export default function Employees() {
                     </Select>
                   </div>
                 )}
-                <Button type="submit" className="w-full">Cadastrar</Button>
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -451,7 +464,9 @@ export default function Employees() {
                 </Select>
               </div>
             )}
-            <Button type="submit" className="w-full">Salvar</Button>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Salvando...' : 'Salvar'}
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
