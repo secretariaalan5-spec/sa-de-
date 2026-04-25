@@ -60,7 +60,7 @@ export default function Employees() {
   const openAdjust = (emp: Employee, e: React.MouseEvent) => {
     e.stopPropagation();
     setAdjustEmp(emp);
-    setAdjustAmount('');
+    setAdjustAmount('0');
     setAdjustNotes('');
     setAdjustType('credit');
   };
@@ -598,44 +598,120 @@ export default function Employees() {
             const isNegativeResult = newBalance < 0;
 
             return (
-              <form onSubmit={handleAdjustCredit} className="space-y-4">
-                {/* Type selector */}
+              <form onSubmit={handleAdjustCredit} className="space-y-5">
+
+                {/* ── TYPE TOGGLE ── */}
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setAdjustType('credit')}
                     className={cn(
-                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-semibold',
+                      'flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all',
                       adjustType === 'credit'
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm dark:bg-emerald-950/30'
-                        : 'border-border text-muted-foreground hover:border-emerald-300'
+                        ? 'border-emerald-500 bg-emerald-500 text-white shadow-md'
+                        : 'border-border bg-card text-muted-foreground hover:border-emerald-300'
                     )}
                   >
-                    <span className="text-lg">+</span> Crédito / Saldo Inicial
+                    <span className="text-base">＋</span> Crédito
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdjustType('debit')}
                     className={cn(
-                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-semibold',
+                      'flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all',
                       adjustType === 'debit'
-                        ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm dark:bg-rose-950/30'
-                        : 'border-border text-muted-foreground hover:border-rose-300'
+                        ? 'border-rose-500 bg-rose-500 text-white shadow-md'
+                        : 'border-border bg-card text-muted-foreground hover:border-rose-300'
                     )}
                   >
-                    <span className="text-lg">−</span> Estorno / Correção
+                    <span className="text-base">－</span> Estorno
                   </button>
                 </div>
 
-                {/* Current & preview balance */}
-                <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3 border border-border">
+                {/* ── STEPPER ── */}
+                <div className="flex flex-col items-center gap-3">
+                  <Label className="text-sm text-muted-foreground">Quantidade de dias</Label>
+                  <div className="flex items-center gap-4">
+                    {/* Decrement */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseFloat(adjustAmount) || 0;
+                        const next = Math.max(0, Math.round((cur - 0.5) * 10) / 10);
+                        setAdjustAmount(next > 0 ? String(next) : '0');
+                      }}
+                      className={cn(
+                        'w-12 h-12 rounded-full border-2 text-2xl font-bold flex items-center justify-center transition-all select-none',
+                        'border-border text-muted-foreground hover:border-rose-400 hover:text-rose-500 hover:bg-rose-50 active:scale-95'
+                      )}
+                    >
+                      −
+                    </button>
+
+                    {/* Value display */}
+                    <div className={cn(
+                      'w-28 h-20 rounded-2xl border-2 flex flex-col items-center justify-center transition-all shadow-sm',
+                      adjustType === 'credit'
+                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                        : 'border-rose-400 bg-rose-50 dark:bg-rose-950/30'
+                    )}>
+                      <span className={cn(
+                        'text-4xl font-black tabular-nums leading-none',
+                        adjustType === 'credit' ? 'text-emerald-700' : 'text-rose-600'
+                      )}>
+                        {parsedAmount % 1 === 0 ? parsedAmount : parsedAmount.toFixed(1).replace('.', ',')}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
+                        {parsedAmount === 1 ? 'dia' : parsedAmount === 0.5 ? 'meio dia' : 'dias'}
+                      </span>
+                    </div>
+
+                    {/* Increment */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseFloat(adjustAmount) || 0;
+                        const next = Math.round((cur + 0.5) * 10) / 10;
+                        setAdjustAmount(String(next));
+                      }}
+                      className={cn(
+                        'w-12 h-12 rounded-full border-2 text-2xl font-bold flex items-center justify-center transition-all select-none',
+                        'border-border text-muted-foreground hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 active:scale-95'
+                      )}
+                    >
+                      ＋
+                    </button>
+                  </div>
+
+                  {/* Quick-add chips for large values */}
+                  <div className="flex gap-1.5 flex-wrap justify-center">
+                    {[5, 10, 15, 20, 30].map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setAdjustAmount(String(v))}
+                        className="px-2.5 py-1 rounded-full border border-border text-xs text-muted-foreground hover:border-primary hover:text-primary transition-all"
+                      >
+                        +{v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── BALANCE PREVIEW ── */}
+                <div className={cn(
+                  'flex items-center justify-between rounded-xl px-5 py-3 border transition-all',
+                  isNegativeResult && parsedAmount > 0
+                    ? 'bg-rose-50 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800'
+                    : 'bg-muted/40 border-border'
+                )}>
                   <div className="text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Saldo Atual</p>
                     <p className={cn('text-xl font-bold', currentBalance > 0 ? 'text-emerald-600' : currentBalance < 0 ? 'text-rose-600' : 'text-slate-400')}>
                       {fmtCredit(currentBalance)}
                     </p>
                   </div>
-                  <span className="text-2xl text-muted-foreground">→</span>
+                  <span className="text-xl text-muted-foreground">→</span>
                   <div className="text-center">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Novo Saldo</p>
                     <p className={cn('text-xl font-bold', isNegativeResult ? 'text-rose-600' : newBalance > 0 ? 'text-emerald-600' : 'text-slate-400')}>
@@ -651,85 +727,30 @@ export default function Employees() {
                   </div>
                 )}
 
-                {/* Amount — chip selector (safest: only valid multiples of 0.5) */}
-                <div className="space-y-2">
-                  <Label>Quantidade de dias</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 7, 10, 15, 20].map(v => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => setAdjustAmount(String(v))}
-                        className={cn(
-                          'px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all',
-                          adjustAmount === String(v)
-                            ? adjustType === 'credit'
-                              ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
-                              : 'border-rose-500 bg-rose-500 text-white shadow-sm'
-                            : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                        )}
-                      >
-                        {v % 1 === 0 ? v : v.toFixed(1).replace('.', ',')}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setAdjustAmount('custom')}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all',
-                        adjustAmount === 'custom' || (!['0.5','1','1.5','2','2.5','3','4','5','7','10','15','20',''].includes(adjustAmount) && adjustAmount !== 'custom')
-                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                          : 'border-border text-muted-foreground hover:border-primary/40'
-                      )}
-                    >
-                      Outro
-                    </button>
-                  </div>
-                  {/* Custom input — only shown when "Outro" selected */}
-                  {(adjustAmount === 'custom' || (!['0.5','1','1.5','2','2.5','3','4','5','7','10','15','20',''].includes(adjustAmount))) && (
-                    <div>
-                      <Input
-                        type="number"
-                        min="0.5"
-                        step="0.5"
-                        placeholder="Ex: 6 ou 8.5 (múltiplo de 0,5)"
-                        value={adjustAmount === 'custom' ? '' : adjustAmount}
-                        onChange={e => {
-                          const val = e.target.value;
-                          // Only allow multiples of 0.5
-                          const num = parseFloat(val);
-                          if (val === '' || (num > 0 && (num * 2) % 1 === 0)) {
-                            setAdjustAmount(val || 'custom');
-                          }
-                        }}
-                        className="mt-1"
-                        autoFocus
-                      />
-                      <p className="text-[10px] text-muted-foreground mt-1">Apenas múltiplos de 0,5 (ex: 6, 8,5, 12)</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes (required) */}
+                {/* ── NOTES ── */}
                 <div className="space-y-1.5">
                   <Label>Motivo <span className="text-rose-500">*</span></Label>
                   <Textarea
-                    placeholder="Ex: Saldo pré-sistema referente a 2025, autorizado por Diretora Ana."
+                    placeholder="Ex: Saldo pré-sistema 2025, autorizado por Diretora Ana."
                     value={adjustNotes}
                     onChange={e => setAdjustNotes(e.target.value)}
                     rows={2}
                     required
                     className="resize-none"
                   />
-                  <p className="text-[10px] text-muted-foreground">Este campo é obrigatório e fica registrado para auditoria.</p>
+                  <p className="text-[10px] text-muted-foreground">Obrigatório — registrado para auditoria.</p>
                 </div>
 
                 <Button
                   type="submit"
-                  className={cn('w-full', adjustType === 'debit' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700')}
-                  disabled={isAdjusting || isNegativeResult}
+                  className={cn('w-full font-bold', adjustType === 'debit' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700')}
+                  disabled={isAdjusting || isNegativeResult || parsedAmount <= 0}
                 >
-                  {isAdjusting ? 'Lançando...' : adjustType === 'credit' ? `Confirmar Crédito` : `Confirmar Estorno`}
+                  {isAdjusting
+                    ? 'Lançando...'
+                    : adjustType === 'credit'
+                    ? `Confirmar +${parsedAmount > 0 ? fmtCredit(parsedAmount) : '?'} dia(s)`
+                    : `Confirmar −${parsedAmount > 0 ? fmtCredit(parsedAmount) : '?'} dia(s)`}
                 </Button>
               </form>
             );
