@@ -154,17 +154,27 @@ export default function Employees() {
   const handleDelete = async (id: string, empName: string) => {
     if (!confirm(`Tem certeza que deseja remover o profissional "${empName}"?\n\nIsso também apagará todas as folgas, escalas, transferências e créditos associados.`)) return;
 
-    // Cascade delete all related records
-    await Promise.all([
-      supabase.from('leave_requests').delete().eq('employee_id', id),
-      supabase.from('transfer_history').delete().eq('employee_id', id),
-      supabase.from('leave_credits').delete().eq('employee_id', id),
-      supabase.from('schedules').delete().eq('employee_id', id),
-    ]);
+    // Sequência controlada de exclusão para evitar erros de trigger/saldo
+    try {
+      // 1. Remove pedidos de folga e histórico
+      await supabase.from('leave_requests').delete().eq('employee_id', id);
+      await supabase.from('transfer_history').delete().eq('employee_id', id);
+      
+      // 2. Remove créditos primeiro (importante para o trigger de delete das escalas)
+      await supabase.from('leave_credits').delete().eq('employee_id', id);
+      
+      // 3. Remove as escalas agora que os créditos sumiram
+      await supabase.from('schedules').delete().eq('employee_id', id);
 
-    const { error } = await supabase.from('employees').update({ active: false }).eq('id', id);
-    if (error) { toast.error('Erro ao remover profissional.'); return; }
-    toast.success('Profissional removido e dados relacionados apagados!'); load();
+      const { error } = await supabase.from('employees').update({ active: false }).eq('id', id);
+      if (error) { toast.error('Erro ao desativar profissional.'); return; }
+      
+      toast.success('Profissional removido e dados relacionados apagados!');
+      load();
+    } catch (err) {
+      console.error('Erro na deleção cascade:', err);
+      toast.error('Ocorreu um erro ao remover todos os dados. Verifique as escalas.');
+    }
   };
 
   const getCat = (id: string | null) => categories.find(c => c.id === id);

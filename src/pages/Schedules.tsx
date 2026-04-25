@@ -22,7 +22,7 @@ interface Schedule {
   created_at: string;
 }
 
-interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; }
+interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; active?: boolean; }
 interface Unit { id: string; name: string; }
 interface Holiday { id: string; date: string; name: string; }
 
@@ -51,7 +51,7 @@ export default function Schedules() {
     if (!teamId) return;
 
     const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
-    let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true).eq('team_id', teamId).order('name');
+    let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id, active').eq('team_id', teamId).order('name');
     const unitsQuery = supabase.from('units').select('id, name').eq('team_id', teamId);
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
@@ -62,7 +62,14 @@ export default function Schedules() {
       employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
     }
 
-    const [s, e, u, lr, pendingLr, h] = await Promise.all([schedulesQuery, employeesQuery, unitsQuery, lrQuery, pendingLrQuery, holidaysQuery]);
+    const [s, e, u, lr, pendingLr, h] = await Promise.all([
+      schedulesQuery, 
+      employeesQuery, 
+      unitsQuery, 
+      lrQuery, 
+      pendingLrQuery, 
+      holidaysQuery
+    ]);
     setSchedules(s.data ?? []);
     setEmployees(e.data ?? []);
     setUnits(u.data ?? []);
@@ -430,7 +437,7 @@ export default function Schedules() {
               <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map(e => {
+                  {employees.filter(e => (e as any).active !== false).map(e => {
                     const unit = getUnitName(e.unit_id);
                     return (
                       <SelectItem key={e.id} value={e.id}>
