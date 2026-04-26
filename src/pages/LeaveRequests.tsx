@@ -33,15 +33,15 @@ interface Unit { id: string; name: string; }
 
 // ─── Color theme by category (same logic as Schedules.tsx) ───────────────────
 const getCategoryTheme = (catName: string) => {
-  if (!catName) return { bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary', hexBg: '#f3f4f6', hexText: '#000000' };
+  if (!catName) return { pastelBg: 'bg-muted/50', darkText: 'text-foreground', darkBorder: 'border-border', darkBg: 'bg-foreground' };
   const themes = [
-    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700', hexBg: '#0e6931', hexText: '#ffffff' },
-    { bg: 'bg-purple-500/10',  border: 'border-purple-500/30',  text: 'text-purple-700',  hexBg: '#c3addb', hexText: '#000000' },
-    { bg: 'bg-teal-500/10',   border: 'border-teal-500/30',   text: 'text-teal-700',   hexBg: '#95cdca', hexText: '#000000' },
-    { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-700',  hexBg: '#b5d0ac', hexText: '#000000' },
-    { bg: 'bg-rose-500/10',   border: 'border-rose-500/30',   text: 'text-rose-700',   hexBg: '#e6a5b6', hexText: '#000000' },
-    { bg: 'bg-amber-500/10',  border: 'border-amber-500/30',  text: 'text-amber-700',  hexBg: '#f2d48f', hexText: '#000000' },
-    { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-700',   hexBg: '#9cbadd', hexText: '#000000' },
+    { pastelBg: 'bg-emerald-100/80 dark:bg-emerald-950/50', darkText: 'text-emerald-800 dark:text-emerald-400', darkBorder: 'border-emerald-800 dark:border-emerald-400', darkBg: 'bg-emerald-800 dark:bg-emerald-400' },
+    { pastelBg: 'bg-purple-100/80 dark:bg-purple-950/50', darkText: 'text-purple-800 dark:text-purple-400', darkBorder: 'border-purple-800 dark:border-purple-400', darkBg: 'bg-purple-800 dark:bg-purple-400' },
+    { pastelBg: 'bg-teal-100/80 dark:bg-teal-950/50', darkText: 'text-teal-800 dark:text-teal-400', darkBorder: 'border-teal-800 dark:border-teal-400', darkBg: 'bg-teal-800 dark:bg-teal-400' },
+    { pastelBg: 'bg-blue-100/80 dark:bg-blue-950/50', darkText: 'text-blue-800 dark:text-blue-400', darkBorder: 'border-blue-800 dark:border-blue-400', darkBg: 'bg-blue-800 dark:bg-blue-400' },
+    { pastelBg: 'bg-rose-100/80 dark:bg-rose-950/50', darkText: 'text-rose-800 dark:text-rose-400', darkBorder: 'border-rose-800 dark:border-rose-400', darkBg: 'bg-rose-800 dark:bg-rose-400' },
+    { pastelBg: 'bg-amber-100/80 dark:bg-amber-950/50', darkText: 'text-amber-800 dark:text-amber-400', darkBorder: 'border-amber-800 dark:border-amber-400', darkBg: 'bg-amber-800 dark:bg-amber-400' },
+    { pastelBg: 'bg-cyan-100/80 dark:bg-cyan-950/50', darkText: 'text-cyan-800 dark:text-cyan-400', darkBorder: 'border-cyan-800 dark:border-cyan-400', darkBg: 'bg-cyan-800 dark:bg-cyan-400' },
   ];
   let hash = 0;
   for (let i = 0; i < catName.length; i++) {
@@ -271,30 +271,29 @@ export default function LeaveRequests() {
                 return (
                   <div 
                     key={req.id} 
-                    className="rounded-xl border border-black/10 overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3"
-                    style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
+                    className={cn("rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3", theme.pastelBg)}
                   >
                     {/* ── Top Row ─────────────────────────── */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar */}
                         <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border-2 border-white/30"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: theme.hexText }}
+                          className={cn("w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border", theme.darkBorder, theme.darkText)}
                         >
                           {initials}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-[15px] leading-tight truncate">{empName}</p>
-                          <div className="flex gap-1.5 mt-1 flex-wrap">
+                          <p className="font-bold text-[15px] leading-tight truncate text-foreground">{empName}</p>
+                          <div className="flex gap-x-3 gap-y-1 mt-1 flex-wrap text-foreground/80">
                             {cat && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                                <Tag size={9} /> {cat}
+                              <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap">
+                                <div className={cn("w-2 h-2 rounded-full", theme.darkBg)} />
+                                <span className={theme.darkText}>{cat}</span>
                               </span>
                             )}
                             {unit && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                                <MapPin size={9} /> {unit}
+                              <span className="flex items-center gap-1 text-[12px] text-muted-foreground whitespace-nowrap">
+                                <MapPin size={12} /> {unit}
                               </span>
                             )}
                           </div>
@@ -306,13 +305,13 @@ export default function LeaveRequests() {
                     </div>
 
                     {/* ── Days + date chips ────────────────────────────────────── */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 mt-1">
-                      <span className="text-[13px] font-bold opacity-80 whitespace-nowrap">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-1.5 mt-1 text-foreground/80">
+                      <span className="text-[13px] font-medium whitespace-nowrap">
                         {req.days_requested} {req.days_requested > 1 ? 'dias solicitados' : 'dia solicitado'}:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {req.leave_dates?.map(d => (
-                          <span key={d} className="px-2 py-0.5 rounded text-[11px] font-bold bg-black/15 border border-black/5" style={{ color: theme.hexText }}>
+                          <span key={d} className="px-2 py-0.5 rounded text-[11px] font-medium bg-black/5 dark:bg-white/10 text-foreground">
                             {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           </span>
                         ))}
@@ -321,15 +320,15 @@ export default function LeaveRequests() {
 
                     {/* ── Short-notice / observations ────────────────────────────────────── */}
                     {(req.is_short_notice || req.observations) && (
-                      <div className="p-2.5 rounded-md bg-black/10 border border-black/5">
+                      <div className="p-2.5 rounded-md bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-foreground/90">
                         {req.is_short_notice && (
-                          <div className="flex items-center gap-1.5 font-bold mb-1 opacity-90">
-                            <AlertTriangle size={13} className="shrink-0" />
+                          <div className="flex items-center gap-1.5 font-bold mb-1">
+                            <AlertTriangle size={13} className="shrink-0 text-amber-500" />
                             <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
                           </div>
                         )}
                         {req.observations && (
-                          <p className="italic text-xs opacity-90 font-medium">
+                          <p className="italic text-xs font-medium">
                             "{req.observations}"
                           </p>
                         )}
@@ -337,8 +336,8 @@ export default function LeaveRequests() {
                     )}
 
                     {/* ── Footer: audit + balance + actions ────────────────────────────────────── */}
-                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-black/10 gap-2 flex-wrap">
-                      <div className="flex flex-col gap-0.5 text-[11px] opacity-80 font-medium">
+                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-black/5 dark:border-white/10 gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground font-medium">
                         <span>
                           Solicitado por <b>{getUserName(req.requested_by) ?? 'Desconhecido'}</b>{' '}
                           em {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
@@ -356,18 +355,17 @@ export default function LeaveRequests() {
                       {canApprove && req.status === 'pending' && (
                         <div className="flex items-center gap-2 shrink-0">
                           <div className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border bg-white/20',
+                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border',
                             empBalance >= req.days_requested
-                              ? 'border-black/10'
-                              : 'bg-red-500/20 border-red-500/30'
+                              ? 'bg-black/5 dark:bg-white/10 border-transparent text-foreground'
+                              : 'bg-red-500/20 border-red-500/30 text-destructive'
                           )}>
                             <span className="opacity-70">Saldo:</span> {empBalance}
                           </div>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 px-3 text-xs font-bold border border-black/20 hover:bg-black/10 transition-colors"
-                            style={{ color: theme.hexText }}
+                            className="h-8 px-3 text-xs font-bold border border-black/10 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-foreground"
                             disabled={!!decidingId}
                             onClick={() => handleDecision(req.id, 'rejected')}
                           >

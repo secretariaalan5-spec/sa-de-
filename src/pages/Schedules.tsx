@@ -116,15 +116,15 @@ export default function Schedules() {
   const getCategoryName = (catId: string | null) => catId ? (categoryMap.get(catId) ?? '') : '';
 
   const getCategoryTheme = (catName: string) => {
-    if (!catName) return { bg: 'bg-primary/5', border: 'border-primary/20', text: 'text-primary', hexBg: '#f3f4f6', hexText: '#000000' };
+    if (!catName) return { pastelBg: 'bg-muted/50', darkText: 'text-foreground', darkBorder: 'border-border', darkBg: 'bg-foreground' };
     const themes = [
-      { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-400', hexBg: '#0e6931', hexText: '#ffffff' }, // Verde escuro
-      { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-700 dark:text-purple-400', hexBg: '#c3addb', hexText: '#000000' }, // Roxo claro
-      { bg: 'bg-teal-500/10', border: 'border-teal-500/30', text: 'text-teal-700 dark:text-teal-400', hexBg: '#95cdca', hexText: '#000000' }, // Teal
-      { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-700 dark:text-green-400', hexBg: '#b5d0ac', hexText: '#000000' }, // Verde claro
-      { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-700 dark:text-rose-400', hexBg: '#e6a5b6', hexText: '#000000' }, // Rosa
-      { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-700 dark:text-amber-400', hexBg: '#f2d48f', hexText: '#000000' }, // Amarelo
-      { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-700 dark:text-blue-400', hexBg: '#9cbadd', hexText: '#000000' }, // Azul claro
+      { pastelBg: 'bg-emerald-100/80 dark:bg-emerald-950/50', darkText: 'text-emerald-800 dark:text-emerald-400', darkBorder: 'border-emerald-800 dark:border-emerald-400', darkBg: 'bg-emerald-800 dark:bg-emerald-400' }, // Verde
+      { pastelBg: 'bg-purple-100/80 dark:bg-purple-950/50', darkText: 'text-purple-800 dark:text-purple-400', darkBorder: 'border-purple-800 dark:border-purple-400', darkBg: 'bg-purple-800 dark:bg-purple-400' }, // Roxo
+      { pastelBg: 'bg-teal-100/80 dark:bg-teal-950/50', darkText: 'text-teal-800 dark:text-teal-400', darkBorder: 'border-teal-800 dark:border-teal-400', darkBg: 'bg-teal-800 dark:bg-teal-400' }, // Teal
+      { pastelBg: 'bg-blue-100/80 dark:bg-blue-950/50', darkText: 'text-blue-800 dark:text-blue-400', darkBorder: 'border-blue-800 dark:border-blue-400', darkBg: 'bg-blue-800 dark:bg-blue-400' }, // Azul
+      { pastelBg: 'bg-rose-100/80 dark:bg-rose-950/50', darkText: 'text-rose-800 dark:text-rose-400', darkBorder: 'border-rose-800 dark:border-rose-400', darkBg: 'bg-rose-800 dark:bg-rose-400' }, // Rosa
+      { pastelBg: 'bg-amber-100/80 dark:bg-amber-950/50', darkText: 'text-amber-800 dark:text-amber-400', darkBorder: 'border-amber-800 dark:border-amber-400', darkBg: 'bg-amber-800 dark:bg-amber-400' }, // Amarelo
+      { pastelBg: 'bg-cyan-100/80 dark:bg-cyan-950/50', darkText: 'text-cyan-800 dark:text-cyan-400', darkBorder: 'border-cyan-800 dark:border-cyan-400', darkBg: 'bg-cyan-800 dark:bg-cyan-400' }, // Cyan
     ];
     let hash = 0;
     for (let i = 0; i < catName.length; i++) {
@@ -626,11 +626,12 @@ export default function Schedules() {
                     <CommandInput placeholder="Digite o nome do profissional..." />
                     <CommandList className="max-h-[350px]">
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
-                      <CommandGroup className="p-2 [&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-1 sm:[&_[cmdk-group-items]]:grid-cols-2 [&_[cmdk-group-items]]:gap-2">
+                      <CommandGroup className="p-2 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1.5">
                         {employees.filter(e => e.active !== false).map((e) => {
                           const unit = getUnitName(e.unit_id);
                           const cat = getCategoryName(e.category_id);
                           const theme = getCategoryTheme(cat);
+                          const initials = e.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
                           return (
                             <CommandItem
                               key={e.id}
@@ -640,30 +641,40 @@ export default function Schedules() {
                                 setSelectedDates([]);
                                 setOpenCombobox(false);
                               }}
-                              className="relative flex flex-col items-start p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50 min-h-[95px] h-full"
-                              style={{ backgroundColor: theme.hexBg, color: theme.hexText }}
+                              className={cn(
+                                "relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50",
+                                theme.pastelBg
+                              )}
                             >
-                              {/* Check icon top-right if selected */}
+                              {/* Avatar */}
+                              <div className={cn("w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-medium text-sm border", theme.darkBorder, theme.darkText)}>
+                                {initials}
+                              </div>
+
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <div className="font-medium text-[14px] leading-snug text-foreground break-words pr-6">
+                                  {e.name}
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-foreground/80 mt-1">
+                                  {cat && (
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                      <div className={cn("w-2 h-2 rounded-full", theme.darkBg)} />
+                                      <span className={cn("font-medium", theme.darkText)}>{cat}</span>
+                                    </span>
+                                  )}
+                                  {unit && (
+                                    <span className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
+                                      <MapPin size={12} /> {unit}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Check icon if selected */}
                               {empId === e.id && (
-                                <div className="absolute top-2 right-2 bg-white/30 rounded-full p-0.5">
-                                  <Check className="h-3.5 w-3.5" style={{ color: theme.hexText }} />
+                                <div className={cn("absolute right-4 rounded-full p-1", theme.darkText)}>
+                                  <Check className="h-4 w-4" />
                                 </div>
                               )}
-                              <div className="font-bold text-[13px] leading-snug text-left w-full break-words">
-                                {e.name}
-                              </div>
-                              <div className="flex gap-1.5 mt-auto pt-3 flex-wrap">
-                                {cat && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                                    <Tag size={9} /> {cat}
-                                  </span>
-                                )}
-                                {unit && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-black/10 px-1.5 py-0.5 rounded font-bold whitespace-nowrap" style={{ color: theme.hexText }}>
-                                    <MapPin size={9} /> {unit}
-                                  </span>
-                                )}
-                              </div>
                             </CommandItem>
                           );
                         })}
@@ -685,9 +696,9 @@ export default function Schedules() {
               const theme = getCategoryTheme(cat);
               const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
               return (
-                <div className={cn("flex items-start gap-3 rounded-xl border p-3 transition-colors", theme.bg, theme.border)}>
+                <div className={cn("flex items-start gap-3 rounded-xl p-3 transition-colors", theme.pastelBg)}>
                   {/* Avatar */}
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-background/60 shadow-sm border", theme.border, theme.text)}>
+                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-background/60 border", theme.darkBorder, theme.darkText)}>
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
