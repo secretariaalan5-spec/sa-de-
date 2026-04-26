@@ -607,10 +607,10 @@ export default function Schedules() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[540px] p-0" align="start">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Digite o nome do profissional..." />
-                    <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain">
+                    <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain touch-pan-y">
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
                       <CommandGroup className="p-2">
                         {employees.filter(e => e.active !== false).map((e) => {
@@ -632,7 +632,7 @@ export default function Schedules() {
                                 '--cat-bg': `${catColor}25`,
                               } as React.CSSProperties}
                               className={cn(
-                                "mb-1.5 last:mb-0 relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] active:scale-[0.98] bg-transparent"
+                                "mb-1.5 last:mb-0 relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] bg-transparent touch-pan-y"
                               )}
                             >
                               {/* Avatar */}
