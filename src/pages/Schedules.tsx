@@ -610,7 +610,11 @@ export default function Schedules() {
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Digite o nome do profissional..." />
-                    <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain touch-pan-y">
+                    <CommandList 
+                      className="max-h-[350px] overflow-y-auto"
+                      onWheel={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => e.stopPropagation()}
+                    >
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
                       <CommandGroup className="p-2">
                         {employees.filter(e => e.active !== false).map((e) => {
