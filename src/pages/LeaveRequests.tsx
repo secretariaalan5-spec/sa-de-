@@ -28,7 +28,7 @@ interface Employee { id: string; name: string; category_id: string | null; unit_
 interface Schedule { employee_id: string; date: string; }
 interface Credit { employee_id: string; amount: number; }
 interface Profile { user_id: string; display_name: string; }
-interface Category { id: string; name: string; }
+interface Category { id: string; name: string; color: string; }
 interface Unit { id: string; name: string; }
 
 // ─── Color theme by category (same logic as Schedules.tsx) ───────────────────
@@ -79,7 +79,7 @@ export default function LeaveRequests() {
       supabase.from('schedules').select('employee_id, date').eq('team_id', teamId).limit(500),
       supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId),
       supabase.from('profiles').select('user_id, display_name'),
-      supabase.from('categories').select('id, name').eq('team_id', teamId),
+      supabase.from('categories').select('id, name, color').eq('team_id', teamId),
       supabase.from('units').select('id, name').eq('team_id', teamId),
     ]);
 

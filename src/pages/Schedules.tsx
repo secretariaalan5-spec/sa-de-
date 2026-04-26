@@ -25,7 +25,7 @@ interface Schedule {
 
 interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; active?: boolean; }
 interface Unit { id: string; name: string; }
-interface Category { id: string; name: string; }
+interface Category { id: string; name: string; color: string; }
 interface Credit { employee_id: string; amount: number; }
 interface Holiday { id: string; date: string; name: string; }
 
@@ -60,7 +60,7 @@ export default function Schedules() {
     const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
     let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id, active').eq('team_id', teamId).order('name');
     const unitsQuery = supabase.from('units').select('id, name').eq('team_id', teamId);
-    const categoriesQuery = supabase.from('categories').select('id, name').eq('team_id', teamId);
+    const categoriesQuery = supabase.from('categories').select('id, name, color').eq('team_id', teamId);
     const creditsQuery = supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId);
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
