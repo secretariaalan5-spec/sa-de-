@@ -32,22 +32,8 @@ interface Category { id: string; name: string; }
 interface Unit { id: string; name: string; }
 
 // ─── Color theme by category (same logic as Schedules.tsx) ───────────────────
-const getCategoryTheme = (catName: string) => {
-  if (!catName) return { pastelBg: 'bg-muted/50', darkText: 'text-foreground', darkBorder: 'border-border', darkBg: 'bg-foreground' };
-  const themes = [
-    { pastelBg: 'bg-emerald-100/80 dark:bg-emerald-950/50', darkText: 'text-emerald-800 dark:text-emerald-400', darkBorder: 'border-emerald-800 dark:border-emerald-400', darkBg: 'bg-emerald-800 dark:bg-emerald-400' },
-    { pastelBg: 'bg-purple-100/80 dark:bg-purple-950/50', darkText: 'text-purple-800 dark:text-purple-400', darkBorder: 'border-purple-800 dark:border-purple-400', darkBg: 'bg-purple-800 dark:bg-purple-400' },
-    { pastelBg: 'bg-teal-100/80 dark:bg-teal-950/50', darkText: 'text-teal-800 dark:text-teal-400', darkBorder: 'border-teal-800 dark:border-teal-400', darkBg: 'bg-teal-800 dark:bg-teal-400' },
-    { pastelBg: 'bg-blue-100/80 dark:bg-blue-950/50', darkText: 'text-blue-800 dark:text-blue-400', darkBorder: 'border-blue-800 dark:border-blue-400', darkBg: 'bg-blue-800 dark:bg-blue-400' },
-    { pastelBg: 'bg-rose-100/80 dark:bg-rose-950/50', darkText: 'text-rose-800 dark:text-rose-400', darkBorder: 'border-rose-800 dark:border-rose-400', darkBg: 'bg-rose-800 dark:bg-rose-400' },
-    { pastelBg: 'bg-amber-100/80 dark:bg-amber-950/50', darkText: 'text-amber-800 dark:text-amber-400', darkBorder: 'border-amber-800 dark:border-amber-400', darkBg: 'bg-amber-800 dark:bg-amber-400' },
-    { pastelBg: 'bg-cyan-100/80 dark:bg-cyan-950/50', darkText: 'text-cyan-800 dark:text-cyan-400', darkBorder: 'border-cyan-800 dark:border-cyan-400', darkBg: 'bg-cyan-800 dark:bg-cyan-400' },
-  ];
-  let hash = 0;
-  for (let i = 0; i < catName.length; i++) {
-    hash = catName.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return themes[Math.abs(hash) % themes.length];
+const getCategoryColor = (categories: Category[], catName: string) => {
+  return catName ? (categories.find(c => c.name === catName)?.color ?? '#6366f1') : '#6366f1';
 };
 
 export default function LeaveRequests() {
@@ -258,7 +244,7 @@ export default function LeaveRequests() {
                 const empName = emp?.name ?? '—';
                 const cat = getCategoryName(emp?.category_id ?? null);
                 const unit = getUnitName(emp?.unit_id ?? null);
-                const theme = getCategoryTheme(cat);
+                const catColor = getCategoryColor(categories, cat);
                 const initials = empName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
                 const empBalance = getBalance(req.employee_id);
 
@@ -271,14 +257,16 @@ export default function LeaveRequests() {
                 return (
                   <div 
                     key={req.id} 
-                    className={cn("rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3", theme.pastelBg)}
+                    className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3"
+                    style={{ backgroundColor: `${catColor}15` }}
                   >
                     {/* ── Top Row ─────────────────────────── */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar */}
                         <div
-                          className={cn("w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border", theme.darkBorder, theme.darkText)}
+                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border"
+                          style={{ borderColor: catColor, color: catColor }}
                         >
                           {initials}
                         </div>
@@ -287,8 +275,8 @@ export default function LeaveRequests() {
                           <div className="flex gap-x-3 gap-y-1 mt-1 flex-wrap text-foreground/80">
                             {cat && (
                               <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap">
-                                <div className={cn("w-2 h-2 rounded-full", theme.darkBg)} />
-                                <span className={theme.darkText}>{cat}</span>
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor }} />
+                                <span style={{ color: catColor }}>{cat}</span>
                               </span>
                             )}
                             {unit && (

@@ -115,22 +115,8 @@ export default function Schedules() {
   const getUnitName = (unitId: string | null) => unitId ? (unitMap.get(unitId) ?? '') : '';
   const getCategoryName = (catId: string | null) => catId ? (categoryMap.get(catId) ?? '') : '';
 
-  const getCategoryTheme = (catName: string) => {
-    if (!catName) return { pastelBg: 'bg-muted/50', darkText: 'text-foreground', darkBorder: 'border-border', darkBg: 'bg-foreground' };
-    const themes = [
-      { pastelBg: 'bg-emerald-100/80 dark:bg-emerald-950/50', darkText: 'text-emerald-800 dark:text-emerald-400', darkBorder: 'border-emerald-800 dark:border-emerald-400', darkBg: 'bg-emerald-800 dark:bg-emerald-400' }, // Verde
-      { pastelBg: 'bg-purple-100/80 dark:bg-purple-950/50', darkText: 'text-purple-800 dark:text-purple-400', darkBorder: 'border-purple-800 dark:border-purple-400', darkBg: 'bg-purple-800 dark:bg-purple-400' }, // Roxo
-      { pastelBg: 'bg-teal-100/80 dark:bg-teal-950/50', darkText: 'text-teal-800 dark:text-teal-400', darkBorder: 'border-teal-800 dark:border-teal-400', darkBg: 'bg-teal-800 dark:bg-teal-400' }, // Teal
-      { pastelBg: 'bg-blue-100/80 dark:bg-blue-950/50', darkText: 'text-blue-800 dark:text-blue-400', darkBorder: 'border-blue-800 dark:border-blue-400', darkBg: 'bg-blue-800 dark:bg-blue-400' }, // Azul
-      { pastelBg: 'bg-rose-100/80 dark:bg-rose-950/50', darkText: 'text-rose-800 dark:text-rose-400', darkBorder: 'border-rose-800 dark:border-rose-400', darkBg: 'bg-rose-800 dark:bg-rose-400' }, // Rosa
-      { pastelBg: 'bg-amber-100/80 dark:bg-amber-950/50', darkText: 'text-amber-800 dark:text-amber-400', darkBorder: 'border-amber-800 dark:border-amber-400', darkBg: 'bg-amber-800 dark:bg-amber-400' }, // Amarelo
-      { pastelBg: 'bg-cyan-100/80 dark:bg-cyan-950/50', darkText: 'text-cyan-800 dark:text-cyan-400', darkBorder: 'border-cyan-800 dark:border-cyan-400', darkBg: 'bg-cyan-800 dark:bg-cyan-400' }, // Cyan
-    ];
-    let hash = 0;
-    for (let i = 0; i < catName.length; i++) {
-      hash = catName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return themes[Math.abs(hash) % themes.length];
+  const getCategoryColor = (catId: string | null) => {
+    return catId ? (categories.find(c => c.id === catId)?.color ?? '#6366f1') : '#6366f1';
   };
 
   const getEmpBalance = (employeeId: string) =>
@@ -630,7 +616,7 @@ export default function Schedules() {
                         {employees.filter(e => e.active !== false).map((e) => {
                           const unit = getUnitName(e.unit_id);
                           const cat = getCategoryName(e.category_id);
-                          const theme = getCategoryTheme(cat);
+                          const catColor = getCategoryColor(e.category_id);
                           const initials = e.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
                           return (
                             <CommandItem
@@ -641,13 +627,19 @@ export default function Schedules() {
                                 setSelectedDates([]);
                                 setOpenCombobox(false);
                               }}
+                              style={{
+                                '--cat-color': catColor,
+                                '--cat-bg': `${catColor}25`,
+                              } as React.CSSProperties}
                               className={cn(
-                                "relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] data-[selected=true]:ring-2 data-[selected=true]:ring-offset-1 data-[selected=true]:ring-primary/50",
-                                theme.pastelBg
+                                "relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] active:scale-[0.98] bg-transparent"
                               )}
                             >
                               {/* Avatar */}
-                              <div className={cn("w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-medium text-sm border", theme.darkBorder, theme.darkText)}>
+                              <div 
+                                className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-medium text-sm border-2 bg-background/50" 
+                                style={{ borderColor: catColor, color: catColor }}
+                              >
                                 {initials}
                               </div>
 
@@ -658,8 +650,8 @@ export default function Schedules() {
                                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-foreground/80 mt-1">
                                   {cat && (
                                     <span className="flex items-center gap-1.5 whitespace-nowrap">
-                                      <div className={cn("w-2 h-2 rounded-full", theme.darkBg)} />
-                                      <span className={cn("font-medium", theme.darkText)}>{cat}</span>
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor }} />
+                                      <span className="font-medium" style={{ color: catColor }}>{cat}</span>
                                     </span>
                                   )}
                                   {unit && (
@@ -671,8 +663,8 @@ export default function Schedules() {
                               </div>
                               {/* Check icon if selected */}
                               {empId === e.id && (
-                                <div className={cn("absolute right-4 rounded-full p-1", theme.darkText)}>
-                                  <Check className="h-4 w-4" />
+                                <div className="absolute right-4 rounded-full p-1" style={{ color: catColor }}>
+                                  <Check className="h-5 w-5" strokeWidth={2.5} />
                                 </div>
                               )}
                             </CommandItem>
@@ -693,19 +685,28 @@ export default function Schedules() {
               const schedulesThisMonth = getEmpSchedulesThisMonth(empId);
               const cat = getCategoryName(emp.category_id);
               const unit = getUnitName(emp.unit_id);
-              const theme = getCategoryTheme(cat);
+              const catColor = getCategoryColor(emp.category_id);
               const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
               return (
-                <div className={cn("flex items-start gap-3 rounded-xl p-3 transition-colors", theme.pastelBg)}>
+                <div 
+                  className="flex items-start gap-3 rounded-xl p-3 transition-colors"
+                  style={{ backgroundColor: `${catColor}15` }}
+                >
                   {/* Avatar */}
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-background/60 border", theme.darkBorder, theme.darkText)}>
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-background/60 border"
+                    style={{ borderColor: catColor, color: catColor }}
+                  >
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{emp.name}</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {cat && (
-                        <span className={cn("inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border bg-background/50", theme.border, theme.text)}>
+                        <span 
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border bg-background/50"
+                          style={{ borderColor: catColor, color: catColor }}
+                        >
                           <Tag size={10} /> {cat}
                         </span>
                       )}
