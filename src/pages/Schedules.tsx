@@ -610,9 +610,9 @@ export default function Schedules() {
                 <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[540px] p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Digite o nome do profissional..." />
-                    <CommandList className="max-h-[350px]">
+                    <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain">
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
-                      <CommandGroup className="p-2 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1.5">
+                      <CommandGroup className="p-2">
                         {employees.filter(e => e.active !== false).map((e) => {
                           const unit = getUnitName(e.unit_id);
                           const cat = getCategoryName(e.category_id);
@@ -632,7 +632,7 @@ export default function Schedules() {
                                 '--cat-bg': `${catColor}25`,
                               } as React.CSSProperties}
                               className={cn(
-                                "relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] active:scale-[0.98] bg-transparent"
+                                "mb-1.5 last:mb-0 relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] active:scale-[0.98] bg-transparent"
                               )}
                             >
                               {/* Avatar */}
