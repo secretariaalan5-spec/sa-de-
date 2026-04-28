@@ -122,6 +122,8 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   };
 
   const balance = empId ? getBalance(empId) : 0;
+  const exceedsBalance = empId ? selectedDates.length > balance : false;
+  const remainingAfter = balance - selectedDates.length;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -135,9 +137,22 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
           </SelectContent>
         </Select>
         {empId && (
-          <p className="text-xs text-muted-foreground">
-            Saldo atual: <span className={cn('font-bold', balance > 0 ? 'text-primary' : 'text-destructive')}>{balance} crédito(s)</span>
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Saldo disponível:{' '}
+              <span className={cn('font-bold', balance > 0 ? 'text-primary' : 'text-destructive')}>
+                {balance} crédito(s)
+              </span>
+            </p>
+            {selectedDates.length > 0 && (
+              <p className={cn('text-xs font-semibold', exceedsBalance ? 'text-destructive' : 'text-emerald-600')}>
+                {exceedsBalance
+                  ? `⚠ Seleção de ${selectedDates.length} dia(s) excede o saldo! Faltam ${selectedDates.length - balance} crédito(s).`
+                  : `✓ Restará ${remainingAfter} crédito(s) após o pedido.`
+                }
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -266,7 +281,13 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
         <Button 
           type="submit" 
           className={cn("flex-1", hasShortNoticeDates && 'bg-amber-600 hover:bg-amber-700')} 
-          disabled={!empId || selectedDates.length === 0 || submitting || (hasShortNoticeDates && (!acceptedTerm || obs.trim().length < 5))}
+          disabled={
+            !empId ||
+            selectedDates.length === 0 ||
+            submitting ||
+            exceedsBalance ||
+            (hasShortNoticeDates && (!acceptedTerm || obs.trim().length < 5))
+          }
         >
           {submitting ? 'Enviando...' : `Solicitar ${selectedDates.length} dia(s)`}
         </Button>
