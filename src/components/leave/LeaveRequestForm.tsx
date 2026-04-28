@@ -23,8 +23,7 @@ interface Props {
 export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCancel }: Props) {
   const [empId, setEmpId] = useState('');
   const [obs, setObs] = useState('');
-  const [rangeStart, setRangeStart] = useState<string | null>(null);
-  const [rangeEnd, setRangeEnd] = useState<string | null>(null);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [submitting, setSubmitting] = useState(false);
   const [acceptedTerm, setAcceptedTerm] = useState(false);
@@ -51,22 +50,6 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
-  // Generate dates array from range
-  const selectedDates = useMemo(() => {
-    if (!rangeStart) return [];
-    if (!rangeEnd) return [rangeStart];
-    const start = new Date(rangeStart + 'T12:00:00');
-    const end = new Date(rangeEnd + 'T12:00:00');
-    const dates: string[] = [];
-    const current = new Date(Math.min(start.getTime(), end.getTime()));
-    const last = new Date(Math.max(start.getTime(), end.getTime()));
-    while (current <= last) {
-      dates.push(current.toISOString().split('T')[0]);
-      current.setDate(current.getDate() + 1);
-    }
-    return dates;
-  }, [rangeStart, rangeEnd]);
-
   const minAdvanceDate = new Date();
   minAdvanceDate.setDate(minAdvanceDate.getDate() + 7);
   const minAdvanceDateStr = minAdvanceDate.toISOString().split('T')[0];
@@ -79,25 +62,25 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   const todayStr = getLocalTodayStr();
   const isPast = (day: number) => getDateStr(day) <= todayStr;
   const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
+  
+  const balance = empId ? getBalance(empId) : 0;
 
   const handleDayClick = (day: number) => {
     if (isPast(day)) return;
     const dateStr = getDateStr(day);
-    if (!rangeStart || (rangeStart && rangeEnd)) {
-      setRangeStart(dateStr);
-      setRangeEnd(null);
-    } else {
-      setRangeEnd(dateStr);
-    }
+    
+    setSelectedDates(prev => {
+      if (prev.includes(dateStr)) {
+        return prev.filter(d => d !== dateStr);
+      } else {
+        if (prev.length >= balance) {
+          // Bloquear clique na interface para respeitar o saldo
+          return prev;
+        }
+        return [...prev, dateStr].sort();
+      }
+    });
   };
-
-  const isInRange = (day: number) => {
-    const dateStr = getDateStr(day);
-    return selectedDates.includes(dateStr);
-  };
-
-  const isRangeStart = (day: number) => getDateStr(day) === rangeStart;
-  const isRangeEnd = (day: number) => getDateStr(day) === (rangeEnd ?? rangeStart);
 
   // Check if any selected date is within the 7-day advance window
   const hasShortNoticeDates = useMemo(() => {
@@ -121,14 +104,12 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
     }
   };
 
-  const balance = empId ? getBalance(empId) : 0;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Employee selector */}
       <div className="space-y-1.5">
         <Label>Funcionário</Label>
-        <Select value={empId} onValueChange={(v) => { setEmpId(v); setRangeStart(null); setRangeEnd(null); }}>
+        <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
           <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
           <SelectContent>
             {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
@@ -145,7 +126,8 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
       <div className="space-y-2">
         <Label>Período da folga</Label>
         <p className="text-xs text-muted-foreground">
-          {!rangeStart ? 'Clique na data de início' : !rangeEnd ? 'Agora clique na data final' : `${selectedDates.length} dia(s) selecionado(s)`}
+          Clique nos dias desejados. Clique novamente para desmarcar.
+          {selectedDates.length > 0 && <span className="block mt-1 font-medium">{selectedDates.length} dia(s) selecionado(s)</span>}
         </p>
 
         <div className="bg-muted/30 rounded-xl p-3 border border-border">
@@ -165,9 +147,8 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
             ))}
             {calendarDays.map((day, i) => {
               if (day === null) return <div key={`e-${i}`} />;
-              const inRange = isInRange(day);
-              const start = isRangeStart(day);
-              const end = isRangeEnd(day);
+              const dateStr = getDateStr(day);
+              const isSelected = selectedDates.includes(dateStr);
               const pastDay = isPast(day);
               const shortNotice = !pastDay && isUnderMinAdvance(day);
               return (
@@ -179,13 +160,10 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
                   className={cn(
                     'h-9 rounded-md text-sm font-medium transition-all relative',
                     pastDay && 'opacity-30 cursor-not-allowed text-muted-foreground',
-                    !pastDay && shortNotice && !inRange && 'text-amber-600 bg-amber-50 hover:bg-amber-100',
-                    !pastDay && inRange && !start && !end && 'bg-primary/15 text-primary',
-                    !pastDay && start && 'bg-primary text-primary-foreground rounded-r-none shadow-sm',
-                    !pastDay && end && 'bg-primary text-primary-foreground rounded-l-none shadow-sm',
-                    !pastDay && start && end && 'rounded-md',
-                    !pastDay && !inRange && !shortNotice && 'hover:bg-muted text-foreground',
-                    !pastDay && isToday(day) && !inRange && 'ring-1 ring-primary',
+                    !pastDay && isSelected && 'bg-primary text-primary-foreground shadow-sm',
+                    !pastDay && !isSelected && shortNotice && 'text-amber-600 bg-amber-50 hover:bg-amber-100',
+                    !pastDay && !isSelected && !shortNotice && 'hover:bg-muted text-foreground',
+                    !pastDay && isToday(day) && !isSelected && 'ring-1 ring-primary',
                   )}
                 >
                   {day}
@@ -197,15 +175,13 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
 
         {selectedDates.length > 0 && (
           <div className="space-y-2 pt-1">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 items-center">
               <Badge variant="outline" className="text-xs">
-                {new Date(selectedDates[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                {selectedDates.length > 1 && (
-                  <> → {new Date(selectedDates[selectedDates.length - 1] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</>
-                )}
+                {selectedDates.slice(0, 3).map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
+                {selectedDates.length > 3 && ` + ${selectedDates.length - 3} dia(s)`}
               </Badge>
               <Badge variant="secondary" className="text-xs">{selectedDates.length} dia(s)</Badge>
-              <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive" onClick={() => { setRangeStart(null); setRangeEnd(null); }}>
+              <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive" onClick={() => setSelectedDates([])}>
                 Limpar
               </Button>
             </div>
