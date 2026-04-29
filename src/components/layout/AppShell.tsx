@@ -316,8 +316,7 @@ export function AppShell() {
               </button>
             )}
           </div>
-          {/* Failsafe cover para o gap branco: desce abaixo do bottom-0 caso o iOS levante a div inteira */}
-          <div className="absolute top-full left-0 right-0 h-[100px] bg-primary" />
+
         </nav>
         )}
 
