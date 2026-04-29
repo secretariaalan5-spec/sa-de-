@@ -68,15 +68,23 @@ export function usePushNotifications() {
     }
   }, [user]);
 
-  // Send a local notification via Service Worker (works when app is in background)
-  const showLocalPush = useCallback((title: string, body: string, url?: string) => {
-    if (swRegistration.current?.active) {
-      swRegistration.current.active.postMessage({
-        type: 'SHOW_NOTIFICATION',
-        title,
-        body,
-        url: url || '/',
+  // Send a local notification via Service Worker
+  const showLocalPush = useCallback(async (title: string, body: string, url?: string) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title || 'Saúde+', {
+        body: body || 'Nova notificação',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        data: { url: url || '/' },
+        vibrate: [200, 100, 200],
+        tag: 'saude-local-' + Date.now(),
+        renotify: true,
       });
+    } catch (e) {
+      console.error('[Push] Error showing local notification:', e);
     }
   }, []);
 
