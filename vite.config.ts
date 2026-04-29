@@ -19,56 +19,32 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Aumenta limite de aviso para 600kb (chunks menores aparecerão individualmente)
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
+        // Estratégia conservadora e segura: apenas separa vendors claramente independentes.
+        // Separar react-router-dom de @remix-run/router causava dependência circular.
         manualChunks: (id) => {
-          // ── Vendor: React core ──────────────────────────────────────────
-          if (id.includes("node_modules/react/") ||
-              id.includes("node_modules/react-dom/") ||
-              id.includes("node_modules/react-router-dom/") ||
-              id.includes("node_modules/scheduler/")) {
-            return "vendor-react";
-          }
-
-          // ── Vendor: Supabase ────────────────────────────────────────────
+          // Supabase é completamente independente — seguro separar
           if (id.includes("node_modules/@supabase/")) {
             return "vendor-supabase";
           }
-
-          // ── Vendor: Charts (só Dashboard usa) ──────────────────────────
-          if (id.includes("node_modules/recharts") ||
-              id.includes("node_modules/d3-") ||
-              id.includes("node_modules/victory-")) {
-            return "vendor-charts";
-          }
-
-          // ── Vendor: Radix UI (componentes de UI) ────────────────────────
+          // Radix UI é independente — seguro separar
           if (id.includes("node_modules/@radix-ui/")) {
             return "vendor-radix";
           }
-
-          // ── Vendor: Tanstack (React Query) ──────────────────────────────
-          if (id.includes("node_modules/@tanstack/")) {
-            return "vendor-query";
+          // Recharts é pesado e usado só no Dashboard — seguro separar
+          if (id.includes("node_modules/recharts") ||
+              id.includes("node_modules/d3-") ||
+              id.includes("node_modules/d3 ")) {
+            return "vendor-charts";
           }
-
-          // ── Vendor: framer-motion (animações) ──────────────────────────
-          if (id.includes("node_modules/framer-motion")) {
-            return "vendor-motion";
-          }
-
-          // ── Vendor: PDF + utilidades pesadas ───────────────────────────
-          if (id.includes("node_modules/jspdf") ||
-              id.includes("node_modules/html2canvas")) {
+          // jsPDF — usado só na exportação de escalas
+          if (id.includes("node_modules/jspdf")) {
             return "vendor-pdf";
           }
-
-          // ── Vendor: demais libs de terceiros ───────────────────────────
-          if (id.includes("node_modules/")) {
-            return "vendor-misc";
-          }
+          // NÃO separamos react, react-dom, react-router-dom, @tanstack nem framer-motion
+          // pois eles têm inter-dependências internas que o Rollup precisa resolver junto.
         },
       },
     },
