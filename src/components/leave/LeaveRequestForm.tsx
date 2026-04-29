@@ -141,7 +141,7 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
             </Button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className="calendar-grid grid grid-cols-7 gap-1">
             {weekDays.map(d => (
               <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
             ))}

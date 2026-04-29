@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Plus, CalendarOff, Check, Clock, CheckCircle2, XCircle, AlertTriangle, Tag, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LeaveRequestForm from '@/components/leave/LeaveRequestForm';
+import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
 
 interface LeaveReq {
   id: string;
@@ -353,7 +354,7 @@ export default function LeaveRequests() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 px-3 text-xs font-bold border border-black/10 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-foreground"
+                            className="h-auto min-h-[44px] lg:min-h-8 px-3 text-xs font-bold border border-black/10 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-foreground"
                             disabled={!!decidingId}
                             onClick={() => handleDecision(req.id, 'rejected')}
                           >
@@ -361,7 +362,7 @@ export default function LeaveRequests() {
                           </Button>
                           <Button
                             size="sm"
-                            className="h-8 px-4 text-xs font-bold bg-black text-white hover:bg-black/80 shadow-sm transition-colors"
+                            className="h-auto min-h-[44px] lg:min-h-8 px-4 text-xs font-bold bg-black text-white hover:bg-black/80 shadow-sm transition-colors"
                             disabled={!!decidingId || empBalance < req.days_requested}
                             onClick={() => handleDecision(req.id, 'approved')}
                           >
@@ -379,20 +380,19 @@ export default function LeaveRequests() {
       </Tabs>
 
       {/* Leave Request Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Solicitar Folga</DialogTitle>
-            <DialogDescription>Selecione o período clicando na data de início e fim.</DialogDescription>
-          </DialogHeader>
-          <LeaveRequestForm
-            employees={employees}
-            getBalance={getBalance}
-            onSubmit={handleRequest}
-            onCancel={() => setOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      <ResponsiveDialog 
+        open={open} 
+        onOpenChange={setOpen}
+        title="Solicitar Folga"
+        description="Selecione os dias desejados no calendário."
+      >
+        <LeaveRequestForm
+          employees={employees}
+          getBalance={getBalance}
+          onSubmit={handleRequest}
+          onCancel={() => setOpen(false)}
+        />
+      </ResponsiveDialog>
     </div>
   );
 }

@@ -392,6 +392,8 @@
 .mobile-main-content {
   padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
 }
 
 @media (max-width: 640px) {
@@ -647,4 +649,185 @@
 
 .auth-google-btn:disabled {
   opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MOBILE OPTIMIZATIONS (PWA)
+ * Regras centralizadas para espaçamentos, bordas, tamanhos e toque
+ * mobile-first. Aplica-se a todos os componentes sem editar cada um.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Previne Auto-Zoom no iOS Safari (fonte < 16px dispara zoom) ── */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  [role="combobox"],
+  .text-base-mobile {
+    font-size: 16px !important;
+  }
+}
+
+/* ── 2. Otimização do Native Press (Feedback Tátil) ── */
+.native-press {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.12s ease-in-out;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.native-press:active {
+  transform: scale(0.96);
+  opacity: 0.82;
+}
+
+/* ── 3. Espaçamento de páginas — padding lateral reduzido no mobile ── */
+@media (max-width: 640px) {
+  .mobile-main-content > * {
+    /* Remove margens excessivas herdadas de páginas desktop */
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Padding global do conteúdo no mobile */
+  .mobile-main-content {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Cards: padding interno menor no mobile para ganhar espaço */
+  .page-card,
+  .stat-card,
+  .form-section {
+    padding: 0.875rem;
+    border-radius: 0.875rem;
+  }
+
+  /* Estado vazio: padding vertical menor */
+  .empty-state {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* ── 4. Touch Targets — botões com alvo mínimo de 44px ── */
+@media (max-width: 768px) {
+  /* Botões icon (quadrados) */
+  button[class*="h-7"],
+  button[class*="h-8"],
+  .btn-icon-sm {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Botões com h-9 ou menores que aparecem em listas */
+  .h-9, [class*="h-9"] {
+    min-height: 44px;
+  }
+
+  /* Chips de filtro e tabs */
+  [role="tab"],
+  [role="tablist"] button {
+    min-height: 40px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* ── 5. Cards de grid — 1 coluna em telas muito pequenas ── */
+@media (max-width: 480px) {
+  /* Força grid de profissionais para coluna única em telas < 480px */
+  .grid-cols-1.sm\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── 6. Calendário de folgas — células maiores no mobile ── */
+@media (max-width: 640px) {
+  /* Células do calendário: tamanho confortável para toque */
+  .calendar-grid button,
+  div[class*="grid-cols-7"] button {
+    min-height: 40px;
+    min-width: 36px;
+    font-size: 0.8125rem; /* 13px — legível sem zoom */
+    border-radius: 0.5rem;
+  }
+
+  /* Cabeçalho dos dias da semana no calendário */
+  div[class*="grid-cols-7"] div[class*="text-\[10px\]"] {
+    font-size: 0.6875rem; /* 11px */
+  }
+
+  /* Container do calendário: padding reduzido para caber na tela */
+  .bg-muted\/30.rounded-xl,
+  div[class*="bg-muted/30"][class*="rounded-xl"] {
+    padding: 0.625rem;
+  }
+}
+
+/* ── 7. Tabs de listagem (Pendentes / Aprovados / Negados / Todos) ── */
+@media (max-width: 640px) {
+  [role="tablist"] {
+    gap: 0.125rem;
+  }
+
+  [role="tab"] {
+    font-size: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* ── 8. Botões de ação em cards de folga — espaço extra no mobile ── */
+@media (max-width: 640px) {
+  /* Linha de botões Aprovar/Negar */
+  .flex.items-center.gap-2.shrink-0 {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* ── 9. Bordas mais sutis no mobile (evita poluição visual) ── */
+@media (max-width: 640px) {
+  .border-border {
+    border-color: hsl(var(--border) / 0.6);
+  }
+
+  /* Sombras nos cards — mais leve no mobile */
+  .shadow-sm {
+    box-shadow: 0 1px 4px hsl(var(--foreground) / 0.06);
+  }
+}
+
+/* ── 10. Headers de página — tipografia compacta no mobile ── */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 1.375rem; /* 22px em vez de 24px */
+    line-height: 1.2;
+  }
+
+  /* Barra de filtros: quebra em coluna no mobile */
+  .flex.flex-wrap.items-center.gap-3.bg-card {
+    gap: 0.625rem;
+    padding: 0.625rem;
+  }
+
+  /* Inputs de busca: largura completa no mobile */
+  .relative.flex-1.min-w-\[200px\] {
+    min-width: 0 !important;
+    flex: 1 1 100%;
+  }
+
+  /* Selects de filtro: largura automática no mobile */
+  .w-\[160px\] {
+    width: auto !important;
+    flex: 1 1 calc(50% - 0.3rem);
+  }
+}
+
+/* ── 11. Summary Cards (Pendentes/Aprovados/Negados) ── */
+@media (max-width: 380px) {
+  /* Em telas muito pequenas: tamanho do número menor */
+  .grid.grid-cols-3 p[class*="text-2xl"] {
+    font-size: 1.25rem;
+  }
 }
