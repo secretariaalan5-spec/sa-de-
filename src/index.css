@@ -115,6 +115,8 @@
   html, body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    height: 100%;
+    width: 100%;
     /* Native app feel */
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
