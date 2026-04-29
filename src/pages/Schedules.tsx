@@ -20,6 +20,7 @@ interface Schedule {
   shift_type: string;
   credit_amount: number;
   unit_id: string | null;
+  observations: string | null;
   created_at: string;
 }
 
@@ -43,6 +44,7 @@ export default function Schedules() {
   const [empId, setEmpId] = useState('');
   const [type, setType] = useState('extra');
   const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
+  const [observations, setObservations] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [filterEmpId, setFilterEmpId] = useState('all');
@@ -214,6 +216,7 @@ export default function Schedules() {
       date,
       type,
       shift_type: shiftType,
+      observations: observations.trim() || null,
       team_id: roleInfo.team_id,
       created_by: user?.id ?? null,
     }));
@@ -229,6 +232,7 @@ export default function Schedules() {
     setOpen(false);
     setEmpId('');
     setSelectedDates([]);
+    setObservations('');
     setType('extra');
     setShiftType('full');
     load();
@@ -334,7 +338,7 @@ export default function Schedules() {
                 <div key={s.id} className={cn(
                   'text-[8px] sm:text-[10px] px-1 py-0.5 rounded truncate',
                   s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
-                )} title={`${getEmpName(s.employee_id)}`}>
+                )} title={`${getEmpName(s.employee_id)}${s.observations ? `\nObs: ${s.observations}` : ''}`}>
                   {getEmpName(s.employee_id).split(' ')[0]}
                 </div>
               ))}
@@ -368,6 +372,11 @@ export default function Schedules() {
                 <td className="px-5 py-3.5 text-muted-foreground">
                   <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                   {holidayName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {holidayName}</span>}
+                  {s.observations && (
+                    <div className="text-[11px] mt-0.5 italic text-muted-foreground/80 break-words line-clamp-2 max-w-[200px]" title={s.observations}>
+                      {s.observations}
+                    </div>
+                  )}
                 </td>
                 <td className="px-5 py-3.5">
                   <Badge variant="secondary" className={cn(
@@ -427,7 +436,7 @@ export default function Schedules() {
             </button>
           </div>
           {canCreate && (
-            <Button onClick={() => { setEmpId(''); setSelectedDates([]); setOpen(true); }} className="gap-2">
+            <Button onClick={() => { setEmpId(''); setSelectedDates([]); setObservations(''); setOpen(true); }} className="gap-2">
               <Plus size={16} /> Nova Escala
             </Button>
           )}
@@ -505,6 +514,7 @@ export default function Schedules() {
                     <div>
                       <p className="font-semibold text-sm">{getEmpName(s.employee_id)}</p>
                       <p className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                      {s.observations && <p className="text-[11px] italic text-muted-foreground mt-0.5">{s.observations}</p>}
                     </div>
                     <div className="flex gap-2">
                       <Badge variant="secondary" className="text-[10px]">{s.shift_type === 'half' ? '½T' : 'Integral'}</Badge>
@@ -546,6 +556,11 @@ export default function Schedules() {
                           <td className="px-5 py-3.5 text-muted-foreground">
                             <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                             {hName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {hName}</span>}
+                            {s.observations && (
+                              <div className="text-[11px] mt-0.5 italic text-muted-foreground/80 break-words line-clamp-2 max-w-[200px]" title={s.observations}>
+                                {s.observations}
+                              </div>
+                            )}
                           </td>
                           <td className="px-5 py-3.5">
                             <Badge variant="secondary" className={cn(
@@ -777,6 +792,18 @@ export default function Schedules() {
               <span className="font-semibold text-foreground whitespace-nowrap">📋 Créditos:</span>
               <span>Semana <b className="text-primary">+1</b>/<b className="text-primary">+0,5</b></span>
               <span>Fds/Feriado <b className="text-primary">+2</b>/<b className="text-primary">+1</b></span>
+            </div>
+
+            {/* Observations */}
+            <div className="space-y-1">
+              <Label>Observações / Local de Trabalho (Opcional)</Label>
+              <textarea
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                placeholder="Ex: ESF Centro, Campanha de vacinação..."
+                className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                maxLength={200}
+              />
             </div>
 
             {/* Mini calendar */}
