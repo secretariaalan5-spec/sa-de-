@@ -473,8 +473,7 @@
   html, body, #root {
     height: 100% !important;
     min-height: -webkit-fill-available !important;
-    background-color: hsl(var(--background));
-    overflow: hidden;
+    background-color: hsl(210, 100%, 48%);
   }
 }
 
