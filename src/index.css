@@ -471,8 +471,8 @@
 /* Prevent rubber-banding on iOS standalone */
 @media (display-mode: standalone) {
   html, body, #root {
-    height: 100% !important;
-    min-height: -webkit-fill-available !important;
+    height: 100svh !important;
+    min-height: 100dvh !important;
     background-color: hsl(var(--background));
   }
 }
