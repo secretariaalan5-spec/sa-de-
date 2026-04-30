@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
-  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download, ShieldAlert, CalendarHeart, ChevronRight
+  LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download, ShieldAlert, CalendarHeart
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
@@ -134,11 +134,11 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="h-full flex w-full overflow-hidden bg-background">
+    <div className="min-h-dvh flex w-full overflow-hidden bg-background">
 
       {/* ═══ Desktop Sidebar (hidden on mobile) ═══ */}
       {!isMobile && (
-        <aside className="static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col flex shadow-none">
+        <aside className="sticky top-0 h-dvh z-[70] shrink-0 w-64 bg-sidebar flex-col flex shadow-none">
           <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
@@ -210,18 +210,15 @@ export function AppShell() {
             <div className="px-4 pb-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Mais opções</p>
             </div>
-            <nav className="px-3 pb-2 space-y-1">
+            <nav className="px-3 pb-2 space-y-0.5">
               {moreNavItems.map(item => (
                 <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn(
-                    "flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-semibold transition-all native-press",
-                    isActive ? "bg-primary/10 text-primary" : "bg-card text-foreground hover:bg-secondary/50"
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                    isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
                   )}>
-                  <div className={cn("p-2.5 rounded-xl", isActive ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground")}>
-                    <item.icon size={20} />
-                  </div>
-                  <span className="flex-1">{item.label}</span>
-                  <ChevronRight size={18} className="text-muted-foreground/40" />
+                  <item.icon size={20} />
+                  <span>{item.label}</span>
                 </NavLink>
               ))}
             </nav>
@@ -240,8 +237,8 @@ export function AppShell() {
                 </div>
               </button>
               <Button variant="ghost" size="sm" onClick={handleLogout}
-                className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 mt-1 rounded-xl py-5">
-                <LogOut size={18} /> Sair do Sistema
+                className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground mt-1">
+                <LogOut size={15} /> Sair
               </Button>
             </div>
           </div>
@@ -250,34 +247,35 @@ export function AppShell() {
 
       {/* ═══ Main Content ═══ */}
       <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
-        {/* Native Mobile Header */}
+        {/* Mobile top header */}
         {isMobile && (
-          <header className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border/50 shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-            <div className="h-14 px-4 flex items-center justify-between relative">
-              {/* Left: Avatar/Profile */}
-              <button onClick={() => navigate('/perfil')} className="p-1 native-press z-10">
-                <Avatar className="h-8 w-8 ring-2 ring-primary/10">
-                  {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">{initials}</AvatarFallback>
-                </Avatar>
-              </button>
-
-              {/* Center: Title & Subtitle */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="font-bold text-base text-foreground tracking-tight">Saúde+</span>
-                {roleDescription && (
-                  <span className="text-[9px] font-semibold text-muted-foreground -mt-1 uppercase tracking-wider">{roleDescription}</span>
-                )}
+          <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+            <div className="px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
+                <div>
+                  <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+                  {roleDescription && (
+                    <p className="text-primary-foreground/70 text-[9px] leading-tight truncate max-w-[180px]">{roleDescription}</p>
+                  )}
+                </div>
               </div>
-
-              {/* Right: Actions */}
-              <div className="flex items-center gap-1 z-10">
+              <div className="flex items-center gap-1">
+                <NotificationBell iconClassName="text-primary-foreground/70 hover:text-primary-foreground" />
                 {canInstall && (
-                  <button onClick={install} className="p-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-full native-press transition-colors">
+                  <button onClick={install} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground native-press">
                     <Download size={18} />
                   </button>
                 )}
-                <NotificationBell iconClassName="text-muted-foreground hover:text-foreground" />
+                <button onClick={() => navigate('/perfil')} className="p-1 native-press">
+                  <Avatar className="h-7 w-7">
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
+                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px]">{initials}</AvatarFallback>
+                  </Avatar>
+                </button>
+                <button onClick={handleLogout} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground native-press">
+                  <LogOut size={18} />
+                </button>
               </div>
             </div>
           </header>
@@ -299,24 +297,24 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* ═══ Mobile Bottom Tab Bar — Blue ═══ */}
+        {/* ═══ Mobile Bottom Tab Bar — Solid Blue ═══ */}
         {isMobile && (
           <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-            <div className="flex items-center justify-around h-[56px] relative px-2">
+            <div className="flex items-center justify-around h-[52px] relative">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 native-press",
-                    isActive ? "text-white" : "text-white/50"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    isActive ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
                   {({ isActive }) => (
                     <>
-                      <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
-                      <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>
+                      <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                      <span className={cn("text-[9px] font-medium", isActive ? "opacity-100" : "opacity-60")}>
                         {item.label}
                       </span>
                     </>
@@ -328,12 +326,12 @@ export function AppShell() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className={cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 native-press",
-                    mobileOpen ? "text-white" : "text-white/50"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    mobileOpen ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
-                  <Menu size={22} strokeWidth={mobileOpen ? 2.5 : 1.8} />
-                  <span className={cn("text-[10px]", mobileOpen ? "font-bold" : "font-medium")}>
+                  <Menu size={20} strokeWidth={mobileOpen ? 2.5 : 1.8} />
+                  <span className={cn("text-[9px] font-medium", mobileOpen ? "opacity-100" : "opacity-60")}>
                     Mais
                   </span>
                 </button>
