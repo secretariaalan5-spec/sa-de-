@@ -1,5 +1,4 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-// Mobile lateral navigation update
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
@@ -65,7 +64,7 @@ export function AppShell() {
   const role = roleInfo?.role ?? '';
   let filtered = navItems.filter(item => item.roles.includes(role));
   
-  // Failsafe: if role isn't loaded yet or mismatched, show at least Dashboard to prevent empty blue bar
+  // Failsafe: if role isn't loaded yet or mismatched, show at least Dashboard to prevent empty bar
   if (filtered.length === 0) {
     filtered = navItems.filter(item => ['/'].includes(item.to));
   }
@@ -135,90 +134,123 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh flex w-full overflow-hidden bg-background">
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
-          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
 
-      {mobileOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm" onClick={() => setMobileOpen(false)} />}
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col transition-transform duration-300 flex shadow-2xl lg:shadow-none",
-        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
-        <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
-            <div>
-              <h1 className="text-base font-bold text-sidebar-foreground leading-tight">Saúde+</h1>
-              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Gestão de Escalas</p>
+      {/* ═══ Desktop Sidebar (hidden on mobile) ═══ */}
+      {!isMobile && (
+        <aside className="static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col flex shadow-none">
+          <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
+              <div>
+                <h1 className="text-base font-bold text-sidebar-foreground leading-tight">Saúde+</h1>
+                <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Gestão de Escalas</p>
+              </div>
             </div>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-2 -mr-2 text-sidebar-foreground/70 hover:text-sidebar-foreground native-press">
-            <X size={22} />
-          </button>
-        </div>
 
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-2 pb-1">Menu</p>
-          {filtered.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => cn("nav-item text-sm", isActive && "active")}>
-              <item.icon size={18} />
-              <span>{item.label}</span>
-              {isRH && <Eye size={12} className="ml-auto opacity-40" />}
-            </NavLink>
-          ))}
+          <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+            <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-2 pb-1">Menu</p>
+            {filtered.map(item => (
+              <NavLink key={item.to} to={item.to} end={item.to === '/'}
+                className={({ isActive }) => cn("nav-item text-sm", isActive && "active")}>
+                <item.icon size={18} />
+                <span>{item.label}</span>
+                {isRH && <Eye size={12} className="ml-auto opacity-40" />}
+              </NavLink>
+            ))}
 
-          {/* PWA Install */}
-          {canInstall && (
-            <>
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-4 pb-1">App</p>
-              <button onClick={install}
-                className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
-                <Download size={18} />
-                <span>Instalar App</span>
+            {canInstall && (
+              <>
+                <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-4 pb-1">App</p>
+                <button onClick={install}
+                  className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
+                  <Download size={18} />
+                  <span>Instalar App</span>
+                </button>
+              </>
+            )}
+          </nav>
+
+          <div className="p-3 border-t border-sidebar-border">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">Alertas</span>
+              <NotificationBell iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
+            </div>
+            <button
+              onClick={() => navigate('/perfil')}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30 mb-2 w-full hover:bg-sidebar-accent/50 transition-colors"
+            >
+              <Avatar className="h-8 w-8">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
+                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.email}</p>
+                <p className="text-[10px] text-sidebar-foreground/50">{roleDescription || roleLabels[role]}</p>
+              </div>
+              <UserCircle size={14} className="text-sidebar-foreground/40" />
+            </button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}
+              className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent">
+              <LogOut size={15} /> Sair
+            </Button>
+          </div>
+        </aside>
+      )}
+
+      {/* ═══ Mobile "Mais" Bottom Sheet ═══ */}
+      {isMobile && mobileOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[80] backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[90] bg-card rounded-t-3xl shadow-2xl animate-slide-up max-h-[70vh] overflow-y-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)' }}>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+            <div className="px-4 pb-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Todas as opções</p>
+            </div>
+            <nav className="px-3 pb-2 space-y-0.5">
+              {filtered.map(item => (
+                <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                    isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                  )}>
+                  <item.icon size={20} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </nav>
+            <div className="px-4 py-3 border-t border-border">
+              <button
+                onClick={() => { navigate('/perfil'); setMobileOpen(false); }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full hover:bg-muted transition-colors"
+              >
+                <Avatar className="h-8 w-8">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">{initials}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-xs font-medium text-foreground truncate">{user?.email}</p>
+                  <p className="text-[10px] text-muted-foreground">{roleDescription || roleLabels[role]}</p>
+                </div>
               </button>
-            </>
-          )}
-        </nav>
-
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">Alertas</span>
-            <NotificationBell iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
-          </div>
-          <button
-            onClick={() => { navigate('/perfil'); setMobileOpen(false); }}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30 mb-2 w-full hover:bg-sidebar-accent/50 transition-colors"
-          >
-            <Avatar className="h-8 w-8">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
-              <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{initials}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.email}</p>
-              <p className="text-[10px] text-sidebar-foreground/50">{roleDescription || roleLabels[role]}</p>
+              <Button variant="ghost" size="sm" onClick={handleLogout}
+                className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground mt-1">
+                <LogOut size={15} /> Sair
+              </Button>
             </div>
-            <UserCircle size={14} className="text-sidebar-foreground/40" />
-          </button>
-          <Button variant="ghost" size="sm" onClick={handleLogout}
-            className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-            <LogOut size={15} /> Sair
-          </Button>
-        </div>
-      </aside>
+          </div>
+        </>
+      )}
 
-      {/* Main content */}
+      {/* ═══ Main Content ═══ */}
       <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
         {/* Mobile top header */}
         {isMobile && (
           <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             <div className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <button onClick={() => setMobileOpen(true)} className="p-1.5 -ml-2 text-primary-foreground/90 hover:text-primary-foreground native-press">
-                  <Menu size={24} />
-                </button>
                 <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
                 <div>
                   <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
@@ -264,29 +296,24 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* Mobile bottom navigation - Floating Premium Design */}
+        {/* ═══ Mobile Bottom Tab Bar — Solid Blue ═══ */}
         {isMobile && (
-          <nav className="fixed bottom-3 left-3 right-3 z-50 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 rounded-[24px] shadow-[0_8px_32px_-4px_rgba(0,0,0,0.15)] no-print overflow-hidden">
-            <div className="flex items-center justify-around h-[60px] px-2 relative">
+          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-center justify-around h-[52px] relative">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-300 relative z-10",
-                    isActive ? "text-primary" : "text-muted-foreground"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    isActive ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
                   {({ isActive }) => (
                     <>
-                      <div className={cn(
-                        "p-2 rounded-xl transition-all duration-300",
-                        isActive ? "bg-primary/10 scale-110" : "bg-transparent"
-                      )}>
-                        <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                      </div>
-                      <span className={cn("text-[10px] font-semibold transition-all duration-300", isActive ? "opacity-100 scale-105" : "opacity-60")}>
+                      <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                      <span className={cn("text-[9px] font-medium", isActive ? "opacity-100" : "opacity-60")}>
                         {item.label}
                       </span>
                     </>
@@ -298,17 +325,12 @@ export function AppShell() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className={cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-300 relative z-10",
-                    mobileOpen ? "text-primary" : "text-muted-foreground"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    mobileOpen ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
-                  <div className={cn(
-                    "p-2 rounded-xl transition-all duration-300",
-                    mobileOpen ? "bg-primary/10 scale-110" : "bg-transparent"
-                  )}>
-                    <Menu size={22} strokeWidth={mobileOpen ? 2.5 : 2} />
-                  </div>
-                  <span className={cn("text-[10px] font-semibold transition-all duration-300", mobileOpen ? "opacity-100" : "opacity-60")}>
+                  <Menu size={20} strokeWidth={mobileOpen ? 2.5 : 1.8} />
+                  <span className={cn("text-[9px] font-medium", mobileOpen ? "opacity-100" : "opacity-60")}>
                     Mais
                   </span>
                 </button>
