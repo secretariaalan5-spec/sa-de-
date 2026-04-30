@@ -134,7 +134,7 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="h-dvh flex w-full overflow-hidden bg-background">
+    <div className="h-full flex w-full overflow-hidden bg-background">
 
       {/* ═══ Desktop Sidebar (hidden on mobile) ═══ */}
       {!isMobile && (
