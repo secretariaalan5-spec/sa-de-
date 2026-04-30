@@ -473,12 +473,12 @@
   html {
     /* NOTE: No overflow:hidden here — it breaks position:fixed on iOS WebKit */
     height: 100%;
-    background-color: hsl(210, 100%, 48%);
+    background-color: hsl(var(--background));
   }
   body {
     overflow: hidden;
     height: 100%;
-    background-color: hsl(210, 100%, 48%);
+    background-color: hsl(var(--background));
   }
   #root {
     overflow: hidden;
