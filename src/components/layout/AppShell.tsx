@@ -266,7 +266,7 @@ export function AppShell() {
 
         {/* Mobile bottom navigation */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border no-print shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border no-print shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <div className="flex items-center justify-around h-16 relative">
               {bottomNavItems.map((item) => (
                 <NavLink
