@@ -135,6 +135,15 @@ export function AppShell() {
 
   return (
     <div className="h-full flex w-full overflow-hidden bg-background">
+      <style>{`
+        @media (display-mode: standalone) {
+          html, body, #root {
+            height: 100% !important;
+            min-height: -webkit-fill-available !important;
+            background-color: white !important;
+          }
+        }
+      `}</style>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -264,29 +273,29 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* Mobile bottom navigation */}
+        {/* Mobile bottom navigation - Floating Premium Design */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-            <div className="flex items-center justify-around h-[50px] relative">
+          <nav className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] left-4 right-4 z-50 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 rounded-[24px] shadow-[0_8px_32px_-4px_rgba(0,0,0,0.15)] no-print overflow-hidden">
+            <div className="flex items-center justify-around h-[64px] px-2 relative">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-300 relative z-10",
-                    isActive ? "text-primary-foreground" : "text-primary-foreground/60"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-300 relative z-10",
+                    isActive ? "text-primary" : "text-muted-foreground"
                   )}
                 >
                   {({ isActive }) => (
                     <>
                       <div className={cn(
-                        "transition-all duration-300",
-                        isActive ? "scale-110" : "opacity-80"
+                        "p-2 rounded-xl transition-all duration-300",
+                        isActive ? "bg-primary/10 scale-110" : "bg-transparent"
                       )}>
-                        <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                        <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                       </div>
-                      <span className={cn("text-[9px] font-medium transition-all duration-300", isActive ? "opacity-100" : "opacity-60")}>
+                      <span className={cn("text-[10px] font-semibold transition-all duration-300", isActive ? "opacity-100 scale-105" : "opacity-60")}>
                         {item.label}
                       </span>
                     </>
@@ -298,17 +307,17 @@ export function AppShell() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className={cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-300 relative z-10",
-                    mobileOpen ? "text-primary-foreground" : "text-primary-foreground/60"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-300 relative z-10",
+                    mobileOpen ? "text-primary" : "text-muted-foreground"
                   )}
                 >
                   <div className={cn(
-                    "transition-all duration-300",
-                    mobileOpen ? "scale-110" : "opacity-80"
+                    "p-2 rounded-xl transition-all duration-300",
+                    mobileOpen ? "bg-primary/10 scale-110" : "bg-transparent"
                   )}>
-                    <Menu size={20} strokeWidth={mobileOpen ? 2.5 : 2} />
+                    <Menu size={22} strokeWidth={mobileOpen ? 2.5 : 2} />
                   </div>
-                  <span className={cn("text-[9px] font-medium transition-all duration-300", mobileOpen ? "opacity-100" : "opacity-60")}>
+                  <span className={cn("text-[10px] font-semibold transition-all duration-300", mobileOpen ? "opacity-100" : "opacity-60")}>
                     Mais
                   </span>
                 </button>

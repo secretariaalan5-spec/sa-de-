@@ -393,7 +393,7 @@
 /* Mobile main content area: accounts for fixed header + bottom nav */
 .mobile-main-content {
   padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 50px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
   padding-left: 0.875rem;
   padding-right: 0.875rem;
 }
@@ -473,7 +473,7 @@
   html, body, #root {
     height: 100% !important;
     min-height: -webkit-fill-available !important;
-    background-color: hsl(210, 100%, 48%);
+    background-color: hsl(var(--background));
   }
 }
 
