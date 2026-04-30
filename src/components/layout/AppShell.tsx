@@ -140,15 +140,14 @@ export function AppShell() {
         </button>
       )}
 
-      {mobileOpen && !isMobile && <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm" onClick={() => setMobileOpen(false)} />}
 
-      {/* Desktop sidebar */}
+      {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar flex-col transition-transform duration-300",
-        isMobile ? "hidden" : "flex",
-        !isMobile && (mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0")
+        "fixed lg:static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col transition-transform duration-300 flex shadow-2xl lg:shadow-none",
+        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="p-5 border-b border-sidebar-border">
+        <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
             <div>
@@ -156,6 +155,9 @@ export function AppShell() {
               <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Gestão de Escalas</p>
             </div>
           </div>
+          <button onClick={() => setMobileOpen(false)} className="lg:hidden p-2 -mr-2 text-sidebar-foreground/70 hover:text-sidebar-foreground native-press">
+            <X size={22} />
+          </button>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -215,6 +217,9 @@ export function AppShell() {
           <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             <div className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
+                <button onClick={() => setMobileOpen(true)} className="p-1.5 -ml-2 text-primary-foreground/90 hover:text-primary-foreground native-press">
+                  <Menu size={24} />
+                </button>
                 <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
                 <div>
                   <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
@@ -260,105 +265,10 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* Mobile bottom navigation */}
-        {isMobile && (
-          <nav
-            className="fixed bottom-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.12)] border-t border-white/5"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-          >
-          <div className="flex items-stretch justify-around px-1">
-            {bottomNavItems.map(item => {
-              const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  className="flex flex-col items-center justify-center pt-3 pb-2 px-1 flex-1 min-w-0 native-press"
-                >
-                  <div className={cn(
-                    "relative flex items-center justify-center w-12 h-7 rounded-2xl transition-all duration-300",
-                    isActive ? "bg-white/20" : "bg-transparent"
-                  )}>
-                    <item.icon size={22} className={cn(
-                      "transition-all duration-200",
-                      isActive ? "text-white" : "text-blue-100/70"
-                    )} />
-                  </div>
-                  <span className={cn(
-                    "text-[10px] mt-1 truncate max-w-full transition-all duration-200",
-                    isActive ? "text-white font-bold" : "text-blue-100/70"
-                  )}>
-                    {item.label}
-                  </span>
-                </NavLink>
-              );
-            })}
-            {hasMore && (
-              <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="flex flex-col items-center justify-center pt-3 pb-2 px-1 flex-1 min-w-0 native-press"
-              >
-                <div className={cn(
-                    "relative flex items-center justify-center w-12 h-7 rounded-2xl transition-all duration-300",
-                    mobileOpen ? "bg-white/20" : "bg-transparent"
-                  )}>
-                  {mobileOpen ? (
-                    <X size={22} className="text-white transition-all duration-200" />
-                  ) : (
-                    <Menu size={22} className="text-blue-100/70 transition-all duration-200" />
-                  )}
-                </div>
-                <span className={cn(
-                  "text-[10px] mt-1 transition-all duration-200",
-                  mobileOpen ? "text-white font-bold" : "text-blue-100/70"
-                )}>Mais</span>
-              </button>
-            )}
-          </div>
-
-        </nav>
-        )}
-
+        {/* Mobile bottom navigation has been removed */}
       </div>
 
-      {/* Mobile "More" drawer */}
-      {isMobile && mobileOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-[60] bg-card rounded-t-3xl shadow-2xl max-h-[65vh] overflow-y-auto animate-slide-up" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
-            <div className="p-3 flex justify-center">
-              <div className="w-10 h-1.5 bg-muted-foreground/25 rounded-full" />
-            </div>
-            <div className="px-4 pb-2 space-y-0.5">
-              {filtered.slice(4).map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  onClick={() => setMobileOpen(false)}
-                  className={({ isActive }) => cn(
-                    "flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm transition-all native-press",
-                    isActive ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted/60"
-                  )}
-                >
-                  <item.icon size={20} />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
-              {canInstall && (
-                <button
-                  onClick={() => { install(); setMobileOpen(false); }}
-                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm transition-all text-foreground hover:bg-muted/60 w-full native-press"
-                >
-                  <Download size={20} />
-                  <span>Instalar App</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }
