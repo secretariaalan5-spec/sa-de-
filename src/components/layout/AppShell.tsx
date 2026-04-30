@@ -135,15 +135,6 @@ export function AppShell() {
 
   return (
     <div className="h-full flex w-full overflow-hidden bg-background">
-      <style>{`
-        @media (display-mode: standalone) {
-          html, body, #root {
-            height: 100% !important;
-            min-height: -webkit-fill-available !important;
-            background-color: white !important;
-          }
-        }
-      `}</style>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -275,8 +266,8 @@ export function AppShell() {
 
         {/* Mobile bottom navigation - Floating Premium Design */}
         {isMobile && (
-          <nav className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+12px)] left-4 right-4 z-50 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 rounded-[24px] shadow-[0_8px_32px_-4px_rgba(0,0,0,0.15)] no-print overflow-hidden">
-            <div className="flex items-center justify-around h-[64px] px-2 relative">
+          <nav className="fixed bottom-3 left-3 right-3 z-50 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 rounded-[24px] shadow-[0_8px_32px_-4px_rgba(0,0,0,0.15)] no-print overflow-hidden">
+            <div className="flex items-center justify-around h-[60px] px-2 relative">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
