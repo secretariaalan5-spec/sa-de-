@@ -300,21 +300,21 @@ export function AppShell() {
         {/* ═══ Mobile Bottom Tab Bar — Solid Blue ═══ */}
         {isMobile && (
           <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-            <div className="flex items-center justify-around h-[52px] relative">
+            <div className="flex items-center justify-around h-[60px] relative px-1">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 relative native-press",
                     isActive ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
                   {({ isActive }) => (
                     <>
-                      <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
-                      <span className={cn("text-[9px] font-medium", isActive ? "opacity-100" : "opacity-60")}>
+                      <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                      <span className={cn("text-[10px] tracking-wide", isActive ? "font-bold opacity-100" : "font-medium opacity-70")}>
                         {item.label}
                       </span>
                     </>
@@ -326,12 +326,12 @@ export function AppShell() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className={cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 relative",
+                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 relative native-press",
                     mobileOpen ? "text-primary-foreground" : "text-primary-foreground/50"
                   )}
                 >
-                  <Menu size={20} strokeWidth={mobileOpen ? 2.5 : 1.8} />
-                  <span className={cn("text-[9px] font-medium", mobileOpen ? "opacity-100" : "opacity-60")}>
+                  <Menu size={24} strokeWidth={mobileOpen ? 2.5 : 2} />
+                  <span className={cn("text-[10px] tracking-wide", mobileOpen ? "font-bold opacity-100" : "font-medium opacity-70")}>
                     Mais
                   </span>
                 </button>
