@@ -70,7 +70,8 @@ export function AppShell() {
   }
 
   const bottomNavItems = filtered.slice(0, 4);
-  const hasMore = filtered.length > 4;
+  const moreNavItems = filtered.slice(4);
+  const hasMore = moreNavItems.length > 0;
 
   if (!layoutReady) return null;
 
@@ -207,10 +208,10 @@ export function AppShell() {
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
             </div>
             <div className="px-4 pb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Todas as opções</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Mais opções</p>
             </div>
             <nav className="px-3 pb-2 space-y-0.5">
-              {filtered.map(item => (
+              {moreNavItems.map(item => (
                 <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
                   className={({ isActive }) => cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
