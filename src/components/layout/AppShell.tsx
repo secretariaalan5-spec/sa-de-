@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+// Mobile lateral navigation update
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
