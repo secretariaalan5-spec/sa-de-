@@ -299,25 +299,23 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* ═══ Native Mobile Bottom Tab Bar ═══ */}
+        {/* ═══ Mobile Bottom Tab Bar — Blue ═══ */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-xl border-t border-border/50 no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-            <div className="flex items-center justify-around h-[60px] relative px-2">
+          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-center justify-around h-[56px] relative px-2">
               {bottomNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 native-press",
-                    isActive ? "text-primary" : "text-muted-foreground"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 native-press",
+                    isActive ? "text-white" : "text-white/50"
                   )}
                 >
                   {({ isActive }) => (
                     <>
-                      <div className={cn("transition-all duration-200 flex items-center justify-center", isActive && "bg-primary/10 px-4 py-1 rounded-2xl")}>
-                         <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                      </div>
+                      <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
                       <span className={cn("text-[10px]", isActive ? "font-bold" : "font-medium")}>
                         {item.label}
                       </span>
@@ -330,13 +328,11 @@ export function AppShell() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className={cn(
-                    "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 native-press",
-                    mobileOpen ? "text-primary" : "text-muted-foreground"
+                    "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all duration-200 native-press",
+                    mobileOpen ? "text-white" : "text-white/50"
                   )}
                 >
-                  <div className={cn("transition-all duration-200 flex items-center justify-center", mobileOpen && "bg-primary/10 px-4 py-1 rounded-2xl")}>
-                     <Menu size={22} strokeWidth={mobileOpen ? 2.5 : 2} />
-                  </div>
+                  <Menu size={22} strokeWidth={mobileOpen ? 2.5 : 1.8} />
                   <span className={cn("text-[10px]", mobileOpen ? "font-bold" : "font-medium")}>
                     Mais
                   </span>
