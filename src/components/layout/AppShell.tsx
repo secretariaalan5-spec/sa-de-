@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
+import {
   LayoutDashboard, Users, CalendarDays, CalendarOff, Building2, Tag, Mail,
   LogOut, Menu, X, Eye, ArrowRightLeft, UserCircle, Wallet, Download, ShieldAlert, CalendarHeart, ChevronRight
 } from 'lucide-react';
