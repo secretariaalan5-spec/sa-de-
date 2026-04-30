@@ -134,7 +134,7 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="h-full flex w-full overflow-hidden bg-background">
+    <div className="min-h-dvh flex w-full overflow-hidden bg-background">
         <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground no-print shadow-lg">
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
