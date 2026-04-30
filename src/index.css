@@ -393,7 +393,7 @@
 /* Mobile main content area: accounts for fixed header + bottom nav */
 .mobile-main-content {
   padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: 0.875rem;
   padding-right: 0.875rem;
 }
@@ -470,19 +470,11 @@
 
 /* Prevent rubber-banding on iOS standalone */
 @media (display-mode: standalone) {
-  html {
-    /* NOTE: No overflow:hidden here — it breaks position:fixed on iOS WebKit */
-    height: 100%;
-    background-color: hsl(var(--background));
-  }
-  body {
+  html, body, #root {
+    height: 100vh !important;
+    height: -webkit-fill-available !important;
     overflow: hidden;
-    height: 100%;
     background-color: hsl(var(--background));
-  }
-  #root {
-    overflow: hidden;
-    height: 100%;
   }
 }
 
