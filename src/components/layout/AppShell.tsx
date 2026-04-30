@@ -134,11 +134,11 @@ export function AppShell() {
   const initials = user?.email?.substring(0, 2).toUpperCase() ?? 'U';
 
   return (
-    <div className="min-h-dvh flex w-full overflow-hidden bg-background">
+    <div className="h-dvh flex w-full overflow-hidden bg-background">
 
       {/* ═══ Desktop Sidebar (hidden on mobile) ═══ */}
       {!isMobile && (
-        <aside className="sticky top-0 h-dvh z-[70] shrink-0 w-64 bg-sidebar flex-col flex shadow-none">
+        <aside className="static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col flex shadow-none">
           <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
