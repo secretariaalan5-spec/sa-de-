@@ -268,8 +268,6 @@ export function AppShell() {
 
         {/* Mobile bottom navigation has been removed */}
       </div>
-
-      </div>
     </div>
   );
 }
