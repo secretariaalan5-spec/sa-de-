@@ -175,7 +175,7 @@ export function AppShell() {
           <div className="p-3 border-t border-sidebar-border">
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">Alertas</span>
-              <NotificationBell iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
+              <NotificationBell align="end" side="right" iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
             </div>
             <button
               onClick={() => navigate('/perfil')}

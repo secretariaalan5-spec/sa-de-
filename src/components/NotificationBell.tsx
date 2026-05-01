@@ -73,7 +73,15 @@ function relativeTime(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export function NotificationBell({ iconClassName }: { iconClassName?: string }) {
+export function NotificationBell({ 
+  iconClassName,
+  align = "end",
+  side = "bottom"
+}: { 
+  iconClassName?: string;
+  align?: "start" | "center" | "end";
+  side?: "top" | "right" | "bottom" | "left";
+}) {
   const { user, isAdmin, isRH, roleInfo } = useAuthContext();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
@@ -222,7 +230,7 @@ export function NotificationBell({ iconClassName }: { iconClassName?: string }) 
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-[340px] p-0 shadow-2xl border-border/50 rounded-xl overflow-hidden">
+      <PopoverContent align={align} side={side} sideOffset={8} className="w-[340px] p-0 shadow-2xl border-border/50 rounded-xl overflow-hidden">
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
           <h4 className="font-semibold text-sm flex items-center gap-2">
