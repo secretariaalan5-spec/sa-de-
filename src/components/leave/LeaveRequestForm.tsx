@@ -5,23 +5,33 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { ChevronLeft, ChevronRight, AlertTriangle, Check, ChevronsUpDown, MapPin, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Employee {
   id: string;
   name: string;
+  category_id: string | null;
+  unit_id: string | null;
 }
+
+interface Category { id: string; name: string; color: string; }
+interface Unit { id: string; name: string; }
 
 interface Props {
   employees: Employee[];
+  categories: Category[];
+  units: Unit[];
   getBalance: (empId: string) => number;
   onSubmit: (empId: string, dates: string[], obs: string, isShortNotice: boolean) => Promise<void>;
   onCancel: () => void;
 }
 
-export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCancel }: Props) {
+export default function LeaveRequestForm({ employees, categories, units, getBalance, onSubmit, onCancel }: Props) {
   const [empId, setEmpId] = useState('');
+  const [openCombobox, setOpenCombobox] = useState(false);
   const [obs, setObs] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -65,6 +75,10 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   
   const balance = empId ? getBalance(empId) : 0;
 
+  const getUnitName = (unitId: string | null) => unitId ? (units.find(u => u.id === unitId)?.name ?? '') : '';
+  const getCategoryName = (catId: string | null) => catId ? (categories.find(c => c.id === catId)?.name ?? '') : '';
+  const getCategoryColor = (catId: string | null) => catId ? (categories.find(c => c.id === catId)?.color ?? '#6366f1') : '#6366f1';
+
   const handleDayClick = (day: number) => {
     if (isPast(day)) return;
     const dateStr = getDateStr(day);
@@ -107,20 +121,148 @@ export default function LeaveRequestForm({ employees, getBalance, onSubmit, onCa
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Employee selector */}
-      <div className="space-y-1.5">
-        <Label>Funcionário</Label>
-        <Select value={empId} onValueChange={(v) => { setEmpId(v); setSelectedDates([]); }}>
-          <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
-          <SelectContent>
-            {employees.map(e => (<SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>))}
-          </SelectContent>
-        </Select>
-        {empId && (
-          <p className="text-xs text-muted-foreground">
-            Saldo atual: <span className={cn('font-bold', balance > 0 ? 'text-primary' : 'text-destructive')}>{balance} crédito(s)</span>
-          </p>
-        )}
+      <div className="space-y-1.5 flex flex-col">
+        <Label>Profissional</Label>
+        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openCombobox}
+              className="w-full justify-between h-11 font-normal bg-card hover:bg-card px-3"
+            >
+              {empId ? (
+                <span className="truncate">{employees.find((e) => e.id === empId)?.name}</span>
+              ) : (
+                <span className="text-muted-foreground">Pesquisar ou selecionar profissional...</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Digite o nome do profissional..." />
+              <CommandList 
+                className="max-h-[350px] overflow-y-auto"
+                onWheel={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+              >
+                <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
+                <CommandGroup className="p-2">
+                  {employees.map((e) => {
+                    const unit = getUnitName(e.unit_id);
+                    const cat = getCategoryName(e.category_id);
+                    const catColor = getCategoryColor(e.category_id);
+                    const initials = e.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                    return (
+                      <CommandItem
+                        key={e.id}
+                        value={`${e.name} ${cat} ${unit}`}
+                        onSelect={() => {
+                          setEmpId(e.id);
+                          setSelectedDates([]);
+                          setOpenCombobox(false);
+                        }}
+                        style={{
+                          '--cat-color': catColor,
+                          '--cat-bg': `${catColor}25`,
+                        } as React.CSSProperties}
+                        className={cn(
+                          "mb-1.5 last:mb-0 relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-[var(--cat-bg)] data-[selected=true]:bg-[var(--cat-bg)] bg-transparent touch-pan-y"
+                        )}
+                      >
+                        {/* Avatar */}
+                        <div 
+                          className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-medium text-sm border-2 bg-background/50" 
+                          style={{ borderColor: catColor, color: catColor }}
+                        >
+                          {initials}
+                        </div>
+
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <div className="font-medium text-[14px] leading-snug text-foreground break-words pr-6">
+                            {e.name}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-foreground/80 mt-1">
+                            {cat && (
+                              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: catColor }} />
+                                <span className="font-medium" style={{ color: catColor }}>{cat}</span>
+                              </span>
+                            )}
+                            {unit && (
+                              <span className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
+                                <MapPin size={12} /> {unit}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Check icon if selected */}
+                        {empId === e.id && (
+                          <div className="absolute right-4 rounded-full p-1" style={{ color: catColor }}>
+                            <Check className="h-5 w-5" strokeWidth={2.5} />
+                          </div>
+                        )}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
+
+      {/* Employee profile card — shown after selection */}
+      {empId && (() => {
+        const emp = employees.find(e => e.id === empId);
+        if (!emp) return null;
+        const cat = getCategoryName(emp.category_id);
+        const unit = getUnitName(emp.unit_id);
+        const catColor = getCategoryColor(emp.category_id);
+        const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+        return (
+          <div 
+            className="flex items-start gap-3 rounded-xl p-3 transition-colors"
+            style={{ backgroundColor: `${catColor}15` }}
+          >
+            {/* Avatar */}
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm bg-background/60 border"
+              style={{ borderColor: catColor, color: catColor }}
+            >
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{emp.name}</p>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {cat && (
+                  <span 
+                    className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium border bg-background/50"
+                    style={{ borderColor: catColor, color: catColor }}
+                  >
+                    <Tag size={10} /> {cat}
+                  </span>
+                )}
+                {unit && (
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-background/50 text-muted-foreground px-2 py-0.5 rounded-full border border-border font-medium">
+                    <MapPin size={10} /> {unit}
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Stats */}
+            <div className="flex gap-3 shrink-0 text-center items-center h-10">
+              <div className="flex flex-col items-center justify-center h-full">
+                <span className={cn('text-base font-bold leading-none', balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                  {balance % 1 === 0 ? balance : balance.toFixed(1)}
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">saldo</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Calendar date range picker */}
       <div className="space-y-2">

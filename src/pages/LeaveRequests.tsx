@@ -388,6 +388,8 @@ export default function LeaveRequests() {
       >
         <LeaveRequestForm
           employees={employees}
+          categories={categories}
+          units={units}
           getBalance={getBalance}
           onSubmit={handleRequest}
           onCancel={() => setOpen(false)}
