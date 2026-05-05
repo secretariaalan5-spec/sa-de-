@@ -27,3 +27,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Security — NEVER commit keys, secrets, or credentials
+keys.txt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Scratch / temporary files
+scratch/
+diff.txt
+
+# Test artifacts
+playwright-report/
+test-results/
+*.test-results/
