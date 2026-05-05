@@ -413,22 +413,21 @@ export default function Schedules() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* E3: Header with inline month navigation */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">Escalas</h1>
-            <p className="text-muted-foreground text-sm">{roleDescription}</p>
-          </div>
-          <div className="flex items-center gap-1 bg-muted/60 rounded-xl border border-border px-2 py-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}><ChevronLeft size={15} /></Button>
-            <span className="text-sm font-semibold capitalize px-1 min-w-[140px] text-center">{monthLabel}</span>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}><ChevronRight size={15} /></Button>
-            <Button variant="ghost" size="sm" onClick={goToday} className="text-xs h-7 px-2 ml-1">Hoje</Button>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Escalas</h1>
+          <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex bg-muted rounded-lg p-0.5">
+          <div className="flex items-center gap-1 bg-muted/60 rounded-xl border border-border px-1.5 py-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}><ChevronLeft size={15} /></Button>
+            <span className="text-xs sm:text-sm font-semibold capitalize px-1 min-w-[90px] sm:min-w-[140px] text-center">{monthLabel}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}><ChevronRight size={15} /></Button>
+          </div>
+
+          <div className="hidden md:flex bg-muted rounded-lg p-0.5">
             <button onClick={() => setViewMode('calendar')} className={cn('view-toggle-btn px-3 py-1.5', viewMode === 'calendar' && 'active')}>
               <LayoutGrid size={14} />
             </button>
@@ -436,9 +435,10 @@ export default function Schedules() {
               <List size={14} />
             </button>
           </div>
+
           {canCreate && (
             <Button onClick={() => { setEmpId(''); setSelectedDates([]); setObservations(''); setOpen(true); }} className="gap-2">
-              <Plus size={16} /> Nova Escala
+              <Plus size={16} /> <span className="hidden xs:inline">Nova Escala</span><span className="xs:hidden">Nova</span>
             </Button>
           )}
         </div>
