@@ -174,25 +174,25 @@ export function AppShell() {
 
           <div className="p-3 border-t border-sidebar-border">
             <div className="flex items-center justify-between mb-2 px-1">
-              <span className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">Alertas</span>
-              <NotificationBell align="end" side="right" iconClassName="text-sidebar-foreground/70 hover:text-sidebar-foreground" />
+              <span className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider">Alertas</span>
+              <NotificationBell align="end" side="right" iconClassName="text-sidebar-foreground/80 hover:text-sidebar-foreground" />
             </div>
             <button
               onClick={() => navigate('/perfil')}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30 mb-2 w-full hover:bg-sidebar-accent/50 transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-black/5 mb-2 w-full hover:bg-black/10 transition-colors"
             >
               <Avatar className="h-8 w-8">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
-                <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">{initials}</AvatarFallback>
+                <AvatarFallback className="bg-sidebar-foreground/15 text-sidebar-foreground text-xs">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.email}</p>
-                <p className="text-[10px] text-sidebar-foreground/50">{roleDescription || roleLabels[role]}</p>
+                <p className="text-[10px] text-sidebar-foreground/70">{roleDescription || roleLabels[role]}</p>
               </div>
-              <UserCircle size={14} className="text-sidebar-foreground/40" />
+              <UserCircle size={14} className="text-sidebar-foreground/60" />
             </button>
             <Button variant="ghost" size="sm" onClick={handleLogout}
-              className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent">
+              className="w-full justify-start gap-2 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-black/10">
               <LogOut size={15} /> Sair
             </Button>
           </div>
@@ -249,31 +249,31 @@ export function AppShell() {
       <div className="flex-1 flex flex-col lg:ml-0 overflow-x-hidden">
         {/* Mobile top header */}
         {isMobile && (
-          <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          <header className="fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             <div className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
                 <div>
-                  <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+                  <span className="text-sidebar-foreground font-bold text-sm">Saúde+</span>
                   {roleDescription && (
-                    <p className="text-primary-foreground/70 text-[9px] leading-tight truncate max-w-[180px]">{roleDescription}</p>
+                    <p className="text-sidebar-foreground/75 text-[9px] leading-tight truncate max-w-[180px]">{roleDescription}</p>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <NotificationBell iconClassName="text-primary-foreground/70 hover:text-primary-foreground" />
+                <NotificationBell iconClassName="text-sidebar-foreground/80 hover:text-sidebar-foreground" />
                 {canInstall && (
-                  <button onClick={install} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground native-press">
+                  <button onClick={install} className="p-1.5 text-sidebar-foreground/80 hover:text-sidebar-foreground native-press">
                     <Download size={18} />
                   </button>
                 )}
                 <button onClick={() => navigate('/perfil')} className="p-1 native-press">
                   <Avatar className="h-7 w-7">
                     {avatarUrl && <AvatarImage src={avatarUrl} alt="Avatar" />}
-                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px]">{initials}</AvatarFallback>
+                    <AvatarFallback className="bg-sidebar-foreground/15 text-sidebar-foreground text-[10px]">{initials}</AvatarFallback>
                   </Avatar>
                 </button>
-                <button onClick={handleLogout} className="p-1.5 text-primary-foreground/70 hover:text-primary-foreground native-press">
+                <button onClick={handleLogout} className="p-1.5 text-sidebar-foreground/80 hover:text-sidebar-foreground native-press">
                   <LogOut size={18} />
                 </button>
               </div>
@@ -297,9 +297,9 @@ export function AppShell() {
           </div>
         </main>
 
-        {/* ═══ Mobile Bottom Tab Bar — Solid Blue ═══ */}
+        {/* ═══ Mobile Bottom Tab Bar — Yellow ═══ */}
         {isMobile && (
-          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <nav className="fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-sidebar-border no-print" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <div className="flex items-center justify-around h-[60px] relative px-1">
               {bottomNavItems.map((item) => (
                 <NavLink
@@ -308,13 +308,13 @@ export function AppShell() {
                   end={item.to === '/'}
                   className={({ isActive }) => cn(
                     "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 relative native-press",
-                    isActive ? "text-primary-foreground" : "text-primary-foreground/50"
+                    isActive ? "text-sidebar-foreground" : "text-sidebar-foreground/65"
                   )}
                 >
                   {({ isActive }) => (
                     <>
                       <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                      <span className={cn("text-[10px] tracking-wide", isActive ? "font-bold opacity-100" : "font-medium opacity-70")}>
+                      <span className={cn("text-[10px] tracking-wide", isActive ? "font-bold opacity-100" : "font-medium opacity-80")}>
                         {item.label}
                       </span>
                     </>
@@ -327,11 +327,11 @@ export function AppShell() {
                   onClick={() => setMobileOpen(true)}
                   className={cn(
                     "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all duration-200 relative native-press",
-                    mobileOpen ? "text-primary-foreground" : "text-primary-foreground/50"
+                    mobileOpen ? "text-sidebar-foreground" : "text-sidebar-foreground/65"
                   )}
                 >
                   <Menu size={24} strokeWidth={mobileOpen ? 2.5 : 2} />
-                  <span className={cn("text-[10px] tracking-wide", mobileOpen ? "font-bold opacity-100" : "font-medium opacity-70")}>
+                  <span className={cn("text-[10px] tracking-wide", mobileOpen ? "font-bold opacity-100" : "font-medium opacity-80")}>
                     Mais
                   </span>
                 </button>
