@@ -71,15 +71,15 @@
     /* Raio padrão — 0.5rem para visual arredondado */
     --radius: 0.5rem;
 
-    /* ── Sidebar (Yellow Navigation) ── */
-    --sidebar-background: 48 96% 53%;
-    --sidebar-foreground: 220 30% 12%;
-    --sidebar-primary: 220 30% 12%;
-    --sidebar-primary-foreground: 48 96% 53%;
-    --sidebar-accent: 45 93% 44%;
-    --sidebar-accent-foreground: 220 30% 12%;
-    --sidebar-border: 45 80% 42%;
-    --sidebar-ring: 220 30% 12%;
+    /* ── Sidebar (Restored Blue) ── */
+    --sidebar-background: 210 100% 35%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 95% 55%;
+    --sidebar-primary-foreground: 210 25% 15%;
+    --sidebar-accent: 210 100% 42%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 80% 42%;
+    --sidebar-ring: 45 95% 55%;
 
     /* ── Tabelas ── */
     --table-header: 210 100% 48%;
@@ -222,11 +222,11 @@
 
   /* ── Navegação Sidebar ── */
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/85 hover:bg-black/10 hover:text-sidebar-foreground transition-colors font-medium;
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors;
   }
 
   .nav-item.active {
-    @apply bg-black/15 text-sidebar-foreground font-semibold shadow-sm;
+    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
   }
 
   /* ── Badges de Status ── */
