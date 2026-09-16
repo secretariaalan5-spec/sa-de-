@@ -48,9 +48,10 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
 
   const getUnitName = (id: string | null) => units.find(u => u.id === id)?.name ?? '—';
 
-  const balance = credits.reduce((s, c) => s + c.amount, 0);
   const totalExtras = credits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
-  const totalUsed = Math.abs(credits.filter(c => c.amount < 0).reduce((s, c) => s + c.amount, 0));
+  const adjustments = Math.abs(credits.filter(c => c.amount < 0 && c.origin !== 'leave_used').reduce((s, c) => s + c.amount, 0));
+  const totalUsed = Math.abs(credits.filter(c => c.amount < 0 && c.origin === 'leave_used').reduce((s, c) => s + c.amount, 0));
+  const balance = totalExtras - adjustments - totalUsed;
 
   const fmtCredit = (n: number) => n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ',');
 
@@ -76,7 +77,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
             {/* Balance summary */}
             <div className="grid grid-cols-3 gap-3 mb-2">
               <div className="rounded-xl border border-border p-3 text-center">
-                <p className="text-lg font-bold text-primary">+{fmtCredit(totalExtras)}</p>
+                <p className="text-lg font-bold text-primary">+{fmtCredit(totalExtras - adjustments)}</p>
                 <p className="text-[10px] text-muted-foreground">Créditos</p>
               </div>
               <div className="rounded-xl border border-border p-3 text-center">

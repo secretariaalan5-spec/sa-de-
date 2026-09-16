@@ -66,8 +66,10 @@ export default function BalancePanel() {
 
     const balances: BalanceRow[] = employees.map(emp => {
       const empCredits = credits.filter(c => c.employee_id === emp.id);
-      const extras = empCredits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
-      const used = Math.abs(empCredits.filter(c => c.amount < 0).reduce((s, c) => s + c.amount, 0));
+      const grossExtras = empCredits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
+      const adjustments = Math.abs(empCredits.filter(c => c.amount < 0 && c.origin !== 'leave_used').reduce((s, c) => s + c.amount, 0));
+      const extras = grossExtras - adjustments;
+      const used = Math.abs(empCredits.filter(c => c.amount < 0 && c.origin === 'leave_used').reduce((s, c) => s + c.amount, 0));
       return {
         employee: emp,
         extras,
