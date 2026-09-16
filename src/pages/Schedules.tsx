@@ -47,6 +47,7 @@ export default function Schedules() {
   const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
   const [observations, setObservations] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [selectedDayDetails, setSelectedDayDetails] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [filterEmpId, setFilterEmpId] = useState('all');
 
@@ -61,18 +62,13 @@ export default function Schedules() {
     if (!teamId) return;
 
     const schedulesQuery = supabase.from('schedules').select('*').eq('team_id', teamId).order('date', { ascending: false }).limit(500);
-    let employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id, active').eq('team_id', teamId).order('name');
+    const employeesQuery = supabase.from('employees').select('id, name, category_id, unit_id, active').eq('team_id', teamId).order('name');
     const unitsQuery = supabase.from('units').select('id, name').eq('team_id', teamId);
     const categoriesQuery = supabase.from('categories').select('id, name, color').eq('team_id', teamId);
     const creditsQuery = supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId);
     const lrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'approved').limit(200);
     const pendingLrQuery = supabase.from('leave_requests').select('employee_id, leave_dates').eq('team_id', teamId).eq('status', 'pending').limit(200);
     const holidaysQuery = supabase.from('holidays').select('id, date, name').eq('team_id', teamId).order('date');
-
-    // Filtro Explícito: Chefe de Categoria só pode escalar seus próprios funcionários
-    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
-      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
-    }
 
     const [s, e, u, cat, cred, lr, pendingLr, h] = await Promise.all([
       schedulesQuery,
@@ -121,6 +117,13 @@ export default function Schedules() {
   const getCategoryColor = (catId: string | null) => {
     return catId ? (categories.find(c => c.id === catId)?.color ?? '#6366f1') : '#6366f1';
   };
+
+  const assignableEmployees = useMemo(() => {
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      return employees.filter(e => e.category_id && roleInfo.category_ids.includes(e.category_id));
+    }
+    return employees;
+  }, [employees, isChief, isAdmin, isRH, roleInfo]);
 
   const getEmpBalance = (employeeId: string) =>
     credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
@@ -313,43 +316,83 @@ export default function Schedules() {
   };
 
   const memoizedCalendar = useMemo(() => (
-    <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden border border-border">
+    <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-xs">
       {weekDays.map(d => (
-        <div key={d} className="bg-primary text-primary-foreground text-center py-2 text-[10px] sm:text-xs font-semibold">{d}</div>
+        <div key={d} className="bg-primary text-primary-foreground text-center py-2.5 text-[11px] sm:text-xs font-semibold tracking-wide">{d}</div>
       ))}
       {calendarDays.map((day, i) => {
-        if (day === null) return <div key={`e-${i}`} className="bg-card min-h-[60px] sm:min-h-[80px]" />;
+        if (day === null) return <div key={`e-${i}`} className="bg-card/60 min-h-[64px] sm:min-h-[88px]" />;
         // Only show schedules from active employees in the calendar
         const daySchedules = schedulesForDay(day).filter(s => activeEmployeeIds.has(s.employee_id));
         const dateStr = getDateStr(day);
         const holidayName = getHolidayName(dateStr);
         const wkend = isWeekend(dateStr);
+        const isSelected = selectedDayDetails === day;
+
         return (
-          <div key={day} className={cn(
-            'bg-card min-h-[60px] sm:min-h-[80px] p-1 sm:p-1.5 relative transition-colors',
-            isToday(day) && 'ring-1 sm:ring-2 ring-primary ring-inset',
-            (wkend || holidayName) && 'bg-amber-50/50 dark:bg-amber-950/20'
-          )}>
-            <div className="flex items-center gap-1">
-              <span className={cn('text-[10px] sm:text-xs font-medium inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full', isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground')}>{day}</span>
-              {holidayName && <span className="text-[8px] text-amber-600 dark:text-amber-400 truncate" title={holidayName}>🎉</span>}
+          <div
+            key={day}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedDayDetails(day)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedDayDetails(day);
+              }
+            }}
+            className={cn(
+              'bg-card min-h-[64px] sm:min-h-[88px] p-1 sm:p-1.5 relative transition-all duration-150 cursor-pointer select-none',
+              'hover:bg-accent/10 hover:shadow-xs active:scale-[0.99] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              isToday(day) && 'ring-2 ring-primary ring-inset font-bold',
+              isSelected && 'bg-primary/10 ring-2 ring-primary ring-inset',
+              (wkend || holidayName) && !isSelected && 'bg-amber-50/40 dark:bg-amber-950/20'
+            )}
+            title={`Clique para ver quem está escalado no dia ${day}`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <span className={cn(
+                'text-[10px] sm:text-xs font-semibold inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-colors',
+                isToday(day) ? 'bg-primary text-primary-foreground' : 'text-foreground group-hover:text-primary'
+              )}>
+                {day}
+              </span>
+              {holidayName && (
+                <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400" title={holidayName}>
+                  🎉
+                </span>
+              )}
             </div>
+
             <div className="mt-0.5 space-y-0.5 overflow-hidden">
-              {daySchedules.slice(0, 2).map(s => (
-                <div key={s.id} className={cn(
-                  'text-[8px] sm:text-[10px] px-1 py-0.5 rounded truncate',
-                  s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
-                )} title={`${getEmpName(s.employee_id)}${s.observations ? `\nObs: ${s.observations}` : ''}`}>
-                  {getEmpName(s.employee_id).split(' ')[0]}
+              {daySchedules.slice(0, 2).map(s => {
+                const emp = employees.find(e => e.id === s.employee_id);
+                const firstName = (emp?.name ?? getEmpName(s.employee_id)).split(' ')[0];
+                return (
+                  <div
+                    key={s.id}
+                    className={cn(
+                      'text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded truncate font-medium flex items-center justify-between gap-0.5',
+                      s.type === 'extra' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'
+                    )}
+                    title={`${emp?.name ?? getEmpName(s.employee_id)}${s.observations ? `\nObs: ${s.observations}` : ''}`}
+                  >
+                    <span className="truncate">{firstName}</span>
+                    {s.shift_type === 'half' && <span className="text-[7px] sm:text-[8px] opacity-75 shrink-0">½T</span>}
+                  </div>
+                );
+              })}
+              {daySchedules.length > 2 && (
+                <div className="text-[8px] sm:text-[10px] font-semibold text-primary bg-primary/10 group-hover:bg-primary/20 rounded py-0.5 text-center transition-colors">
+                  +{daySchedules.length - 2}
                 </div>
-              ))}
-              {daySchedules.length > 2 && <p className="text-[8px] sm:text-[10px] text-muted-foreground text-center">+{daySchedules.length - 2}</p>}
+              )}
             </div>
           </div>
         );
       })}
     </div>
-  ), [calendarDays, month, year, schedules, holidays]);
+  ), [calendarDays, month, year, schedules, holidays, selectedDayDetails, employees, activeEmployeeIds]);
 
   const memoizedList = useMemo(() => (
     <div className="overflow-x-auto">
@@ -633,7 +676,7 @@ export default function Schedules() {
                     >
                       <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
                       <CommandGroup className="p-2">
-                        {employees.filter(e => e.active !== false).map((e) => {
+                        {assignableEmployees.filter(e => e.active !== false).map((e) => {
                           const unit = getUnitName(e.unit_id);
                           const cat = getCategoryName(e.category_id);
                           const catColor = getCategoryColor(e.category_id);
@@ -904,6 +947,190 @@ export default function Schedules() {
 
             <Button onClick={handleAdd} className="w-full" disabled={!empId || selectedDates.length === 0}>
               Criar {selectedDates.length} Escala{selectedDates.length !== 1 ? 's' : ''} (+{formatCredit(totalCreditsPreview)} créditos)
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Modal Detalhes do Dia (Quem está escalado) ═══ */}
+      <Dialog open={selectedDayDetails !== null} onOpenChange={(openState) => !openState && setSelectedDayDetails(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader className="pb-2 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <CalendarDays size={22} />
+              </div>
+              <div className="min-w-0 text-left">
+                <DialogTitle className="text-base sm:text-lg font-bold capitalize text-foreground">
+                  {selectedDayDetails && new Date(year, month, selectedDayDetails, 12, 0, 0).toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </DialogTitle>
+                <DialogDescription className="flex items-center gap-2 flex-wrap text-xs mt-1">
+                  {selectedDayDetails && (() => {
+                    const daySchedules = schedulesForDay(selectedDayDetails).filter(s => activeEmployeeIds.has(s.employee_id));
+                    const dateStr = getDateStr(selectedDayDetails);
+                    const holidayName = getHolidayName(dateStr);
+                    const wkend = isWeekend(dateStr);
+                    return (
+                      <>
+                        <span className="font-semibold text-foreground">
+                          {daySchedules.length} {daySchedules.length === 1 ? 'profissional escalado' : 'profissionais escalados'}
+                        </span>
+                        {holidayName && (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-[11px] gap-1">
+                            🎉 {holidayName}
+                          </Badge>
+                        )}
+                        {wkend && (
+                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-[11px]">
+                            Final de Semana
+                          </Badge>
+                        )}
+                      </>
+                    );
+                  })()}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {selectedDayDetails && (() => {
+            const daySchedules = schedulesForDay(selectedDayDetails).filter(s => activeEmployeeIds.has(s.employee_id));
+
+            if (daySchedules.length === 0) {
+              return (
+                <div className="py-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60 mb-1">
+                    <CalendarDays size={24} />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">Ninguém escalado neste dia</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">Não há profissionais ou plantões agendados para esta data.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-2.5 max-h-[55vh] overflow-y-auto py-2 pr-1">
+                {daySchedules.map((s) => {
+                  const emp = employees.find(e => e.id === s.employee_id);
+                  const name = emp?.name ?? getEmpName(s.employee_id);
+                  const cat = getCategoryName(emp?.category_id ?? null);
+                  const unit = getUnitName(emp?.unit_id ?? null);
+                  const catColor = getCategoryColor(emp?.category_id ?? null);
+                  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                  const amt = Number(s.credit_amount) || 0;
+                  const canDeleteThisSchedule = canCreate && (!isChief || (emp?.category_id && roleInfo?.category_ids?.includes(emp.category_id)));
+
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-3 rounded-xl border border-border bg-card hover:bg-muted/20 transition-all flex flex-col gap-2 shadow-xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-xs bg-background border-2 shadow-xs"
+                            style={{ borderColor: catColor, color: catColor }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <p className="font-semibold text-sm text-foreground truncate">{name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                              {cat && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium border"
+                                  style={{ borderColor: `${catColor}40`, backgroundColor: `${catColor}15`, color: catColor }}
+                                >
+                                  <Tag size={10} /> {cat}
+                                </span>
+                              )}
+                              {unit && (
+                                <span className="inline-flex items-center gap-1 text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-medium">
+                                  <MapPin size={10} /> {unit}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {canDeleteThisSchedule && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                            title="Remover escala"
+                            onClick={async () => {
+                              await handleDelete(s.id);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'text-[11px] gap-1 font-medium',
+                              s.shift_type === 'half'
+                                ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300'
+                                : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+                            )}
+                          >
+                            {s.shift_type === 'half' ? <Moon size={11} /> : <Sun size={11} />}
+                            {s.shift_type === 'half' ? 'Meio Turno (½T)' : 'Plantão Integral'}
+                          </Badge>
+                          <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20 font-semibold dark:text-emerald-400">
+                            +{formatCredit(amt)} créditos
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {s.observations && (
+                        <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground border border-border/40 text-left">
+                          <span className="font-semibold text-foreground/80 not-italic">Obs: </span>
+                          <span className="italic">{s.observations}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border mt-1">
+            {canCreate && selectedDayDetails && (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  const dStr = getDateStr(selectedDayDetails);
+                  setSelectedDayDetails(null);
+                  setEmpId('');
+                  setSelectedDates([dStr]);
+                  setObservations('');
+                  setOpen(true);
+                }}
+              >
+                <Plus size={14} /> Escalar Neste Dia
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setSelectedDayDetails(null)}
+            >
+              Fechar
             </Button>
           </div>
         </DialogContent>
