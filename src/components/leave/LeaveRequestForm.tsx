@@ -303,7 +303,7 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
                     'h-9 rounded-md text-sm font-medium transition-all relative',
                     pastDay && 'opacity-30 cursor-not-allowed text-muted-foreground',
                     !pastDay && isSelected && 'bg-primary text-primary-foreground shadow-sm',
-                    !pastDay && !isSelected && shortNotice && 'text-amber-600 bg-amber-50 hover:bg-amber-100',
+                    !pastDay && !isSelected && shortNotice && 'text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20',
                     !pastDay && !isSelected && !shortNotice && 'hover:bg-muted text-foreground',
                     !pastDay && isToday(day) && !isSelected && 'ring-1 ring-primary',
                   )}
@@ -316,23 +316,30 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
         </div>
 
         {selectedDates.length > 0 && (
-          <div className="space-y-2 pt-1">
+          <div className="space-y-3 pt-1">
             <div className="flex flex-wrap gap-1.5 items-center">
               <Badge variant="outline" className="text-xs">
                 {selectedDates.slice(0, 3).map(d => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })).join(', ')}
                 {selectedDates.length > 3 && ` + ${selectedDates.length - 3} dia(s)`}
               </Badge>
               <Badge variant="secondary" className="text-xs">{selectedDates.length} dia(s)</Badge>
-              <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive" onClick={() => setSelectedDates([])}>
+              <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive hover:bg-destructive/10" onClick={() => setSelectedDates([])}>
                 Limpar
               </Button>
             </div>
+
             {hasShortNoticeDates && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold">Antecedência inferior a 7 dias</p>
-                  <p className="text-[11px] mt-0.5 opacity-80">Este pedido ficará sujeito à análise da coordenação por não cumprir o prazo mínimo exigido pela Secretaria.</p>
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-foreground">
+                <div className="p-1 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
+                  <AlertTriangle size={15} />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                    Solicitação com prazo reduzido (&lt; 7 dias)
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Este pedido será encaminhado para análise da coordenação com a justificativa informada abaixo.
+                  </p>
                 </div>
               </div>
             )}
@@ -342,48 +349,57 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
 
       {/* Observations / Justification */}
       <div className="space-y-1.5">
-        <Label className={cn(hasShortNoticeDates && 'text-amber-700 font-bold')}>
-          {hasShortNoticeDates ? 'Justificativa da Exceção (Obrigatório)' : 'Observações (opcional)'}
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label className={cn("text-xs font-medium", hasShortNoticeDates && "text-foreground font-semibold")}>
+            {hasShortNoticeDates ? 'Motivo da solicitação' : 'Observações'}
+          </Label>
+          {hasShortNoticeDates ? (
+            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+              Obrigatório
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground">Opcional</span>
+          )}
+        </div>
         <Input 
           value={obs} 
           onChange={e => setObs(e.target.value)} 
-          placeholder={hasShortNoticeDates ? "Motivo da folga em curto prazo..." : "Motivo da folga..."} 
+          placeholder={hasShortNoticeDates ? "Ex: Consulta médica, imprevisto pessoal..." : "Observações adicionais..."} 
           required={hasShortNoticeDates}
           minLength={hasShortNoticeDates ? 5 : undefined}
-          className={cn(hasShortNoticeDates && !obs.trim() && 'border-amber-400 focus-visible:ring-amber-400')}
+          className={cn(hasShortNoticeDates && !obs.trim() && 'border-amber-500/50 focus-visible:ring-amber-500')}
         />
         {hasShortNoticeDates && (
-          <p className="text-[10px] text-amber-700 font-medium pt-1">
-            Por ter menos de 7 dias, é necessário justificar o pedido para a coordenação.
+          <p className="text-[11px] text-muted-foreground">
+            Descreva brevemente o motivo para a avaliação da coordenação.
           </p>
         )}
       </div>
 
       {/* Short Notice Exception Checkbox */}
       {hasShortNoticeDates && (
-        <div className="flex items-start space-x-2 bg-amber-50/50 p-3 rounded-lg border border-amber-200">
+        <label 
+          htmlFor="terms" 
+          className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border cursor-pointer transition-colors"
+        >
           <Checkbox 
             id="terms" 
             checked={acceptedTerm} 
             onCheckedChange={(checked) => setAcceptedTerm(checked as boolean)}
             className="mt-0.5"
           />
-          <Label 
-            htmlFor="terms" 
-            className="text-sm font-medium leading-tight text-amber-900 cursor-pointer"
-          >
-            Estou ciente de que o prazo regulamentar da Secretaria é de 7 dias de antecedência. Solicito esta folga em caráter de exceção devido a imprevisto.
-          </Label>
-        </div>
+          <span className="text-xs text-foreground/90 leading-relaxed select-none">
+            Estou ciente do prazo reduzido e confirmo o envio para avaliação da coordenação.
+          </span>
+        </label>
       )}
 
       {/* Submit */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancelar</Button>
         <Button 
           type="submit" 
-          className={cn("flex-1", hasShortNoticeDates && 'bg-amber-600 hover:bg-amber-700')} 
+          className="flex-1" 
           disabled={!empId || selectedDates.length === 0 || submitting || (hasShortNoticeDates && (!acceptedTerm || obs.trim().length < 5))}
         >
           {submitting ? 'Enviando...' : `Solicitar ${selectedDates.length} dia(s)`}

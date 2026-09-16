@@ -133,8 +133,8 @@ export default function LeaveRequests() {
 
     if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
     toast.success(isShortNotice
-      ? 'Pedido enviado! ⚠️ Sujeito à análise (antecedência < 7 dias).'
-      : 'Pedido de folga enviado!');
+      ? 'Pedido enviado para análise da coordenação!'
+      : 'Pedido de folga enviado com sucesso!');
     setOpen(false);
     load();
   };
@@ -309,17 +309,18 @@ export default function LeaveRequests() {
 
                     {/* ── Short-notice / observations ────────────────────────────────────── */}
                     {(req.is_short_notice || req.observations) && (
-                      <div className="p-2.5 rounded-md bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-foreground/90">
+                      <div className="space-y-2 mt-1">
                         {req.is_short_notice && (
-                          <div className="flex items-center gap-1.5 font-bold mb-1">
-                            <AlertTriangle size={13} className="shrink-0 text-amber-500" />
-                            <span className="uppercase tracking-tight text-[10px]">EXCEÇÃO: ANTECEDÊNCIA &lt; 7 DIAS</span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                            <span>Prazo reduzido (&lt; 7 dias)</span>
                           </div>
                         )}
                         {req.observations && (
-                          <p className="italic text-xs font-medium">
-                            "{req.observations}"
-                          </p>
+                          <div className="p-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs text-foreground/90">
+                            <span className="font-semibold text-foreground mr-1.5">Motivo:</span>
+                            <span>{req.observations}</span>
+                          </div>
                         )}
                       </div>
                     )}
