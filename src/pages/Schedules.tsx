@@ -954,48 +954,28 @@ export default function Schedules() {
 
       {/* ═══ Modal Detalhes do Dia (Quem está escalado) ═══ */}
       <Dialog open={selectedDayDetails !== null} onOpenChange={(openState) => !openState && setSelectedDayDetails(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader className="pb-2 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                <CalendarDays size={22} />
-              </div>
-              <div className="min-w-0 text-left">
-                <DialogTitle className="text-base sm:text-lg font-bold capitalize text-foreground">
-                  {selectedDayDetails && new Date(year, month, selectedDayDetails, 12, 0, 0).toLocaleDateString('pt-BR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </DialogTitle>
-                <DialogDescription className="flex items-center gap-2 flex-wrap text-xs mt-1">
-                  {selectedDayDetails && (() => {
-                    const daySchedules = schedulesForDay(selectedDayDetails).filter(s => activeEmployeeIds.has(s.employee_id));
-                    const dateStr = getDateStr(selectedDayDetails);
-                    const holidayName = getHolidayName(dateStr);
-                    const wkend = isWeekend(dateStr);
-                    return (
-                      <>
-                        <span className="font-semibold text-foreground">
-                          {daySchedules.length} {daySchedules.length === 1 ? 'profissional escalado' : 'profissionais escalados'}
-                        </span>
-                        {holidayName && (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 text-[11px] gap-1">
-                            🎉 {holidayName}
-                          </Badge>
-                        )}
-                        {wkend && (
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-[11px]">
-                            Final de Semana
-                          </Badge>
-                        )}
-                      </>
-                    );
-                  })()}
-                </DialogDescription>
-              </div>
-            </div>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="pb-3 border-b border-border text-left">
+            <DialogTitle className="text-base font-semibold capitalize text-foreground">
+              {selectedDayDetails && new Date(year, month, selectedDayDetails, 12, 0, 0).toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long'
+              })}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+              {selectedDayDetails && (() => {
+                const daySchedules = schedulesForDay(selectedDayDetails).filter(s => activeEmployeeIds.has(s.employee_id));
+                const dateStr = getDateStr(selectedDayDetails);
+                const holidayName = getHolidayName(dateStr);
+                return (
+                  <>
+                    <span>{daySchedules.length} {daySchedules.length === 1 ? 'escala registrada' : 'escalas registradas'}</span>
+                    {holidayName && <span className="text-amber-600 font-medium">• 🎉 {holidayName}</span>}
+                  </>
+                );
+              })()}
+            </DialogDescription>
           </DialogHeader>
 
           {selectedDayDetails && (() => {
@@ -1003,101 +983,63 @@ export default function Schedules() {
 
             if (daySchedules.length === 0) {
               return (
-                <div className="py-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/60 mb-1">
-                    <CalendarDays size={24} />
-                  </div>
-                  <p className="font-semibold text-sm text-foreground">Ninguém escalado neste dia</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">Não há profissionais ou plantões agendados para esta data.</p>
+                <div className="py-8 text-center text-muted-foreground">
+                  <p className="text-sm font-medium text-foreground">Nenhuma escala neste dia</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Não há profissionais agendados para esta data.</p>
                 </div>
               );
             }
 
             return (
-              <div className="space-y-2.5 max-h-[55vh] overflow-y-auto py-2 pr-1">
+              <div className="max-h-[50vh] overflow-y-auto border border-border rounded-lg divide-y divide-border bg-card">
                 {daySchedules.map((s) => {
                   const emp = employees.find(e => e.id === s.employee_id);
                   const name = emp?.name ?? getEmpName(s.employee_id);
                   const cat = getCategoryName(emp?.category_id ?? null);
                   const unit = getUnitName(emp?.unit_id ?? null);
-                  const catColor = getCategoryColor(emp?.category_id ?? null);
-                  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
                   const amt = Number(s.credit_amount) || 0;
                   const canDeleteThisSchedule = canCreate && (!isChief || (emp?.category_id && roleInfo?.category_ids?.includes(emp.category_id)));
 
                   return (
                     <div
                       key={s.id}
-                      className="p-3 rounded-xl border border-border bg-card hover:bg-muted/20 transition-all flex flex-col gap-2 shadow-xs"
+                      className="p-3 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-xs bg-background border-2 shadow-xs"
-                            style={{ borderColor: catColor, color: catColor }}
-                          >
-                            {initials}
-                          </div>
-                          <div className="min-w-0 text-left">
-                            <p className="font-semibold text-sm text-foreground truncate">{name}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              {cat && (
-                                <span
-                                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium border"
-                                  style={{ borderColor: `${catColor}40`, backgroundColor: `${catColor}15`, color: catColor }}
-                                >
-                                  <Tag size={10} /> {cat}
-                                </span>
-                              )}
-                              {unit && (
-                                <span className="inline-flex items-center gap-1 text-[11px] bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-medium">
-                                  <MapPin size={10} /> {unit}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-foreground truncate">{name}</span>
+                          {cat && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              • {cat}
+                            </span>
+                          )}
                         </div>
-
-                        {canDeleteThisSchedule && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                            title="Remover escala"
-                            onClick={async () => {
-                              await handleDelete(s.id);
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                          {unit && <span>{unit}</span>}
+                          {unit && <span>•</span>}
+                          <span>{s.shift_type === 'half' ? '½ Turno' : 'Integral'}</span>
+                          <span>•</span>
+                          <span className="text-primary font-medium">+{formatCredit(amt)} cr</span>
+                        </div>
+                        {s.observations && (
+                          <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2">
+                            Obs: {s.observations}
+                          </p>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              'text-[11px] gap-1 font-medium',
-                              s.shift_type === 'half'
-                                ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300'
-                                : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
-                            )}
-                          >
-                            {s.shift_type === 'half' ? <Moon size={11} /> : <Sun size={11} />}
-                            {s.shift_type === 'half' ? 'Meio Turno (½T)' : 'Plantão Integral'}
-                          </Badge>
-                          <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20 font-semibold dark:text-emerald-400">
-                            +{formatCredit(amt)} créditos
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {s.observations && (
-                        <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground border border-border/40 text-left">
-                          <span className="font-semibold text-foreground/80 not-italic">Obs: </span>
-                          <span className="italic">{s.observations}</span>
-                        </div>
+                      {canDeleteThisSchedule && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                          title="Remover escala"
+                          onClick={async () => {
+                            await handleDelete(s.id);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
                       )}
                     </div>
                   );
@@ -1106,7 +1048,7 @@ export default function Schedules() {
             );
           })()}
 
-          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border mt-1">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
             {canCreate && selectedDayDetails && (
               <Button
                 variant="default"
