@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { DailyReflectionCard } from '@/components/DailyReflectionCard';
 
 interface RecentLeave {
   id: string;
@@ -201,9 +200,6 @@ export default function Dashboard() {
           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </div>
       </div>
-
-      {/* Daily Reflection Card */}
-      <DailyReflectionCard />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
