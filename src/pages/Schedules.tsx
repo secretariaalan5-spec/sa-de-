@@ -480,8 +480,8 @@ export default function Schedules() {
           </div>
 
           {canCreate && (
-            <Button onClick={() => { setEmpId(''); setSelectedDates([]); setObservations(''); setOpen(true); }} className="gap-2">
-              <Plus size={16} /> <span className="hidden xs:inline">Nova Escala</span><span className="xs:hidden">Nova</span>
+            <Button onClick={() => { setEmpId(''); setSelectedDates([]); setObservations(''); setOpen(true); }} className="gap-2 shrink-0">
+              <Plus size={16} /> Nova Escala
             </Button>
           )}
         </div>
@@ -531,103 +531,165 @@ export default function Schedules() {
         ) : (
           <>
             {/* E4: Employee filter for list mode */}
-            <div className="flex items-center gap-3 bg-card rounded-xl border border-border p-3">
-              <Select value={filterEmpId} onValueChange={setFilterEmpId}>
-                <SelectTrigger className="w-[220px] h-9">
-                  <SelectValue placeholder="Filtrar por funcionário" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os funcionários</SelectItem>
-                  {employees.filter(e => e.active !== false && monthSchedules.some(s => s.employee_id === e.id)).map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {filterEmpId !== 'all' && (
-                <span className="text-sm text-muted-foreground">
-                  {filteredListSchedules.length} escala{filteredListSchedules.length !== 1 ? 's' : ''}
-                </span>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-card rounded-xl border border-border p-3">
+              <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-sm">
+                <Select value={filterEmpId} onValueChange={setFilterEmpId}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="Filtrar por profissional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os profissionais ({monthSchedules.length})</SelectItem>
+                    {employees.filter(e => e.active !== false && monthSchedules.some(s => s.employee_id === e.id)).map(e => {
+                      const count = monthSchedules.filter(s => s.employee_id === e.id).length;
+                      return (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name} ({count})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">
+                Exibindo {filteredListSchedules.length} {filteredListSchedules.length === 1 ? 'escala' : 'escalas'}
+              </div>
             </div>
 
             {/* Mobile List View (Cards) */}
             <div className="space-y-3 sm:hidden">
-              {filteredListSchedules.map(s => (
-                <div key={s.id} className="page-card p-3 flex flex-col gap-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-sm">{getEmpName(s.employee_id)}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                      {s.observations && <p className="text-[11px] italic text-muted-foreground mt-0.5">{s.observations}</p>}
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge variant="secondary" className="text-[10px]">{s.shift_type === 'half' ? '½T' : 'Integral'}</Badge>
+              {filteredListSchedules.map(s => {
+                const emp = employees.find(e => e.id === s.employee_id);
+                const name = emp?.name ?? getEmpName(s.employee_id);
+                const cat = getCategoryName(emp?.category_id ?? null);
+                const unit = getUnitName(emp?.unit_id ?? null);
+                const amt = Number(s.credit_amount) || 0;
+                const hName = getHolidayName(s.date);
+                const dateObj = new Date(s.date + 'T12:00:00');
+                const dateFormatted = dateObj.toLocaleDateString('pt-BR');
+                const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'short' });
+
+                return (
+                  <div key={s.id} className="page-card p-3.5 space-y-2.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {cat}{cat && unit && ' • '}{unit}
+                        </p>
+                      </div>
                       {canCreate && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(s.id)}>
-                          <Trash2 size={12} />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0" onClick={() => handleDelete(s.id)}>
+                          <Trash2 size={13} />
                         </Button>
                       )}
                     </div>
+
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-border gap-2 flex-wrap">
+                      <div className="text-muted-foreground">
+                        <span className="font-medium text-foreground">{dateFormatted}</span> ({weekday})
+                        {hName && <span className="ml-1 text-amber-600 font-medium">• 🎉 {hName}</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-[10px]">
+                          {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] font-semibold text-emerald-700 bg-emerald-500/10 border-emerald-500/20">
+                          +{formatCredit(amt)} cr
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {s.observations && (
+                      <p className="text-[11px] italic text-muted-foreground bg-muted/40 p-1.5 rounded border border-border/40">
+                        Obs: {s.observations}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
-                      +{formatCredit(Number(s.credit_amount))} créditos
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
             {/* Desktop List View (Table) — filtered */}
             <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
                     <tr>
-                      <th className="px-5 py-4 font-semibold">Funcionário</th>
-                      <th className="px-5 py-4 font-semibold">Data</th>
-                      <th className="px-5 py-4 font-semibold">Turno</th>
-                      <th className="px-5 py-4 font-semibold">Créditos</th>
-                      {canCreate && <th className="px-5 py-4 font-semibold text-right">Ações</th>}
+                      <th className="px-5 py-3.5 font-semibold">Profissional</th>
+                      <th className="px-5 py-3.5 font-semibold">Data da Escala</th>
+                      <th className="px-5 py-3.5 font-semibold text-center">Turno</th>
+                      <th className="px-5 py-3.5 font-semibold text-center">Créditos</th>
+                      <th className="px-5 py-3.5 font-semibold">Observação</th>
+                      {canCreate && <th className="px-5 py-3.5 font-semibold text-right">Ações</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredListSchedules.map(s => {
+                      const emp = employees.find(e => e.id === s.employee_id);
+                      const name = emp?.name ?? getEmpName(s.employee_id);
+                      const cat = getCategoryName(emp?.category_id ?? null);
+                      const unit = getUnitName(emp?.unit_id ?? null);
                       const amt = Number(s.credit_amount) || 0;
                       const hName = getHolidayName(s.date);
+                      const dateObj = new Date(s.date + 'T12:00:00');
+                      const dateFormatted = dateObj.toLocaleDateString('pt-BR');
+                      const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'short' });
+
                       return (
                         <tr key={s.id} className="hover:bg-muted/30 transition-colors group">
-                          <td className="px-5 py-3.5 font-medium text-foreground">{getEmpName(s.employee_id)}</td>
-                          <td className="px-5 py-3.5 text-muted-foreground">
-                            <span>{new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                            {hName && <span className="ml-1.5 text-[10px] text-amber-600">🎉 {hName}</span>}
-                            {s.observations && (
-                              <div className="text-[11px] mt-0.5 italic text-muted-foreground/80 break-words line-clamp-2 max-w-[200px]" title={s.observations}>
-                                {s.observations}
-                              </div>
-                            )}
-                          </td>
                           <td className="px-5 py-3.5">
-                            <Badge variant="secondary" className={cn(
-                              'shadow-none text-xs',
-                              s.shift_type === 'half'
-                                ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300'
-                                : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
-                            )}>
+                            <div className="font-semibold text-foreground">{name}</div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                              {cat && <span>{cat}</span>}
+                              {cat && unit && <span>•</span>}
+                              {unit && <span>{unit}</span>}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 text-muted-foreground whitespace-nowrap">
+                            <div className="font-medium text-foreground">{dateFormatted}</div>
+                            <div className="text-xs text-muted-foreground capitalize flex items-center gap-1.5 mt-0.5">
+                              <span>{weekday}</span>
+                              {hName && <span className="text-amber-600 font-medium">• 🎉 {hName}</span>}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                'text-xs font-medium shadow-none',
+                                s.shift_type === 'half'
+                                  ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300'
+                                  : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+                              )}
+                            >
                               {s.shift_type === 'half' ? '½ Turno' : 'Integral'}
                             </Badge>
                           </td>
-                          <td className="px-5 py-3.5">
-                            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 shadow-none">
+                          <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                            <Badge variant="outline" className="font-mono text-xs font-semibold bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400 shadow-none">
                               +{formatCredit(amt)}
                             </Badge>
                           </td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground max-w-[240px]">
+                            {s.observations ? (
+                              <span className="line-clamp-2 italic" title={s.observations}>
+                                {s.observations}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/30">—</span>
+                            )}
+                          </td>
                           {canCreate && (
-                            <td className="px-5 py-3.5 text-right">
-                              <div className="flex justify-end opacity-50 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(s.id)}>
-                                  <Trash2 size={14} />
-                                </Button>
-                              </div>
+                            <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title="Remover escala"
+                                onClick={() => handleDelete(s.id)}
+                              >
+                                <Trash2 size={14} />
+                              </Button>
                             </td>
                           )}
                         </tr>
