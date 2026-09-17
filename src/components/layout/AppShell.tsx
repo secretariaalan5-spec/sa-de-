@@ -149,7 +149,7 @@ export function AppShell() {
             </div>
           </div>
 
-          <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-2 pb-1">Menu</p>
             {filtered.map(item => (
               <NavLink key={item.to} to={item.to} end={item.to === '/'}
