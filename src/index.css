@@ -21,70 +21,70 @@
 @layer base {
   :root {
     /* Superfícies */
-    --background: 210 20% 98%;
-    /* Fundo geral — neutro limpo e suave */
-    --foreground: 215 25% 15%;
+    --background: 210 15% 95%;
+    /* Cinza azulado claro — fundo geral */
+    --foreground: 210 25% 15%;
     /* Texto principal */
 
     --card: 0 0% 100%;
     /* Fundo dos cards */
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 210 25% 15%;
     /* Texto dentro de cards */
-    --card-shadow: 215 15% 90%;
+    --card-shadow: 210 15% 90%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 210 25% 15%;
 
     /* Cores de Marca */
-    --primary: 212 100% 45%;
-    /* Azul Saúde — elegante e profissional */
+    --primary: 210 100% 48%;
+    /* Azul SUS — ações principais */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 94%;
+    --secondary: 210 25% 90%;
     /* Fundo de elementos secundários */
-    --secondary-foreground: 215 25% 25%;
+    --secondary-foreground: 210 25% 25%;
 
-    --muted: 210 16% 93%;
+    --muted: 210 12% 92%;
     /* Fundo sutil, placeholders */
-    --muted-foreground: 215 15% 46%;
+    --muted-foreground: 210 15% 45%;
     /* Texto secundário */
 
-    --accent: 152 60% 38%;
+    --accent: 152 60% 40%;
     /* Verde — sucesso e destaques */
     --accent-foreground: 0 0% 100%;
 
     /* Status */
-    --destructive: 0 72% 51%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 60% 38%;
+    --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 215 25% 15%;
+    --warning: 45 95% 50%;
+    --warning-foreground: 210 25% 15%;
 
     /* Bordas e Inputs */
-    --border: 214 18% 89%;
-    --input: 214 18% 89%;
-    --ring: 212 100% 45%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 210 100% 48%;
 
-    /* Raio padrão — 0.625rem (10px) para acabamento moderno */
-    --radius: 0.625rem;
+    /* Raio padrão — 0.5rem para visual arredondado */
+    --radius: 0.5rem;
 
-    /* ── Sidebar (Azul Profissional Saúde+) ── */
-    --sidebar-background: 215 88% 36%;
+    /* ── Sidebar (Restored Blue) ── */
+    --sidebar-background: 210 100% 35%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 45 95% 55%;
     --sidebar-primary-foreground: 210 25% 15%;
-    --sidebar-accent: 215 80% 44%;
+    --sidebar-accent: 210 100% 42%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 215 70% 44%;
+    --sidebar-border: 210 80% 42%;
     --sidebar-ring: 45 95% 55%;
 
     /* ── Tabelas ── */
-    --table-header: 212 100% 45%;
+    --table-header: 210 100% 48%;
     --table-header-foreground: 0 0% 100%;
-    --table-row-even: 210 20% 98%;
+    --table-row-even: 210 15% 94%;
     --table-row-odd: 0 0% 100%;
 
     /* ── Cores de Categoria (Enfermeiro / Técnico / eMult) ── */
@@ -100,9 +100,9 @@
     --glass-blur: 12px;
   }
 
-  /* Dark mode */
+  /* Dark mode — herda valores padrão por enquanto */
   .dark {
-    --radius: 0.625rem;
+    --radius: 0.5rem;
   }
 }
 
@@ -177,22 +177,22 @@
    * .form-section → Seção de formulário / tabelas
    */
   .page-card {
-    @apply bg-card rounded-xl p-5 border border-border/80 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)];
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
     content-visibility: auto;
     contain-intrinsic-size: auto 100px;
   }
 
   .stat-card {
-    @apply bg-card rounded-xl p-4 sm:p-5 border border-border/80 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)];
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm;
   }
 
   .form-section {
-    @apply bg-card rounded-xl p-5 sm:p-6 border border-border/80 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)];
+    @apply bg-card rounded-xl p-6 border border-border shadow-sm;
   }
 
   /* ── Estado vazio (sem dados) ── */
   .empty-state {
-    @apply text-center py-12 bg-card rounded-xl border border-dashed border-border/80;
+    @apply text-center py-12 bg-card rounded-xl border border-dashed border-border;
   }
 
   /* ── Tabelas ── */
@@ -201,32 +201,32 @@
   }
 
   .schedule-table th {
-    @apply bg-primary text-primary-foreground font-semibold py-3 px-4 text-xs uppercase tracking-wider;
+    @apply bg-primary text-primary-foreground font-semibold py-3 px-4 text-sm;
   }
 
   .schedule-table td {
-    @apply py-3 px-3.5 text-sm border-b border-border/60;
+    @apply py-2.5 px-3 text-sm border-b border-border;
   }
 
   .schedule-table tr:nth-child(even) td {
-    @apply bg-muted/30;
+    @apply bg-muted/50;
   }
 
   .schedule-table tr:hover td {
-    @apply bg-muted/60;
+    @apply bg-secondary/80;
   }
 
   .schedule-table.schedule-grid td.schedule-cell {
-    @apply border-l border-border/50;
+    @apply border-l border-border/60;
   }
 
   /* ── Navegação Sidebar ── */
   .nav-item {
-    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] font-medium text-white/75 hover:bg-white/10 hover:text-white transition-all duration-150;
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors;
   }
 
   .nav-item.active {
-    @apply bg-white/15 text-white font-semibold shadow-sm;
+    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
   }
 
   /* ── Badges de Status ── */

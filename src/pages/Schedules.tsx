@@ -316,7 +316,7 @@ export default function Schedules() {
   };
 
   const memoizedCalendar = useMemo(() => (
-    <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
+    <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-xs">
       {weekDays.map(d => (
         <div key={d} className="bg-primary text-primary-foreground text-center py-2.5 text-[11px] sm:text-xs font-semibold tracking-wide">{d}</div>
       ))}
@@ -343,7 +343,7 @@ export default function Schedules() {
             }}
             className={cn(
               'bg-card min-h-[64px] sm:min-h-[88px] p-1 sm:p-1.5 relative transition-all duration-150 cursor-pointer select-none',
-              'hover:bg-accent/10 hover:shadow-sm active:scale-[0.99] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'hover:bg-accent/10 hover:shadow-xs active:scale-[0.99] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               isToday(day) && 'ring-2 ring-primary ring-inset font-bold',
               isSelected && 'bg-primary/10 ring-2 ring-primary ring-inset',
               (wkend || holidayName) && !isSelected && 'bg-amber-50/40 dark:bg-amber-950/20'

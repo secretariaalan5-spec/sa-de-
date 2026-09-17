@@ -207,16 +207,16 @@ export default function Dashboard() {
           <button
             key={card.label}
             onClick={() => navigate(card.link)}
-            className="stat-card flex items-center gap-3.5 text-left hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer group"
+            className="stat-card flex items-center gap-3 text-left hover:shadow-md transition-shadow cursor-pointer group"
           >
-            <div className={`p-2.5 rounded-xl ${card.color} shrink-0`}>
+            <div className={`p-2.5 rounded-xl ${card.color}`}>
               <card.icon size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{card.value}</p>
-              <p className="text-xs font-medium text-muted-foreground truncate">{card.label}</p>
+              <p className="text-2xl font-bold">{card.value}</p>
+              <p className="text-xs text-muted-foreground truncate">{card.label}</p>
             </div>
-            <ArrowRight size={14} className="text-muted-foreground/60 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
         ))}
       </div>
@@ -225,41 +225,41 @@ export default function Dashboard() {
         {/* Schedule Summary */}
         <div className="page-card space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2 text-base">
+            <h2 className="font-semibold flex items-center gap-2">
               <TrendingUp size={18} className="text-primary" />
               Resumo do Mês
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/escalas')} className="text-xs gap-1 font-medium">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/escalas')} className="text-xs gap-1">
               Ver escalas <ArrowRight size={12} />
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-3.5">
-            <div className="bg-muted/40 rounded-xl p-4 text-center border border-border/40">
-              <p className="text-3xl font-bold text-primary tracking-tight tabular-nums">{scheduleStat.total}</p>
-              <p className="text-xs font-medium text-muted-foreground mt-1">Escalas Totais</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-muted/50 rounded-lg p-4 text-center">
+              <p className="text-3xl font-bold text-primary">{scheduleStat.total}</p>
+              <p className="text-xs text-muted-foreground mt-1">Escalas Totais</p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-4 text-center border border-border/40">
-              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">{scheduleStat.extras}</p>
-              <p className="text-xs font-medium text-muted-foreground mt-1">Extras (+2 créditos)</p>
+            <div className="bg-muted/50 rounded-lg p-4 text-center">
+              <p className="text-3xl font-bold text-accent">{scheduleStat.extras}</p>
+              <p className="text-xs text-muted-foreground mt-1">Extras (+2 créditos)</p>
             </div>
           </div>
-          <div className="bg-muted/40 rounded-xl p-4 flex items-center justify-between border border-border/40">
+          <div className="bg-muted/50 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-foreground">Folgas Aprovadas</p>
-              <p className="text-xs text-muted-foreground">Total acumulado no período</p>
+              <p className="text-sm font-medium">Folgas Aprovadas</p>
+              <p className="text-xs text-muted-foreground">Total acumulado</p>
             </div>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">{stats.approvedLeaves}</p>
+            <p className="text-2xl font-bold text-accent">{stats.approvedLeaves}</p>
           </div>
         </div>
 
         {/* Recent Leave Requests */}
         <div className="page-card space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2 text-base">
-              <CalendarOff size={18} className="text-amber-500" />
+            <h2 className="font-semibold flex items-center gap-2">
+              <CalendarOff size={18} className="text-warning-foreground" />
               Últimos Pedidos de Folga
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/folgas')} className="text-xs gap-1 font-medium">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/folgas')} className="text-xs gap-1">
               Ver todos <ArrowRight size={12} />
             </Button>
           </div>
@@ -270,25 +270,12 @@ export default function Dashboard() {
               {recentLeaves.map(r => {
                 const cfg = statusConfig[r.status] ?? statusConfig.pending;
                 return (
-                  <div key={r.id} className="flex items-center justify-between bg-muted/30 hover:bg-muted/50 transition-colors rounded-xl px-3.5 py-2.5 border border-border/30">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-sm font-semibold text-foreground truncate">{getEmpName(r.employee_id)}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{r.days_requested} {r.days_requested > 1 ? 'dias' : 'dia'} • {new Date(r.created_at).toLocaleDateString('pt-BR')}</p>
+                  <div key={r.id} className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2.5">
+                    <div>
+                      <p className="text-sm font-medium">{getEmpName(r.employee_id)}</p>
+                      <p className="text-xs text-muted-foreground">{r.days_requested} dia(s) • {new Date(r.created_at).toLocaleDateString('pt-BR')}</p>
                     </div>
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border shrink-0",
-                      r.status === 'approved' && "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400",
-                      r.status === 'rejected' && "bg-destructive/10 text-destructive border-destructive/20",
-                      r.status === 'pending' && "bg-amber-500/10 text-amber-800 border-amber-500/20 dark:text-amber-300"
-                    )}>
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        r.status === 'approved' && "bg-emerald-500",
-                        r.status === 'rejected' && "bg-destructive",
-                        r.status === 'pending' && "bg-amber-500"
-                      )} />
-                      {cfg.label}
-                    </span>
+                    <Badge variant={cfg.variant}>{cfg.label}</Badge>
                   </div>
                 );
               })}

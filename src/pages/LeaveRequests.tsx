@@ -250,29 +250,29 @@ export default function LeaveRequests() {
                 const empBalance = getBalance(req.employee_id);
 
                 const statusStyle = req.status === 'approved'
-                  ? { label: 'Aprovado', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40', dot: 'bg-emerald-500' }
+                  ? { label: 'Aprovado', bg: 'bg-white/90 text-emerald-700' }
                   : req.status === 'rejected'
-                  ? { label: 'Negado', bg: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40', dot: 'bg-rose-500' }
-                  : { label: 'Pendente', bg: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40', dot: 'bg-amber-500 animate-pulse' };
+                  ? { label: 'Negado', bg: 'bg-white/90 text-destructive' }
+                  : { label: 'Pendente', bg: 'bg-white/90 text-amber-700' };
 
                 return (
                   <div 
                     key={req.id} 
-                    className="rounded-xl overflow-hidden border border-border/80 bg-card hover:border-border transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] p-4 flex flex-col gap-3"
-                    style={{ backgroundColor: `${catColor}12` }}
+                    className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-3"
+                    style={{ backgroundColor: `${catColor}15` }}
                   >
                     {/* ── Top Row ─────────────────────────── */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar */}
                         <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border shadow-sm"
-                          style={{ borderColor: `${catColor}60`, color: catColor, backgroundColor: 'var(--card)' }}
+                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-bold text-sm border"
+                          style={{ borderColor: catColor, color: catColor }}
                         >
                           {initials}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-[15px] leading-tight truncate text-foreground tracking-tight">{empName}</p>
+                          <p className="font-bold text-[15px] leading-tight truncate text-foreground">{empName}</p>
                           <div className="flex gap-x-3 gap-y-1 mt-1 flex-wrap text-foreground/80">
                             {cat && (
                               <span className="flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap">
@@ -288,8 +288,7 @@ export default function LeaveRequests() {
                           </div>
                         </div>
                       </div>
-                      <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border shrink-0', statusStyle.bg)}>
-                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusStyle.dot)} />
+                      <span className={cn('text-[10px] uppercase font-bold px-2.5 py-1 rounded-full shrink-0 shadow-sm', statusStyle.bg)}>
                         {statusStyle.label}
                       </span>
                     </div>
