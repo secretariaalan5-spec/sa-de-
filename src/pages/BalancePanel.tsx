@@ -117,30 +117,30 @@ export default function BalancePanel() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
+        <div className="stat-card flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/15">
             <TrendingUp size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-primary">{fmtCredit(totalExtras)}</p>
+            <p className="text-2xl font-bold tracking-tight text-primary tabular-nums">{fmtCredit(totalExtras)}</p>
             <p className="text-xs text-muted-foreground">Créditos ganhos</p>
           </div>
         </div>
-        <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-destructive/10">
-            <TrendingDown size={20} className="text-destructive" />
+        <div className="stat-card flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/15">
+            <TrendingDown size={20} className="text-rose-600 dark:text-rose-400" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-destructive">{fmtCredit(totalUsed)}</p>
+            <p className="text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400 tabular-nums">{fmtCredit(totalUsed)}</p>
             <p className="text-xs text-muted-foreground">Créditos usados</p>
           </div>
         </div>
-        <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-accent/10">
-            <ArrowUpDown size={20} className="text-accent-foreground" />
+        <div className="stat-card flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-accent/15 border border-border">
+            <ArrowUpDown size={20} className="text-foreground/80" />
           </div>
           <div>
-            <p className="text-2xl font-bold">{fmtCredit(totalBalance)}</p>
+            <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{fmtCredit(totalBalance)}</p>
             <p className="text-xs text-muted-foreground">Saldo total</p>
           </div>
         </div>
@@ -218,18 +218,28 @@ export default function BalancePanel() {
                     <td className="px-5 py-3.5 text-muted-foreground text-sm">{row.categoryName}</td>
                     <td className="px-5 py-3.5 text-muted-foreground text-sm">{row.unitName}</td>
                     <td className="px-5 py-3.5 text-center">
-                      <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">+{fmtCredit(row.extras)}</Badge>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-sky-50 text-sky-700 border border-sky-200/70 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800/40">
+                        +{fmtCredit(row.extras)}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive">-{fmtCredit(row.used)}</Badge>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40">
+                        -{fmtCredit(row.used)}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <Badge
-                        variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                        className="font-mono font-bold shadow-none"
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums border',
+                          row.balance > 0
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40'
+                            : row.balance < 0
+                            ? 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40'
+                            : 'bg-muted text-muted-foreground border-border'
+                        )}
                       >
                         {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
-                      </Badge>
+                      </span>
                     </td>
                   </tr>
                 ))}
