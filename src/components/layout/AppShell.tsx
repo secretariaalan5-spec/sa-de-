@@ -189,7 +189,6 @@ export function AppShell() {
                 <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.email}</p>
                 <p className="text-[10px] text-sidebar-foreground/50">{roleDescription || roleLabels[role]}</p>
               </div>
-              <UserCircle size={14} className="text-sidebar-foreground/40" />
             </button>
             <Button variant="ghost" size="sm" onClick={handleLogout}
               className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent">
