@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
-import { Bell, Calendar, FileCheck, FileX, Star, Trash2, Megaphone, Send, Loader2, ClipboardList, ArrowLeftRight } from 'lucide-react';
+import { Bell, Calendar, FileCheck, FileX, Star, Trash2, Megaphone, Send, Loader2, ClipboardList, ArrowLeftRight, UserPlus, UserCheck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -34,11 +34,17 @@ interface Notification {
 function NotifIcon({ title, priority }: { title: string; priority?: string }) {
   const t = title?.toLowerCase() ?? '';
 
+  if (t.includes('solicitação de acesso') || t.includes('solicitou acesso'))
+    return <UserPlus size={15} className="text-indigo-500 shrink-0 mt-0.5" />;
+  if (t.includes('acesso aprovado'))
+    return <UserCheck size={15} className="text-emerald-500 shrink-0 mt-0.5" />;
+  if (t.includes('acesso recusado'))
+    return <FileX size={15} className="text-red-500 shrink-0 mt-0.5" />;
   if (t.includes('aprovada') || t.includes('aprovado'))
     return <FileCheck size={15} className="text-emerald-500 shrink-0 mt-0.5" />;
-  if (t.includes('negada') || t.includes('negado'))
+  if (t.includes('negada') || t.includes('negado') || t.includes('recusad'))
     return <FileX size={15} className="text-red-500 shrink-0 mt-0.5" />;
-  if (t.includes('solicitação') || t.includes('folga'))
+  if (t.includes('folga') || t.includes('solicitação'))
     return <ClipboardList size={15} className="text-amber-500 shrink-0 mt-0.5" />;
   if (t.includes('escala') && t.includes('registrada'))
     return <Calendar size={15} className="text-blue-500 shrink-0 mt-0.5" />;
