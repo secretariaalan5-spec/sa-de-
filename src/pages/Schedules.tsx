@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, CalendarDays, Trash2, ChevronLeft, ChevronRight, List, LayoutGrid, Sun, Moon, TrendingUp, Star, User, MapPin, Tag, Wallet, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface Schedule {
   id: string;
@@ -45,6 +46,8 @@ export default function Schedules() {
   const [empId, setEmpId] = useState('');
   const [type, setType] = useState('extra');
   const [shiftType, setShiftType] = useState<'full' | 'half'>('full');
+  const [isCustomCredit, setIsCustomCredit] = useState(false);
+  const [customCredit, setCustomCredit] = useState<number | null>(null);
   const [observations, setObservations] = useState('');
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [selectedDayDetails, setSelectedDayDetails] = useState<number | null>(null);
@@ -157,6 +160,9 @@ export default function Schedules() {
 
   /** Calculate credit amount for a given date and shift type */
   const calcCredit = (dateStr: string, shift: 'full' | 'half'): number => {
+    if (isCustomCredit && customCredit !== null && customCredit > 0) {
+      return customCredit;
+    }
     const base = (isWeekend(dateStr) || isHoliday(dateStr)) ? 2 : 1;
     return shift === 'half' ? base / 2 : base;
   };
@@ -164,7 +170,7 @@ export default function Schedules() {
   /** Total credits for all selected dates with current shift type */
   const totalCreditsPreview = useMemo(() => {
     return selectedDates.reduce((sum, d) => sum + calcCredit(d, shiftType), 0);
-  }, [selectedDates, shiftType, holidayDatesSet]);
+  }, [selectedDates, shiftType, isCustomCredit, customCredit, holidayDatesSet]);
 
   const schedulesForDay = (day: number) => {
     const dateStr = getDateStr(day);
@@ -215,15 +221,22 @@ export default function Schedules() {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    const inserts = selectedDates.map(date => ({
-      employee_id: empId,
-      date,
-      type,
-      shift_type: shiftType,
-      observations: observations.trim() || null,
-      team_id: roleInfo.team_id,
-      created_by: user?.id ?? null,
-    }));
+    const inserts = selectedDates.map(date => {
+      const perDateCredit = isCustomCredit && customCredit !== null && customCredit > 0
+        ? customCredit
+        : calcCredit(date, shiftType);
+
+      return {
+        employee_id: empId,
+        date,
+        type,
+        shift_type: shiftType,
+        credit_amount: perDateCredit,
+        observations: observations.trim() || null,
+        team_id: roleInfo.team_id,
+        created_by: user?.id ?? null,
+      };
+    });
 
     const { error } = await supabase.from('schedules').insert(inserts);
     if (error) {
@@ -239,6 +252,8 @@ export default function Schedules() {
     setObservations('');
     setType('extra');
     setShiftType('full');
+    setIsCustomCredit(false);
+    setCustomCredit(null);
     load();
   };
 
@@ -893,11 +908,65 @@ export default function Schedules() {
               </div>
             </div>
 
-            {/* Credit rules - compact */}
-            <div className="flex items-center gap-3 text-[11px] text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-              <span className="font-semibold text-foreground whitespace-nowrap">📋 Créditos:</span>
-              <span>Semana <b className="text-primary">+1</b>/<b className="text-primary">+0,5</b></span>
-              <span>Fds/Feriado <b className="text-primary">+2</b>/<b className="text-primary">+1</b></span>
+            {/* Credit rules / Custom Credit Selector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Valor da folga (créditos)</Label>
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isCustomCredit}
+                    onChange={(e) => {
+                      setIsCustomCredit(e.target.checked);
+                      if (!e.target.checked) setCustomCredit(null);
+                      else if (customCredit === null) setCustomCredit(1);
+                    }}
+                    className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
+                  />
+                  <span>Definir manualmente</span>
+                </label>
+              </div>
+
+              {!isCustomCredit ? (
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                  <span className="font-semibold text-foreground whitespace-nowrap">📋 Regra automática:</span>
+                  <span>Semana <b className="text-primary">+1</b>/<b className="text-primary">+0,5</b></span>
+                  <span>Fds/Feriado <b className="text-primary">+2</b>/<b className="text-primary">+1</b></span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2 bg-muted/30 border border-border rounded-lg">
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="10"
+                    value={customCredit ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? null : Math.max(0.5, parseFloat(e.target.value));
+                      setCustomCredit(val);
+                    }}
+                    placeholder="Qtd folgas"
+                    className="h-8 text-xs font-semibold w-24 bg-card"
+                  />
+                  <div className="flex gap-1 flex-1 overflow-x-auto">
+                    {[0.5, 1, 1.5, 2, 3].map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setCustomCredit(val)}
+                        className={cn(
+                          'px-2 py-1 text-xs font-medium rounded border transition-colors',
+                          customCredit === val
+                            ? 'bg-primary text-primary-foreground border-primary font-bold'
+                            : 'bg-card hover:bg-muted text-foreground border-border'
+                        )}
+                      >
+                        +{val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Observations */}
