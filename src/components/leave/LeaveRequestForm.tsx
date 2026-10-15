@@ -70,7 +70,7 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
   };
 
   const todayStr = getLocalTodayStr();
-  const isPast = (day: number) => getDateStr(day) <= todayStr;
+  const isPast = (day: number) => getDateStr(day) < todayStr;
   const isUnderMinAdvance = (day: number) => getDateStr(day) < minAdvanceDateStr;
   
   const balance = empId ? getBalance(empId) : 0;
@@ -80,7 +80,6 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
   const getCategoryColor = (catId: string | null) => catId ? (categories.find(c => c.id === catId)?.color ?? '#6366f1') : '#6366f1';
 
   const handleDayClick = (day: number) => {
-    if (isPast(day)) return;
     const dateStr = getDateStr(day);
     
     setSelectedDates(prev => {
@@ -96,7 +95,12 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
     });
   };
 
-  // Check if any selected date is within the 7-day advance window
+  // Check if any selected date is in the past (retroactive)
+  const hasRetroactiveDates = useMemo(() => {
+    return selectedDates.some(d => d < todayStr);
+  }, [selectedDates, todayStr]);
+
+  // Check if any selected date is within the 7-day advance window (including past)
   const hasShortNoticeDates = useMemo(() => {
     return selectedDates.some(d => d < minAdvanceDateStr);
   }, [selectedDates, minAdvanceDateStr]);
@@ -297,16 +301,16 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
                 <button
                   key={day}
                   type="button"
-                  disabled={pastDay}
                   onClick={() => handleDayClick(day)}
                   className={cn(
                     'h-9 rounded-md text-sm font-medium transition-all relative',
-                    pastDay && 'opacity-30 cursor-not-allowed text-muted-foreground',
-                    !pastDay && isSelected && 'bg-primary text-primary-foreground shadow-sm',
-                    !pastDay && !isSelected && shortNotice && 'text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20',
-                    !pastDay && !isSelected && !shortNotice && 'hover:bg-muted text-foreground',
-                    !pastDay && isToday(day) && !isSelected && 'ring-1 ring-primary',
+                    isSelected && 'bg-primary text-primary-foreground shadow-sm font-bold',
+                    !isSelected && pastDay && 'text-foreground/75 bg-muted/40 hover:bg-muted font-normal',
+                    !isSelected && !pastDay && shortNotice && 'text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20',
+                    !isSelected && !pastDay && !shortNotice && 'hover:bg-muted text-foreground',
+                    !isSelected && isToday(day) && 'ring-2 ring-primary/80 font-bold',
                   )}
+                  title={pastDay ? `${day} (Data retroativa)` : isToday(day) ? `${day} (Hoje)` : undefined}
                 >
                   {day}
                 </button>
@@ -323,12 +327,31 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
                 {selectedDates.length > 3 && ` + ${selectedDates.length - 3} dia(s)`}
               </Badge>
               <Badge variant="secondary" className="text-xs">{selectedDates.length} dia(s)</Badge>
+              {hasRetroactiveDates && (
+                <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
+                  Retroativo
+                </Badge>
+              )}
               <Button type="button" variant="ghost" size="sm" className="h-5 text-[10px] text-destructive hover:bg-destructive/10" onClick={() => setSelectedDates([])}>
                 Limpar
               </Button>
             </div>
 
-            {hasShortNoticeDates && (
+            {hasRetroactiveDates ? (
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-foreground">
+                <div className="p-1 rounded-lg bg-purple-500/20 text-purple-700 dark:text-purple-400 shrink-0 mt-0.5">
+                  <AlertTriangle size={15} />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-purple-900 dark:text-purple-200">
+                    Solicitação Retroativa (dias já decorridos)
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Você selecionou data(s) anteriores a hoje. Este pedido será registrado como retroativo e encaminhado com a justificativa para a coordenação.
+                  </p>
+                </div>
+              </div>
+            ) : hasShortNoticeDates ? (
               <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-foreground">
                 <div className="p-1 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5">
                   <AlertTriangle size={15} />
@@ -342,7 +365,7 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
                   </p>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -351,10 +374,19 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label className={cn("text-xs font-medium", hasShortNoticeDates && "text-foreground font-semibold")}>
-            {hasShortNoticeDates ? 'Motivo da solicitação' : 'Observações'}
+            {hasRetroactiveDates 
+              ? 'Motivo / Justificativa da folga retroativa' 
+              : hasShortNoticeDates 
+                ? 'Motivo da solicitação' 
+                : 'Observações'}
           </Label>
           {hasShortNoticeDates ? (
-            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+            <span className={cn(
+              "text-[10px] font-medium px-2 py-0.5 rounded-md",
+              hasRetroactiveDates 
+                ? "text-purple-700 dark:text-purple-400 bg-purple-500/10 border border-purple-500/20"
+                : "text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20"
+            )}>
               Obrigatório
             </span>
           ) : (
@@ -364,19 +396,24 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
         <Input 
           value={obs} 
           onChange={e => setObs(e.target.value)} 
-          placeholder={hasShortNoticeDates ? "Ex: Consulta médica, imprevisto pessoal..." : "Observações adicionais..."} 
+          placeholder={hasRetroactiveDates ? "Ex: Folga usufruída com autorização prévia, atestado médico, ajuste..." : hasShortNoticeDates ? "Ex: Consulta médica, imprevisto pessoal..." : "Observações adicionais..."} 
           required={hasShortNoticeDates}
           minLength={hasShortNoticeDates ? 5 : undefined}
-          className={cn(hasShortNoticeDates && !obs.trim() && 'border-amber-500/50 focus-visible:ring-amber-500')}
+          className={cn(
+            hasRetroactiveDates && !obs.trim() && 'border-purple-500/50 focus-visible:ring-purple-500',
+            !hasRetroactiveDates && hasShortNoticeDates && !obs.trim() && 'border-amber-500/50 focus-visible:ring-amber-500'
+          )}
         />
         {hasShortNoticeDates && (
           <p className="text-[11px] text-muted-foreground">
-            Descreva brevemente o motivo para a avaliação da coordenação.
+            {hasRetroactiveDates 
+              ? "Descreva o motivo da solicitação retroativa para fins de auditoria e coordenação."
+              : "Descreva brevemente o motivo para a avaliação da coordenação."}
           </p>
         )}
       </div>
 
-      {/* Short Notice Exception Checkbox */}
+      {/* Short Notice / Retroactive Exception Checkbox */}
       {hasShortNoticeDates && (
         <label 
           htmlFor="terms" 
@@ -389,7 +426,9 @@ export default function LeaveRequestForm({ employees, categories, units, getBala
             className="mt-0.5"
           />
           <span className="text-xs text-foreground/90 leading-relaxed select-none">
-            Estou ciente do prazo reduzido e confirmo o envio para avaliação da coordenação.
+            {hasRetroactiveDates
+              ? 'Estou ciente de que se trata de uma solicitação retroativa e confirmo o envio para avaliação e registro.'
+              : 'Estou ciente do prazo reduzido e confirmo o envio para avaliação da coordenação.'}
           </span>
         </label>
       )}

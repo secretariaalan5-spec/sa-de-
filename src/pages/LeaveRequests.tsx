@@ -132,9 +132,14 @@ export default function LeaveRequests() {
     });
 
     if (error) { toast.error(error.message || 'Erro ao solicitar folga.'); return; }
-    toast.success(isShortNotice
-      ? 'Pedido enviado para análise da coordenação!'
-      : 'Pedido de folga enviado com sucesso!');
+    const hasPast = leaveDates.some(d => d < new Date().toISOString().split('T')[0]);
+    toast.success(
+      hasPast
+        ? 'Pedido de folga retroativa enviado com sucesso!'
+        : isShortNotice
+          ? 'Pedido enviado para análise da coordenação!'
+          : 'Pedido de folga enviado com sucesso!'
+    );
     setOpen(false);
     load();
   };
@@ -311,10 +316,17 @@ export default function LeaveRequests() {
                     {(req.is_short_notice || req.observations) && (
                       <div className="space-y-2 mt-1">
                         {req.is_short_notice && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                            <span>Prazo reduzido (&lt; 7 dias)</span>
-                          </div>
+                          req.leave_dates?.some(d => d < (req.created_at ? req.created_at.split('T')[0] : '')) ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-500/10 text-purple-800 dark:text-purple-300 border border-purple-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                              <span>Retroativo</span>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                              <span>Prazo reduzido (&lt; 7 dias)</span>
+                            </div>
+                          )
                         )}
                         {req.observations && (
                           <div className="p-2.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs text-foreground/90">
