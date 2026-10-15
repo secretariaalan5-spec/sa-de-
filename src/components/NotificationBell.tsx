@@ -82,20 +82,20 @@ export function NotificationBell({
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
 }) {
-  const { user, isAdmin, isRH, roleInfo } = useAuthContext();
+  const { user, isAdmin, isRH, isChief, roleInfo } = useAuthContext();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
   const { showLocalPush } = usePushNotifications();
 
-  // Admin Send Notification State
+  // Admin / Chief Send Notification State
   const [sendOpen, setSendOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [isGlobalBanner, setIsGlobalBanner] = useState(false);
   const [priority, setPriority] = useState('info');
-  const [targetAudience, setTargetAudience] = useState('managers');
+  const [targetAudience, setTargetAudience] = useState('all');
 
   const navigate = useNavigate();
 
@@ -123,6 +123,13 @@ export function NotificationBell({
           n.message || 'Você tem um novo aviso.',
           n.link || '/'
         );
+        toast.info(n.title || 'Nova notificação', {
+          description: n.message,
+          action: n.link ? {
+            label: 'Ver',
+            onClick: () => navigate(n.link),
+          } : undefined,
+        });
       }
     }
   });
@@ -176,7 +183,13 @@ export function NotificationBell({
     setSending(true);
     try {
       let query = supabase.from('user_roles').select('user_id').eq('team_id', roleInfo?.team_id);
-      if (targetAudience === 'managers') query = query.eq('role', 'unit_manager');
+      if (targetAudience === 'managers') {
+        query = query.eq('role', 'unit_manager');
+      } else if (targetAudience === 'chiefs') {
+        query = query.eq('role', 'category_chief');
+      } else if (targetAudience === 'leadership') {
+        query = query.in('role', ['unit_manager', 'category_chief']);
+      }
 
       const { data: targets } = await query;
       if (!targets || targets.length === 0) { toast.info('Nenhum destinatário encontrado.'); setSending(false); return; }
@@ -242,7 +255,7 @@ export function NotificationBell({
             )}
           </h4>
           <div className="flex items-center gap-2">
-            {(isAdmin || isRH) && (
+            {(isAdmin || isRH || isChief) && (
               <Button variant="outline" size="sm" onClick={() => setSendOpen(true)} className="h-6 px-2 text-[10px] gap-1">
                 <Megaphone size={11} /> Aviso
               </Button>
@@ -325,8 +338,10 @@ export function NotificationBell({
               <Select value={targetAudience} onValueChange={setTargetAudience}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="managers">Apenas Gerentes</SelectItem>
                   <SelectItem value="all">Todos da Equipe</SelectItem>
+                  <SelectItem value="leadership">Gerentes e Chefes</SelectItem>
+                  <SelectItem value="chiefs">Apenas Chefes de Categoria</SelectItem>
+                  <SelectItem value="managers">Apenas Gerentes de Unidade</SelectItem>
                 </SelectContent>
               </Select>
             </div>
