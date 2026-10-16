@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle, CalendarPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
+import QuickScheduleDialog from '@/components/schedule/QuickScheduleDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { toast } from 'sonner';
 
@@ -71,6 +72,14 @@ export default function Employees() {
   const canAdd = isAdmin || isManager;
   const canEdit = isAdmin || isChief || isManager;
   const canDelete = isAdmin || isManager;
+
+  const [scheduleEmp, setScheduleEmp] = useState<Employee | null>(null);
+
+  const canCreateScheduleFor = (emp: Employee) => {
+    if (isAdmin) return true;
+    if (isChief && emp.category_id && roleInfo?.category_ids?.includes(emp.category_id)) return true;
+    return false;
+  };
 
   const load = async () => {
     if (!roleInfo?.team_id) return;
@@ -350,6 +359,17 @@ export default function Employees() {
                 </Button>
                 
                 <div className="flex items-center gap-0.5">
+                  {canCreateScheduleFor(emp) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Criar Escala"
+                      onClick={(e) => { e.stopPropagation(); setScheduleEmp(emp); }} 
+                      className="h-8 w-8 text-foreground/60 hover:text-primary hover:bg-white/50"
+                    >
+                      <CalendarPlus size={14} />
+                    </Button>
+                  )}
                   {canEdit && (
                     <Button 
                       variant="ghost" 
@@ -388,7 +408,7 @@ export default function Employees() {
         );
       })}
     </div>
-  ), [filtered, categories, units, credits, canEdit, canDelete]);
+  ), [filtered, categories, units, credits, canEdit, canDelete, isAdmin, isChief, roleInfo]);
 
   const memoizedTable = useMemo(() => (
     <div className="overflow-x-auto">
@@ -451,6 +471,17 @@ export default function Employees() {
               <td className="px-5 py-3.5 text-right">
                 <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
+                  {canCreateScheduleFor(emp) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Criar Escala" 
+                      className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" 
+                      onClick={(e) => { e.stopPropagation(); setScheduleEmp(emp); }}
+                    >
+                      <CalendarPlus size={14} />
+                    </Button>
+                  )}
                   {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); openEdit(emp); }}><Pencil size={14} /></Button>}
                   {isAdmin && <Button variant="ghost" size="icon" title="Ajustar Saldo" className="h-8 w-8 hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors" onClick={(e) => openAdjust(emp, e)}><Wallet size={14} /></Button>}
                   {canDelete && <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}><Trash2 size={14} /></Button>}
@@ -461,7 +492,7 @@ export default function Employees() {
         </tbody>
       </table>
     </div>
-  ), [filtered, categories, units, credits, canEdit, canDelete]);
+  ), [filtered, categories, units, credits, canEdit, canDelete, isAdmin, isChief, roleInfo]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -575,6 +606,16 @@ export default function Employees() {
         employeeName={detailEmp?.name ?? ''}
         open={!!detailEmp}
         onOpenChange={(o) => { if (!o) setDetailEmp(null); }}
+      />
+
+      {/* Quick Schedule Dialog */}
+      <QuickScheduleDialog
+        employee={scheduleEmp}
+        categoryName={getCat(scheduleEmp?.category_id ?? null)?.name}
+        unitName={getUnitName(scheduleEmp?.unit_id ?? null)}
+        open={!!scheduleEmp}
+        onOpenChange={(o) => { if (!o) setScheduleEmp(null); }}
+        onSuccess={load}
       />
 
       {/* Credit Adjustment Dialog */}
