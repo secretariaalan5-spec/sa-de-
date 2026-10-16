@@ -5,23 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   CalendarDays,
   CalendarOff,
   ArrowRightLeft,
   Wallet,
   Loader2,
   Printer,
-  Download,
-  FileText,
+  FileSpreadsheet,
   Building2,
-  Stethoscope,
-  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -104,7 +95,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
     setLoading(true);
 
     Promise.all([
-      // 1. Escalas completas (com observação/atividade, unidade e turno)
+      // 1. Escalas completas (com atividade/observação, unidade e turno)
       supabase
         .from('schedules')
         .select('id, date, type, unit_id, shift_type, credit_amount, observations')
@@ -179,425 +170,314 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
     rejected: { label: 'Negado', variant: 'destructive' },
   };
 
-  // Constrói o dossiê individual do funcionário com o mesmo design visual do sistema
-  const buildIndividualHtmlReport = (): string => {
+  // Constrói relatório funcional e formal para impressão/PDF (design institucional simples, sem cara de IA)
+  const buildIndividualPrintHtml = (): string => {
     const emissionDate = new Date().toLocaleString('pt-BR');
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Histórico de ${employeeName} — Saúde+</title>
+  <title>Ficha Funcional — ${employeeName}</title>
   <style>
-    :root {
-      --primary: #0284c7;
-      --primary-light: #e0f2fe;
-      --destructive: #ef4444;
-      --destructive-light: #fee2e2;
-      --amber: #d97706;
-      --amber-light: #fef3c7;
-      --foreground: #0f172a;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --card: #ffffff;
-      --bg: #f8fafc;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--foreground);
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+      background: #ffffff;
       padding: 24px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.4;
     }
-    .container { max-width: 900px; margin: 0 auto; }
-    
     .header {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 20px;
+      border-bottom: 2px solid #1f2937;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      align-items: flex-end;
     }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .logo-badge {
-      background: var(--primary);
-      color: white;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 24px;
-      box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);
-    }
-    .title h1 { font-size: 20px; font-weight: 700; color: var(--foreground); }
-    .title p { font-size: 13px; color: var(--muted); margin-top: 2px; }
-    .meta { font-size: 12px; color: var(--muted); text-align: right; }
-    .meta strong { color: var(--foreground); }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-    .kpi-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }
-    .kpi-value { font-size: 22px; font-weight: 800; }
-    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-top: 2px; }
-    .text-primary { color: var(--primary); }
-    .text-destructive { color: var(--destructive); }
-    .text-amber { color: var(--amber); }
-
-    .section-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--foreground);
-      margin: 24px 0 12px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .table-container {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow-x: auto;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-      margin-bottom: 20px;
-    }
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 650px; }
-    .data-table th {
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 11px;
+    .header-title h1 {
+      font-size: 18px;
+      font-weight: bold;
+      color: #111827;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      font-weight: 700;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
     }
-    .data-table td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #f1f5f9;
+    .header-title p {
+      font-size: 12px;
+      color: #4b5563;
+      margin-top: 2px;
+    }
+    .header-meta {
+      text-align: right;
+      font-size: 11px;
+      color: #4b5563;
+    }
+    .info-card {
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      font-size: 12px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .summary-item {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 10px;
+      text-align: center;
+      background: #f9fafb;
+    }
+    .summary-item .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .summary-item .value {
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 2px;
+      color: #111827;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #111827;
+      text-transform: uppercase;
+      border-bottom: 1px solid #d1d5db;
+      padding-bottom: 4px;
+      margin: 20px 0 10px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 7px 10px;
+      text-align: left;
       vertical-align: top;
     }
-    .data-table tr:last-child td { border-bottom: none; }
-    .data-table tr:hover td { background: #f8fafc; }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-weight: 700;
+    th {
+      background: #f3f4f6;
+      font-weight: bold;
       font-size: 11px;
+      text-transform: uppercase;
+      color: #374151;
     }
-    .badge-primary { background: var(--primary-light); color: var(--primary); }
-    .badge-destructive { background: var(--destructive-light); color: var(--destructive); }
-    .badge-amber { background: var(--amber-light); color: var(--amber); }
-    .badge-neutral { background: #f1f5f9; color: #475569; }
-
-    .obs-box {
-      background: #f8fafc;
-      border-left: 3px solid var(--primary);
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      color: #334155;
-      margin-top: 4px;
+    tr:nth-child(even) { background: #fafafa; }
+    .footer {
+      margin-top: 24px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 8px;
+      text-align: center;
+      font-size: 10px;
+      color: #6b7280;
     }
-    .obs-leave {
-      border-left-color: var(--destructive);
-      background: #fff5f5;
-    }
-
     .actions-bar {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
+      margin-bottom: 16px;
       display: flex;
-      gap: 12px;
-      background: white;
-      padding: 10px 16px;
-      border-radius: 50px;
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
-      border: 1px solid var(--border);
-      z-index: 100;
+      gap: 8px;
     }
     .btn {
-      background: var(--primary);
-      color: white;
+      padding: 8px 16px;
+      background: #2563eb;
+      color: #ffffff;
       border: none;
-      padding: 8px 18px;
-      border-radius: 25px;
-      font-weight: 600;
-      font-size: 13px;
+      border-radius: 4px;
+      font-weight: bold;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      font-size: 12px;
     }
-    .btn-secondary { background: #f1f5f9; color: #334155; }
-
+    .btn-close {
+      background: #e5e7eb;
+      color: #374151;
+    }
     @media print {
-      body { background: white; padding: 0; }
-      .container { max-width: 100%; }
-      .header { border: none; box-shadow: none; padding: 0 0 14px 0; border-bottom: 2px solid var(--border); border-radius: 0; margin-bottom: 14px; }
+      body { padding: 0; }
       .actions-bar { display: none !important; }
-      .kpi-card, .table-container { box-shadow: none; border-color: #cbd5e1; }
-      th { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr { page-break-inside: avoid; }
-    }
-    @media (max-width: 640px) {
-      body { padding: 12px; }
-      .header { padding: 16px; }
-      .meta { text-align: left; }
-      .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-      .kpi-card { padding: 12px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="brand">
-        <div class="logo-badge">+</div>
-        <div class="title">
-          <h1>${employeeName}</h1>
-          <p>${empCategoryName} • Unidade: ${empUnitName}</p>
-        </div>
-      </div>
-      <div class="meta">
-        <p><strong>Saúde+</strong> • Dossiê Individual</p>
-        <p>Emitido em: ${emissionDate}</p>
-      </div>
-    </div>
+  <div class="actions-bar">
+    <button class="btn" onclick="window.print()">Imprimir / Salvar em PDF</button>
+    <button class="btn btn-close" onclick="window.close()">Fechar</button>
+  </div>
 
-    <!-- Cards de Resumo -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-value text-primary">+${fmtCredit(totalShifts)}</div>
-        <div class="kpi-label">Plantões Extras</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value text-amber">${totalManual > 0 ? '+' : ''}${fmtCredit(totalManual)}</div>
-        <div class="kpi-label">Créditos Manuais</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value text-destructive">-${fmtCredit(totalUsed)}</div>
-        <div class="kpi-label">Folgas Usadas</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value">${balance > 0 ? '+' : ''}${fmtCredit(balance)}</div>
-        <div class="kpi-label">Saldo Atual</div>
-      </div>
+  <div class="header">
+    <div class="header-title">
+      <h1>Ficha Funcional — Histórico Individual</h1>
+      <p>Secretaria de Saúde • Sistema de Gestão de Escalas e Folgas</p>
     </div>
-
-    <!-- Seção de Escalas (O que foi escalado para fazer) -->
-    <div class="section-title">
-      📅 Escalas e Atividades Realizadas (${schedules.length})
-    </div>
-    <div class="table-container">
-      ${schedules.length === 0 ? `
-        <p style="padding: 24px; text-align: center; color: #64748b;">Nenhuma escala registrada.</p>
-      ` : `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>Unidade</th>
-              <th>Turno</th>
-              <th>Atividade / O que foi escalado(a) para fazer</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${schedules.map(s => `
-              <tr>
-                <td style="white-space: nowrap; font-weight: 600;">${fmtDate(s.date)} (${weekday(s.date)})</td>
-                <td>
-                  <span class="badge ${s.type === 'extra' ? 'badge-primary' : 'badge-neutral'}">
-                    ${s.type === 'extra' ? 'Plantão Extra' : 'Escala Normal'}
-                  </span>
-                </td>
-                <td>${getUnitName(s.unit_id)}</td>
-                <td>${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}</td>
-                <td>
-                  <div class="obs-box">
-                    ${s.observations?.trim() || 'Plantão de rotina na unidade'}
-                  </div>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `}
-    </div>
-
-    <!-- Seção de Folgas (Motivo da folga) -->
-    <div class="section-title">
-      🏖️ Pedidos de Folga e Motivos (${leaves.length})
-    </div>
-    <div class="table-container">
-      ${leaves.length === 0 ? `
-        <p style="padding: 24px; text-align: center; color: #64748b;">Nenhum pedido de folga registrado.</p>
-      ` : `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Dias</th>
-              <th>Datas da Folga</th>
-              <th>Motivo da Folga</th>
-              <th>Data do Pedido</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${leaves.map(l => {
-              const statusCfg = statusLabels[l.status] ?? statusLabels.pending;
-              const badgeClass = l.status === 'approved' ? 'badge-primary' : l.status === 'rejected' ? 'badge-destructive' : 'badge-neutral';
-              const datesFormatted = (l.leave_dates ?? []).map(d => fmtDate(d)).join(', ');
-              return `
-                <tr>
-                  <td><span class="badge ${badgeClass}">${statusCfg.label}</span></td>
-                  <td style="font-weight: 600;">${l.days_requested} dia(s)</td>
-                  <td>${datesFormatted || '—'}</td>
-                  <td>
-                    <div class="obs-box obs-leave">
-                      ${l.observations?.trim() || 'Motivo não informado no pedido'}
-                    </div>
-                  </td>
-                  <td style="white-space: nowrap; color: #64748b;">${fmtDate(l.created_at)}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `}
-    </div>
-
-    <!-- Seção de Créditos Manuais e Ajustes -->
-    <div class="section-title">
-      ⭐ Créditos e Ajustes de Saldo (${credits.length})
-    </div>
-    <div class="table-container">
-      ${credits.length === 0 ? `
-        <p style="padding: 24px; text-align: center; color: #64748b;">Nenhum crédito registrado.</p>
-      ` : `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Valor</th>
-              <th>Origem</th>
-              <th>Motivo / Observações</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${credits.map(c => `
-              <tr>
-                <td style="white-space: nowrap;">${fmtDate(c.created_at)}</td>
-                <td>
-                  <span class="badge ${c.amount > 0 ? 'badge-primary' : 'badge-destructive'}">
-                    ${c.amount > 0 ? '+' : ''}${fmtCredit(c.amount)}
-                  </span>
-                </td>
-                <td>
-                  ${c.origin === 'extra_shift' ? 'Plantão extra' : c.origin === 'leave_used' ? 'Folga utilizada' : c.origin === 'initial_balance' ? 'Saldo inicial' : 'Ajuste manual'}
-                </td>
-                <td>${c.notes || '—'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `}
+    <div class="header-meta">
+      <p>Data de emissão: <strong>${emissionDate}</strong></p>
     </div>
   </div>
 
-  <div class="actions-bar">
-    <button class="btn" onclick="window.print()">
-      🖨️ Imprimir / Salvar PDF
-    </button>
-    <button class="btn btn-secondary" onclick="window.close()">
-      ✕ Fechar
-    </button>
+  <div class="info-card">
+    <div>Profissional: <strong>${employeeName}</strong></div>
+    <div>Categoria: <strong>${empCategoryName}</strong></div>
+    <div>Unidade de Lotação: <strong>${empUnitName}</strong></div>
+    <div>Situação: <strong>Ativo</strong></div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="label">Plantões Extras</div>
+      <div class="value">+${fmtCredit(totalShifts)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Ajustes Manuais</div>
+      <div class="value">${totalManual > 0 ? '+' : ''}${fmtCredit(totalManual)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Folgas Usadas</div>
+      <div class="value">-${fmtCredit(totalUsed)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Saldo Atual</div>
+      <div class="value" style="font-weight: bold;">${balance > 0 ? '+' : ''}${fmtCredit(balance)}</div>
+    </div>
+  </div>
+
+  <div class="section-title">1. Escalas e Atividades Realizadas (${schedules.length})</div>
+  ${schedules.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhuma escala registrada.</p>' : `
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 18%;">Data</th>
+          <th style="width: 14%;">Tipo</th>
+          <th style="width: 22%;">Unidade</th>
+          <th style="width: 12%;">Turno</th>
+          <th style="width: 34%;">Atividade / O que foi escalado(a) para fazer</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${schedules.map(s => `
+          <tr>
+            <td><strong>${fmtDate(s.date)}</strong> (${weekday(s.date)})</td>
+            <td>${s.type === 'extra' ? 'Plantão Extra' : 'Escala Normal'}</td>
+            <td>${getUnitName(s.unit_id)}</td>
+            <td>${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}</td>
+            <td>${s.observations?.trim() || 'Plantão de escala na unidade'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
+
+  <div class="section-title">2. Pedidos de Folga e Motivos (${leaves.length})</div>
+  ${leaves.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhum pedido de folga registrado.</p>' : `
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 14%;">Situação</th>
+          <th style="width: 10%;">Dias</th>
+          <th style="width: 26%;">Datas da Folga</th>
+          <th style="width: 36%;">Motivo da Folga</th>
+          <th style="width: 14%;">Data do Pedido</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${leaves.map(l => {
+          const statusCfg = statusLabels[l.status] ?? statusLabels.pending;
+          const datesFormatted = (l.leave_dates ?? []).map(d => fmtDate(d)).join(', ');
+          return `
+            <tr>
+              <td><strong>${statusCfg.label}</strong></td>
+              <td>${l.days_requested} dia(s)</td>
+              <td>${datesFormatted || '—'}</td>
+              <td>${l.observations?.trim() || 'Motivo não informado no pedido'}</td>
+              <td>${fmtDate(l.created_at)}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `}
+
+  <div class="section-title">3. Extrato de Ajustes de Saldo (${credits.length})</div>
+  ${credits.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhum crédito registrado.</p>' : `
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 18%;">Data</th>
+          <th style="width: 14%;">Valor</th>
+          <th style="width: 28%;">Origem</th>
+          <th style="width: 40%;">Observações / Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${credits.map(c => `
+          <tr>
+            <td>${fmtDate(c.created_at)}</td>
+            <td><strong>${c.amount > 0 ? '+' : ''}${fmtCredit(c.amount)}</strong></td>
+            <td>${c.origin === 'extra_shift' ? 'Plantão extra' : c.origin === 'leave_used' ? 'Folga utilizada' : c.origin === 'initial_balance' ? 'Saldo inicial' : 'Ajuste manual'}</td>
+            <td>${c.notes || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `}
+
+  <div class="footer">
+    Documento individual emitido para fins funcionais pelo Sistema de Gestão de Escalas • Página 1/1
   </div>
 </body>
 </html>`;
   };
 
-  // Dispara visualização / impressão do histórico
-  const handlePrintHistory = () => {
+  // Dispara visualização / impressão do histórico em PDF
+  const handlePrintPdf = () => {
     try {
-      const html = buildIndividualHtmlReport();
+      const html = buildIndividualPrintHtml();
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
-        toast.error('O navegador bloqueou a abertura da janela. Permita popups para visualizar o histórico.');
+        toast.error('O navegador bloqueou a abertura da janela. Permita popups para visualizar a ficha.');
         return;
       }
       printWindow.document.open();
       printWindow.document.write(html);
       printWindow.document.close();
     } catch (err: any) {
-      toast.error('Erro ao gerar relatório individual: ' + (err.message || ''));
+      toast.error('Erro ao gerar PDF: ' + (err.message || ''));
     }
   };
 
-  // Baixar arquivo HTML individual
-  const handleDownloadHtmlHistory = () => {
-    try {
-      const html = buildIndividualHtmlReport();
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const cleanName = employeeName.toLowerCase().replace(/\s+/g, '-');
-      a.href = url;
-      a.download = `historico-${cleanName}-${new Date().toISOString().slice(0, 10)}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Dossiê do profissional baixado com sucesso!');
-    } catch (err: any) {
-      toast.error('Erro ao baixar arquivo: ' + (err.message || ''));
-    }
-  };
-
-  // Baixar CSV com escalas e folgas da pessoa
-  const handleDownloadCsvHistory = () => {
+  // Baixar Planilha Excel (.csv) com histórico do profissional
+  const handleDownloadExcel = () => {
     try {
       let csv = '\uFEFF';
-      csv += `Histórico de ${employeeName} - Categoria: ${empCategoryName} - Unidade: ${empUnitName}\n\n`;
+      csv += `FICHA FUNCIONAL - ${employeeName.toUpperCase()}\n`;
+      csv += `Categoria: ${empCategoryName};Unidade: ${empUnitName};Saldo Atual: ${fmtCredit(balance)}\n\n`;
 
-      csv += 'ESCALAS E ATIVIDADES\n';
+      csv += 'ESCALAS E ATIVIDADES REALIZADAS\n';
       csv += 'Data;Tipo;Unidade;Turno;O que foi escalado(a) para fazer\n';
       schedules.forEach(s => {
         csv += `"${fmtDate(s.date)}";"${s.type === 'extra' ? 'Plantão Extra' : 'Escala Normal'}";"${getUnitName(s.unit_id)}";"${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}";"${(s.observations || '').replace(/"/g, '""')}"\n`;
       });
 
       csv += '\nPEDIDOS DE FOLGA E MOTIVOS\n';
-      csv += 'Status;Dias;Datas Solicitadas;Motivo da Folga;Data do Pedido\n';
+      csv += 'Situacao;Dias;Datas Solicitadas;Motivo da Folga;Data do Pedido\n';
       leaves.forEach(l => {
         const datesStr = (l.leave_dates ?? []).map(d => fmtDate(d)).join(', ');
-        csv += `"${l.status}";"${l.days_requested}";"${datesStr}";"${(l.observations || '').replace(/"/g, '""')}";"${fmtDate(l.created_at)}"\n`;
+        const statusCfg = statusLabels[l.status] ?? statusLabels.pending;
+        csv += `"${statusCfg.label}";"${l.days_requested}";"${datesStr}";"${(l.observations || '').replace(/"/g, '""')}";"${fmtDate(l.created_at)}"\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -610,7 +490,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('Planilha do profissional baixada!');
+      toast.success('Planilha Excel baixada com sucesso!');
     } catch (err: any) {
       toast.error('Erro ao exportar planilha: ' + (err.message || ''));
     }
@@ -628,29 +508,27 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
               </p>
             </div>
 
-            {/* Botão Baixar / Imprimir Histórico */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs font-semibold">
-                  <Download size={14} />
-                  <span>Baixar Histórico</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handlePrintHistory} className="gap-2 cursor-pointer">
-                  <Printer size={14} className="text-primary" />
-                  <span>Visualizar & Imprimir (PDF)</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownloadHtmlHistory} className="gap-2 cursor-pointer">
-                  <FileText size={14} className="text-primary" />
-                  <span>Baixar Arquivo HTML</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownloadCsvHistory} className="gap-2 cursor-pointer">
-                  <Download size={14} className="text-amber-600" />
-                  <span>Baixar Planilha (Excel)</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Apenas PDF e Excel - sem HTML */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintPdf}
+                className="gap-1.5 text-xs font-medium"
+              >
+                <Printer size={14} className="text-primary" />
+                <span>Gerar PDF</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadExcel}
+                className="gap-1.5 text-xs font-medium"
+              >
+                <FileSpreadsheet size={14} className="text-emerald-600" />
+                <span>Excel</span>
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -660,21 +538,21 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
           <>
             {/* Balance summary */}
             <div className="grid grid-cols-4 gap-2 mb-2">
-              <div className="rounded-xl border border-border p-2.5 text-center">
+              <div className="rounded-lg border border-border p-2.5 text-center bg-card">
                 <p className="text-base font-bold text-primary">+{fmtCredit(totalShifts)}</p>
                 <p className="text-[10px] text-muted-foreground">Plantões</p>
               </div>
-              <div className="rounded-xl border border-border p-2.5 text-center">
+              <div className="rounded-lg border border-border p-2.5 text-center bg-card">
                 <p className="text-base font-bold text-amber-600 dark:text-amber-400">
                   {totalManual > 0 ? `+${fmtCredit(totalManual)}` : fmtCredit(totalManual)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Manuais</p>
               </div>
-              <div className="rounded-xl border border-border p-2.5 text-center">
+              <div className="rounded-lg border border-border p-2.5 text-center bg-card">
                 <p className="text-base font-bold text-destructive">-{fmtCredit(totalUsed)}</p>
                 <p className="text-[10px] text-muted-foreground">Folgas</p>
               </div>
-              <div className="rounded-xl border border-border p-2.5 text-center">
+              <div className="rounded-lg border border-border p-2.5 text-center bg-card">
                 <p className={cn('text-base font-bold', balance > 0 ? 'text-primary' : balance < 0 ? 'text-destructive' : 'text-foreground')}>
                   {balance > 0 ? `+${fmtCredit(balance)}` : fmtCredit(balance)}
                 </p>
@@ -704,7 +582,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                   <p className="text-center text-muted-foreground text-sm py-6">Nenhuma escala registrada</p>
                 ) : (
                   schedules.map(s => (
-                    <div key={s.id} className="p-3 rounded-xl border border-border bg-card/60 space-y-2 hover:bg-muted/30 transition-colors">
+                    <div key={s.id} className="p-3 rounded-lg border border-border bg-card space-y-1.5 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{fmtDate(s.date)}</span>
@@ -721,24 +599,21 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                       </div>
 
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Building2 size={13} className="shrink-0 text-primary" />
+                        <Building2 size={13} className="shrink-0 text-muted-foreground" />
                         <span>Unidade: <strong>{getUnitName(s.unit_id)}</strong></span>
                       </div>
 
-                      {/* Destaque do que a pessoa foi escalada para fazer */}
-                      <div className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/10 p-2 rounded-lg text-foreground">
-                        <Stethoscope size={14} className="text-primary shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-semibold text-primary">Atividade / Função: </span>
-                          <span>{s.observations?.trim() || 'Plantão de rotina na unidade.'}</span>
-                        </div>
+                      {/* Atividade / O que a pessoa foi escalada para fazer */}
+                      <div className="text-xs bg-muted/40 p-2 rounded border border-border/50 text-foreground">
+                        <span className="font-semibold text-foreground">Atividade: </span>
+                        <span>{s.observations?.trim() || 'Plantão de rotina na unidade.'}</span>
                       </div>
                     </div>
                   ))
                 )}
               </TabsContent>
 
-              {/* ABA: FOLGAS COM MOTIVO CLARAMENTE IDENTIFICADO */}
+              {/* ABA: FOLGAS COM MOTIVO */}
               <TabsContent value="leaves" className="mt-3 max-h-[340px] overflow-y-auto space-y-2">
                 {leaves.length === 0 ? (
                   <p className="text-center text-muted-foreground text-sm py-6">Nenhum pedido de folga</p>
@@ -746,7 +621,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                   leaves.map(l => {
                     const cfg = statusLabels[l.status] ?? statusLabels.pending;
                     return (
-                      <div key={l.id} className="p-3 rounded-xl border border-border bg-card/60 space-y-2 hover:bg-muted/30 transition-colors">
+                      <div key={l.id} className="p-3 rounded-lg border border-border bg-card space-y-1.5 hover:bg-muted/30 transition-colors">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold">{l.days_requested} dia(s) solicitado(s)</span>
                           <Badge variant={cfg.variant}>{cfg.label}</Badge>
@@ -756,17 +631,14 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                           <strong>Datas:</strong> {l.leave_dates?.map(d => fmtDate(d)).join(', ')}
                         </p>
 
-                        {/* Motivo da folga destacado */}
-                        <div className="flex items-start gap-1.5 text-xs bg-destructive/5 border border-destructive/10 p-2 rounded-lg text-foreground">
-                          <MessageSquare size={14} className="text-destructive shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold text-destructive">Motivo da folga: </span>
-                            <span>{l.observations?.trim() || 'Motivo não informado na solicitação.'}</span>
-                          </div>
+                        {/* Motivo da folga */}
+                        <div className="text-xs bg-muted/40 p-2 rounded border border-border/50 text-foreground">
+                          <span className="font-semibold text-foreground">Motivo: </span>
+                          <span>{l.observations?.trim() || 'Motivo não informado na solicitação.'}</span>
                         </div>
 
-                        <p className="text-[10px] text-muted-foreground pt-1">
-                          Pedido feito em {fmtDate(l.created_at)}
+                        <p className="text-[10px] text-muted-foreground pt-0.5">
+                          Solicitado em {fmtDate(l.created_at)}
                           {l.decided_at ? ` • Decidido em ${fmtDate(l.decided_at)}` : ''}
                         </p>
                       </div>
@@ -813,7 +685,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                               : 'Ajuste manual'}
                           </span>
                           {c.notes && (
-                            <p className="text-xs text-foreground/80 italic mt-0.5 pl-5">
+                            <p className="text-xs text-muted-foreground italic mt-0.5 pl-5">
                               "{c.notes}"
                             </p>
                           )}
