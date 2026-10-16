@@ -394,9 +394,11 @@ export default function BalancePanel() {
                     <span className="text-[10px] text-primary uppercase font-bold tracking-tight">Plantões</span>
                     <span className="text-xs font-mono font-bold text-primary">+{fmtCredit(row.shifts)}</span>
                   </div>
-                  <div className="bg-amber-500/5 p-2 rounded-lg flex flex-col items-center text-center">
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-tight">Manuais</span>
-                    <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                  <div className={`p-2 rounded-lg flex flex-col items-center text-center ${row.manual < 0 ? 'bg-purple-500/10' : 'bg-amber-500/10'}`}>
+                    <span className={`text-[10px] uppercase font-bold tracking-tight ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      Manuais
+                    </span>
+                    <span className={`text-xs font-mono font-bold ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
                       {row.manual !== 0 ? (row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)) : '0'}
                     </span>
                   </div>
@@ -455,10 +457,10 @@ export default function BalancePanel() {
                         {row.manual !== 0 ? (
                           <Badge
                             variant="secondary"
-                            className={`font-mono border-transparent ${
+                            className={`font-mono border ${
                               row.manual > 0
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
-                                : 'bg-muted text-muted-foreground'
+                                ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/50 hover:bg-amber-500/20'
+                                : 'bg-purple-500/10 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-500/20'
                             }`}
                           >
                             {row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)}

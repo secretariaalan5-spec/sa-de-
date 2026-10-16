@@ -74,7 +74,7 @@ const fmtDate = (d: string) => {
 };
 const weekday = (d: string) => {
   try {
-    return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+    return new Date((d.includes('T') ? d : d + 'T12:00:00')).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
   } catch {
     return '';
   }
@@ -649,53 +649,103 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                 )}
               </TabsContent>
 
-              {/* ABA: TRANSFERÊNCIAS */}
-              <TabsContent value="transfers" className="mt-3 max-h-[300px] overflow-y-auto">
+              {/* ABA: TRANSFERÊNCIAS (DESIGN CONSISTENTE EM CARDS) */}
+              <TabsContent value="transfers" className="mt-3 max-h-[340px] overflow-y-auto space-y-2">
                 {transfers.length === 0 ? (
-                  <p className="text-center text-muted-foreground text-sm py-6">Nenhuma transferência</p>
+                  <p className="text-center text-muted-foreground text-sm py-6">Nenhuma transferência registrada</p>
                 ) : (
-                  <div className="space-y-1">
-                    {transfers.map(t => (
-                      <div key={t.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 text-sm">
-                        <span>{getUnitName(t.from_unit_id)} → {getUnitName(t.to_unit_id)}</span>
-                        <span className="text-xs text-muted-foreground">{fmtDate(t.transferred_at)}</span>
+                  transfers.map(t => (
+                    <div key={t.id} className="p-3 rounded-lg border border-border bg-card space-y-1.5 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm">{fmtDate(t.transferred_at)}</span>
+                          <span className="text-xs text-muted-foreground">({weekday(t.transferred_at)})</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          Transferência
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="text-xs bg-muted/40 p-2 rounded border border-border/50 text-foreground">
+                        <span className="font-semibold text-foreground">Movimentação: </span>
+                        <span>{getUnitName(t.from_unit_id)} → <strong>{getUnitName(t.to_unit_id)}</strong></span>
+                      </div>
+                    </div>
+                  ))
                 )}
               </TabsContent>
 
-              {/* ABA: CRÉDITOS */}
-              <TabsContent value="credits" className="mt-3 max-h-[300px] overflow-y-auto">
+              {/* ABA: CRÉDITOS (COM CORES DISTINTAS PARA MANUAL COLOCADO E RETIRADO) */}
+              <TabsContent value="credits" className="mt-3 max-h-[340px] overflow-y-auto space-y-2">
                 {credits.length === 0 ? (
                   <p className="text-center text-muted-foreground text-sm py-6">Nenhum crédito registrado</p>
                 ) : (
-                  <div className="space-y-1">
-                    {credits.map((c, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 text-sm">
-                        <div className="min-w-0 pr-2">
-                          <span className={cn('font-mono font-bold', c.amount > 0 ? 'text-primary' : 'text-destructive')}>
-                            {c.amount > 0 ? '+' : ''}{fmtCredit(c.amount)}
+                  credits.map((c, i) => {
+                    const isShift = c.origin === 'extra_shift';
+                    const isLeave = c.origin === 'leave_used';
+                    const isManualAdd = !isShift && !isLeave && Number(c.amount) > 0;
+                    const isManualRemove = !isShift && !isLeave && Number(c.amount) < 0;
+
+                    let badgeLabel = 'Crédito';
+                    let badgeClass = 'bg-muted text-muted-foreground border-border';
+                    let borderHighlight = 'border-border';
+                    let boxBg = 'bg-muted/40';
+
+                    if (isShift) {
+                      badgeLabel = `Plantão Extra (+${fmtCredit(c.amount)})`;
+                      badgeClass = 'bg-primary/10 text-primary border-primary/20 font-semibold';
+                    } else if (isManualAdd) {
+                      badgeLabel = `Manual Adicionado (+${fmtCredit(c.amount)})`;
+                      badgeClass = 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/60 font-semibold';
+                      borderHighlight = 'border-amber-300 dark:border-amber-900/50';
+                      boxBg = 'bg-amber-500/10 dark:bg-amber-950/25';
+                    } else if (isManualRemove) {
+                      badgeLabel = `Manual Retirado (-${fmtCredit(Math.abs(c.amount))})`;
+                      badgeClass = 'bg-purple-500/15 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700/60 font-semibold';
+                      borderHighlight = 'border-purple-300 dark:border-purple-900/50';
+                      boxBg = 'bg-purple-500/10 dark:bg-purple-950/25';
+                    } else if (isLeave) {
+                      badgeLabel = `Folga Utilizada (-${fmtCredit(Math.abs(c.amount))})`;
+                      badgeClass = 'bg-destructive/10 text-destructive border-destructive/20 font-semibold';
+                    }
+
+                    return (
+                      <div key={c.id || i} className={`p-3 rounded-lg border ${borderHighlight} bg-card space-y-1.5 hover:bg-muted/30 transition-colors`}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{fmtDate(c.created_at)}</span>
+                            <span className="text-xs text-muted-foreground">({weekday(c.created_at)})</span>
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] border ${badgeClass}`}>
+                            {badgeLabel}
                           </span>
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {c.origin === 'extra_shift'
-                              ? 'Escala extra'
-                              : c.origin === 'leave_used'
-                              ? 'Folga utilizada'
-                              : c.origin === 'initial_balance'
-                              ? 'Saldo inicial'
-                              : 'Ajuste manual'}
-                          </span>
-                          {c.notes && (
-                            <p className="text-xs text-muted-foreground italic mt-0.5 pl-5">
-                              "{c.notes}"
-                            </p>
-                          )}
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0">{fmtDate(c.created_at)}</span>
+
+                        {/* Justificativa / Observação do lançamento com cor de contexto */}
+                        <div className={`text-xs ${boxBg} p-2 rounded border border-border/50 text-foreground`}>
+                          <span className="font-semibold text-foreground">
+                            {isManualAdd
+                              ? 'Justificativa do crédito manual: '
+                              : isManualRemove
+                              ? 'Motivo da retirada/estorno manual: '
+                              : isShift
+                              ? 'Origem: '
+                              : 'Descrição: '}
+                          </span>
+                          <span>
+                            {c.notes?.trim() ||
+                              (isShift
+                                ? 'Crédito automático de plantão extra na escala.'
+                                : isLeave
+                                ? 'Débito referente a folga usufruída.'
+                                : c.origin === 'initial_balance'
+                                ? 'Lançamento de saldo inicial.'
+                                : 'Ajuste manual de créditos.')}
+                          </span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })
                 )}
               </TabsContent>
             </Tabs>
