@@ -506,13 +506,10 @@ export default function BalancePanel() {
         </>
       )}
 
-      {/* Modal de Exportação / Impressão Detalhada com visual responsivo idêntico à página */}
+      {/* Modal de Exportação Geral com visual responsivo idêntico à página */}
       <ReportExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
-        teamId={roleInfo?.team_id ?? ''}
-        categories={categories}
-        units={units}
         rows={filtered}
         filterUnitName={filterUnit !== 'all' ? units.find(u => u.id === filterUnit)?.name : undefined}
         filterCatName={filterCat !== 'all' ? categories.find(c => c.id === filterCat)?.name : undefined}
