@@ -254,9 +254,7 @@ BEGIN
         v_target.user_id,
         NEW.team_id,
         v_icon || ' Folga ' || CASE WHEN NEW.status = 'approved' THEN 'Aprovada' ELSE 'Recusada' END,
-        'A solicitação de folga para ' || v_employee_name || ' foi ' || v_status_label || ' por ' || v_decided_by_name || '.' ||
-          CASE WHEN NEW.status = 'rejected' AND NEW.rejection_reason IS NOT NULL AND TRIM(NEW.rejection_reason) <> '' 
-               THEN ' Motivo: ' || TRIM(NEW.rejection_reason) ELSE '' END,
+        'A solicitação de folga para ' || v_employee_name || ' foi ' || v_status_label || ' por ' || v_decided_by_name || '.',
         '/folgas',
         CASE WHEN NEW.status = 'approved' THEN 'info' ELSE 'warning' END,
         'system'
