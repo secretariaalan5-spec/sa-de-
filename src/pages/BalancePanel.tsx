@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Printer, X, RefreshCw } from 'lucide-react';
+import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Download, X, RefreshCw } from 'lucide-react';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
+import ReportExportDialog from '@/components/reports/ReportExportDialog';
 
 interface Employee {
   id: string;
@@ -68,11 +69,11 @@ export default function BalancePanel() {
   const [search, setSearch] = useState('');
   const [filterUnit, setFilterUnit] = useState('all');
   const [filterCat, setFilterCat] = useState('all');
-  const [filterBalance, setFilterBalance] = useState<'all' | 'positive' | 'negative' | 'zero' | 'has_manual'>('all');
   const [loading, setLoading] = useState(true);
 
-  // Modal de detalhes do funcionário
+  // Modais
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const load = useCallback(async () => {
     const teamId = roleInfo?.team_id;
@@ -168,7 +169,7 @@ export default function BalancePanel() {
   // Atualização em tempo real caso haja nova escala, ajuste manual ou aprovação de folga
   useDataSubscription(['employees', 'leave_credits', 'categories', 'units'], load);
 
-  // Filtragem dos registros
+  // Filtragem dos registros (busca por texto, unidade e categoria)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter(r => {
@@ -181,15 +182,9 @@ export default function BalancePanel() {
       const matchesUnit = filterUnit === 'all' || r.employee.unit_id === filterUnit;
       const matchesCat = filterCat === 'all' || r.employee.category_id === filterCat;
 
-      let matchesBalance = true;
-      if (filterBalance === 'positive') matchesBalance = r.balance > 0;
-      else if (filterBalance === 'negative') matchesBalance = r.balance < 0;
-      else if (filterBalance === 'zero') matchesBalance = r.balance === 0;
-      else if (filterBalance === 'has_manual') matchesBalance = r.manual !== 0;
-
-      return matchesSearch && matchesUnit && matchesCat && matchesBalance;
+      return matchesSearch && matchesUnit && matchesCat;
     });
-  }, [rows, search, filterUnit, filterCat, filterBalance]);
+  }, [rows, search, filterUnit, filterCat]);
 
   // Totais do panorama geral para os profissionais visíveis
   const totalShifts = useMemo(() => filtered.reduce((s, r) => s + r.shifts, 0), [filtered]);
@@ -197,13 +192,12 @@ export default function BalancePanel() {
   const totalUsed = useMemo(() => filtered.reduce((s, r) => s + r.used, 0), [filtered]);
   const totalBalance = useMemo(() => filtered.reduce((s, r) => s + r.balance, 0), [filtered]);
 
-  const hasActiveFilters = search !== '' || filterUnit !== 'all' || filterCat !== 'all' || filterBalance !== 'all';
+  const hasActiveFilters = search !== '' || filterUnit !== 'all' || filterCat !== 'all';
 
   const clearFilters = () => {
     setSearch('');
     setFilterUnit('all');
     setFilterCat('all');
-    setFilterBalance('all');
   };
 
   const showUnitFilter = isAdmin || isRH || isChief;
@@ -211,7 +205,21 @@ export default function BalancePanel() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Cabeçalho */}
+      {/* Cabeçalho exclusivo para impressão direta (Ctrl+P) */}
+      <div className="hidden print:block pb-4 border-b border-border mb-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Saúde+ • Relatório de Saldo de Folgas</h1>
+            <p className="text-xs text-muted-foreground">Panorama geral de plantões extras, ajustes manuais, folgas e saldo</p>
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            <p>Emitido em: {new Date().toLocaleString('pt-BR')}</p>
+            <p>Profissionais: {filtered.length}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Cabeçalho na Tela */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -227,9 +235,15 @@ export default function BalancePanel() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">Atualizar</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5">
-            <Printer size={14} />
-            <span>Imprimir</span>
+
+          {/* Botão de Exportação com o mesmo visual e suporte a relatório detalhado */}
+          <Button
+            size="sm"
+            onClick={() => setExportOpen(true)}
+            className="gap-1.5 shadow-sm font-semibold"
+          >
+            <Download size={14} />
+            <span>Exportar / Imprimir</span>
           </Button>
         </div>
       </div>
@@ -285,7 +299,7 @@ export default function BalancePanel() {
         </div>
       </div>
 
-      {/* Barra de Filtros Rápida e Simples */}
+      {/* Barra de Filtros Rápida e Simples (apenas texto, unidade e categoria) */}
       <div className="flex flex-wrap items-center gap-3 bg-card rounded-xl border border-border p-3 print:hidden">
         {/* Busca por texto */}
         <div className="relative flex-1 min-w-[200px]">
@@ -327,20 +341,6 @@ export default function BalancePanel() {
             </SelectContent>
           </Select>
         )}
-
-        {/* Filtro por Saldo */}
-        <Select value={filterBalance} onValueChange={v => setFilterBalance(v as any)}>
-          <SelectTrigger className="w-[170px] h-9">
-            <SelectValue placeholder="Todos os Saldos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Saldos</SelectItem>
-            <SelectItem value="positive">Saldo Positivo (&gt; 0)</SelectItem>
-            <SelectItem value="zero">Saldo Zerado (= 0)</SelectItem>
-            <SelectItem value="negative">Saldo Negativo (&lt; 0)</SelectItem>
-            <SelectItem value="has_manual">Com Créditos Manuais</SelectItem>
-          </SelectContent>
-        </Select>
 
         {/* Botão Limpar Filtros */}
         {hasActiveFilters && (
@@ -505,6 +505,18 @@ export default function BalancePanel() {
           </div>
         </>
       )}
+
+      {/* Modal de Exportação / Impressão Detalhada com visual responsivo idêntico à página */}
+      <ReportExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        teamId={roleInfo?.team_id ?? ''}
+        categories={categories}
+        units={units}
+        rows={filtered}
+        filterUnitName={filterUnit !== 'all' ? units.find(u => u.id === filterUnit)?.name : undefined}
+        filterCatName={filterCat !== 'all' ? categories.find(c => c.id === filterCat)?.name : undefined}
+      />
 
       {/* Modal de Detalhes Completo do Profissional (reutilizando componente padrão do sistema) */}
       <EmployeeDetailDialog
