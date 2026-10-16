@@ -331,54 +331,33 @@ export default function ReportExportDialog({
       font-size: 11.5px;
     }
 
-    /* Tabela Síntese Principal — visual imediato e intuitivo */
-    table.summary-table {
-      width: 100%;
-      border-collapse: collapse;
+    .unit-body {
       border: 1px solid #d1d5db;
       border-top: none;
-      margin-bottom: 12px;
-    }
-    table.summary-table th, table.summary-table td {
-      border: 1px solid #e5e7eb;
-      padding: 6px 10px;
-      text-align: left;
-    }
-    table.summary-table th {
+      padding: 10px;
       background: #fafafa;
-      font-weight: 600;
-      font-size: 10.5px;
-      text-transform: uppercase;
-      color: #4b5563;
-      letter-spacing: 0.3px;
-    }
-    table.summary-table tr:nth-child(even) { background: #fafafa; }
-    table.summary-table td.num {
-      text-align: center;
-      font-family: monospace;
-      font-size: 11.5px;
-    }
-
-    /* Detalhamento das atividades e folgas */
-    .details-section-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #374151;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-left: 3px solid #2563eb;
-      padding: 5px 10px;
-      margin: 12px 0 8px 0;
     }
     .person-card {
-      border: 1px solid #d1d5db;
-      border-radius: 4px;
-      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 9px 12px;
       margin-bottom: 8px;
       background: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
       page-break-inside: avoid;
+    }
+    .person-card:last-child {
+      margin-bottom: 0;
+    }
+    .person-card.is-clean {
+      padding: 6px 12px;
+      background: #ffffff;
+    }
+    .no-mov {
+      font-size: 10px;
+      color: #9ca3af;
+      font-style: italic;
+      padding-top: 2px;
     }
     .p-head {
       display: flex;
@@ -529,11 +508,7 @@ export default function ReportExportDialog({
     </div>
   </div>
 
-  ${unitSections.map(unit => {
-    // Profissionais desta unidade que têm histórico registrado
-    const activeRows = unit.rows.filter(r => (entries[r.employee.id] ?? []).length > 0);
-
-    return `
+  ${unitSections.map(unit => `
     <div class="unit-block">
       <div class="unit-header">
         <div class="unit-title">
@@ -545,40 +520,8 @@ export default function ReportExportDialog({
         </div>
       </div>
 
-      <!-- 1. Tabela Síntese Imediata: qualquer pessoa bate o olho e vê os saldos -->
-      <table class="summary-table">
-        <thead>
-          <tr>
-            <th style="width: 44%;">Profissional</th>
-            <th style="width: 26%;">Categoria</th>
-            <th style="width: 8%; text-align: center;">Plantões</th>
-            <th style="width: 7%; text-align: center;">Manuais</th>
-            <th style="width: 7%; text-align: center;">Folgas</th>
-            <th style="width: 8%; text-align: center;">Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${unit.rows.map(r => `
-            <tr>
-              <td><strong>${esc(r.employee.name)}</strong></td>
-              <td>${esc(r.categoryName)}</td>
-              <td class="num">+${fmtCredit(r.shifts)}</td>
-              <td class="num">${r.manual !== 0 ? (r.manual > 0 ? '+' : '') + fmtCredit(r.manual) : '—'}</td>
-              <td class="num">-${fmtCredit(r.used)}</td>
-              <td class="num" style="font-weight: bold; color: ${r.balance > 0 ? '#059669' : '#111827'};">
-                ${r.balance > 0 ? '+' : ''}${fmtCredit(r.balance)}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-
-      <!-- 2. Detalhamento de Atividades e Folgas (apenas quem tem movimentação) -->
-      ${activeRows.length > 0 ? `
-        <div class="details-section-title">
-          Detalhamento de Atividades, Folgas e Ajustes — ${unit.unitName} (${activeRows.length} com movimentação)
-        </div>
-        ${activeRows.map(r => {
+      <div class="unit-body">
+        ${unit.rows.map(r => {
           const list = entries[r.employee.id] ?? [];
           const wd = (d: string) => {
             try { return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); } catch { return ''; }
@@ -587,10 +530,11 @@ export default function ReportExportDialog({
           const leaves = list.filter(e => e.kind === 'folga');
           const manuals = list.filter(e => e.kind === 'manual');
           const signed = (n: number) => (n > 0 ? '+' : '') + fmtCredit(n);
+          const hasMovement = scales.length > 0 || leaves.length > 0 || manuals.length > 0;
           const empty = '<div class="none">Nenhum registro</div>';
 
           return `
-          <div class="person-card">
+          <div class="person-card ${!hasMovement ? 'is-clean' : ''}">
             <div class="p-head">
               <div>
                 <span class="p-name">${esc(r.employee.name)}</span>
@@ -603,42 +547,47 @@ export default function ReportExportDialog({
                 <span class="chip bal ${r.balance > 0 ? 'pos' : r.balance < 0 ? 'neg' : ''}">Saldo <b>${signed(r.balance)}</b></span>
               </div>
             </div>
-            <div class="p-cols">
-              <div>
-                <div class="col-title">Plantões e Escalas (${scales.length})</div>
-                ${scales.length === 0 ? empty : scales.map(e => `
-                  <div class="ln">
-                    <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
-                    ${e.kind === 'extra' ? `<span class="tag extra">${esc(e.label.replace('Plantão extra ', 'Extra '))}</span>` : ''}
-                    <span class="tx">${esc(e.desc)}</span>
-                  </div>`).join('')}
+
+            ${hasMovement ? `
+              <div class="p-cols">
+                <div>
+                  <div class="col-title">Plantões e Escalas (${scales.length})</div>
+                  ${scales.length === 0 ? empty : scales.map(e => `
+                    <div class="ln">
+                      <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                      ${e.kind === 'extra' ? `<span class="tag extra">${esc(e.label.replace('Plantão extra ', 'Extra '))}</span>` : ''}
+                      <span class="tx">${esc(e.desc)}</span>
+                    </div>`).join('')}
+                </div>
+                <div>
+                  <div class="col-title t-leave">Folgas Usufruídas (${leaves.length})</div>
+                  ${leaves.length === 0 ? empty : leaves.map(e => `
+                    <div class="ln">
+                      <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                      <span class="tx">${esc(e.desc)}</span>
+                    </div>`).join('')}
+                </div>
+                <div>
+                  <div class="col-title t-man">Ajustes Manuais (${manuals.length})</div>
+                  ${manuals.length === 0 ? empty : manuals.map(e => {
+                    const removed = e.label.startsWith('Crédito retirado');
+                    return `
+                    <div class="ln">
+                      <span class="dt">${fmtDate(e.date).slice(0, 5)}</span>
+                      <span class="tag ${removed ? 'rem' : 'add'}">${esc(e.label.replace('Crédito manual', 'Adicionado').replace('Crédito retirado', 'Retirado'))}</span>
+                      <span class="tx">${esc(e.desc)}</span>
+                    </div>`;
+                  }).join('')}
+                </div>
               </div>
-              <div>
-                <div class="col-title t-leave">Folgas Usufruídas (${leaves.length})</div>
-                ${leaves.length === 0 ? empty : leaves.map(e => `
-                  <div class="ln">
-                    <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
-                    <span class="tx">${esc(e.desc)}</span>
-                  </div>`).join('')}
-              </div>
-              <div>
-                <div class="col-title t-man">Ajustes Manuais (${manuals.length})</div>
-                ${manuals.length === 0 ? empty : manuals.map(e => {
-                  const removed = e.label.startsWith('Crédito retirado');
-                  return `
-                  <div class="ln">
-                    <span class="dt">${fmtDate(e.date).slice(0, 5)}</span>
-                    <span class="tag ${removed ? 'rem' : 'add'}">${esc(e.label.replace('Crédito manual', 'Adicionado').replace('Crédito retirado', 'Retirado'))}</span>
-                    <span class="tx">${esc(e.desc)}</span>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
+            ` : `
+              <div class="no-mov">Sem plantões extras, folgas ou ajustes registrados no período.</div>
+            `}
           </div>`;
         }).join('')}
-      ` : ''}
-    </div>`;
-  }).join('')}
+      </div>
+    </div>
+  `).join('')}
 
   <div class="footer">
     Documento emitido eletronicamente pelo Sistema de Gestão de Escalas da Secretaria de Saúde
