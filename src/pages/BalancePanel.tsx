@@ -1,612 +1,384 @@
 /**
- * Painel de Relatórios & Saldo de Folgas
- * Visualização e controle de dias escalados, folgas concedidas e saldo de créditos com filtros por período, unidade e categoria.
+ * Relatórios — visão mensal simples de escalas, folgas e saldo por profissional.
+ * Busca apenas os dados do mês selecionado para manter a página leve.
  */
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  FileText,
-  Search,
-  CalendarDays,
-  CalendarOff,
-  Wallet,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
-  MapPin,
-  Tag,
-  Eye,
-  Calendar,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
+import { FileText, CalendarDays, CalendarOff, Wallet, Printer } from 'lucide-react';
 
-interface Employee {
-  id: string;
-  name: string;
-  category_id: string | null;
-  unit_id: string | null;
-}
+interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; }
+interface Category { id: string; name: string; }
+interface Unit { id: string; name: string; }
+interface Schedule { id: string; employee_id: string; date: string; shift_type: string | null; credit_amount: number | null; observations: string | null; }
+interface LeaveReq { id: string; employee_id: string; leave_dates: string[] | null; observations: string | null; }
+interface Credit { employee_id: string; amount: number; }
 
-interface Schedule {
-  id: string;
-  employee_id: string;
+interface Entry {
+  key: string;
   date: string;
-  type: string;
-  shift_type: string;
-  credit_amount: number;
-  observations: string | null;
+  employeeId: string;
+  kind: 'escala' | 'folga';
+  shift: string;
+  credit: number | null;
+  obs: string;
 }
 
-interface LeaveReq {
-  id: string;
-  employee_id: string;
-  leave_dates: string[];
-  days_requested: number;
-  observations: string | null;
-  status: string;
-  created_at: string;
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+/** Busca todas as linhas paginando de 1000 em 1000 (limite padrão do Supabase). */
+async function fetchAll<T>(build: () => any): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await build().range(from, from + 999);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return all;
 }
 
-interface Credit {
-  employee_id: string;
-  amount: number;
-  origin: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Unit {
-  id: string;
-  name: string;
-}
+const fmt = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ','));
+const fmtDate = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
+const weekday = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
 
 export default function BalancePanel() {
   const { roleInfo, isAdmin, isChief, isManager, isRH } = useAuthContext();
+
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(now.getFullYear());
+  const [filterUnit, setFilterUnit] = useState('all');
+  const [filterCat, setFilterCat] = useState('all');
+  const [filterEmp, setFilterEmp] = useState('all');
+  const [filterKind, setFilterKind] = useState<'all' | 'escala' | 'folga'>('all');
+
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [leaves, setLeaves] = useState<LeaveReq[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtros
-  const [search, setSearch] = useState('');
-  const [filterCat, setFilterCat] = useState('all');
-  const [filterUnit, setFilterUnit] = useState('all');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
+  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const monthPrefix = monthStart.slice(0, 7);
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-  const monthLabel = new Date(year, month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  // Dados base (profissionais, categorias, unidades e créditos) — respeitando o nível de acesso
+  const loadBase = useCallback(async () => {
+    const teamId = roleInfo?.team_id;
+    if (!teamId) return;
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-  const goToday = () => setCurrentDate(new Date());
+    let empQ = supabase.from('employees').select('id, name, category_id, unit_id').eq('active', true).eq('team_id', teamId).order('name');
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) empQ = empQ.in('category_id', roleInfo.category_ids);
+    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) empQ = empQ.eq('unit_id', roleInfo.unit_id);
 
-  const load = async () => {
-    if (!roleInfo?.team_id) return;
-    const teamId = roleInfo.team_id;
-
-    let employeesQuery = supabase
-      .from('employees')
-      .select('id, name, category_id, unit_id')
-      .eq('active', true)
-      .eq('team_id', teamId)
-      .order('name');
-
-    // Segregação estrita por nível
-    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
-      employeesQuery = employeesQuery.in('category_id', roleInfo.category_ids);
-    }
-    if (isManager && !isAdmin && !isRH && roleInfo?.unit_id) {
-      employeesQuery = employeesQuery.eq('unit_id', roleInfo.unit_id);
-    }
-
-    const [empRes, catRes, unitRes, credRes, schedRes, leaveRes] = await Promise.all([
-      employeesQuery,
-      supabase.from('categories').select('id, name, color').eq('active', true).eq('team_id', teamId),
-      supabase.from('units').select('id, name').eq('active', true).eq('team_id', teamId),
-      supabase.from('leave_credits').select('employee_id, amount, origin').eq('team_id', teamId),
-      supabase.from('schedules').select('id, employee_id, date, type, shift_type, credit_amount, observations').eq('team_id', teamId),
-      supabase.from('leave_requests').select('id, employee_id, leave_dates, days_requested, observations, status, created_at').eq('team_id', teamId).eq('status', 'approved'),
+    const [empRes, catRes, unitRes, cred] = await Promise.all([
+      empQ,
+      supabase.from('categories').select('id, name').eq('team_id', teamId).order('name'),
+      supabase.from('units').select('id, name').eq('team_id', teamId).order('name'),
+      fetchAll<Credit>(() => supabase.from('leave_credits').select('employee_id, amount').eq('team_id', teamId)),
     ]);
 
+    let cats: Category[] = catRes.data ?? [];
+    if (isChief && !isAdmin && !isRH && roleInfo?.category_ids?.length) {
+      cats = cats.filter(c => roleInfo.category_ids.includes(c.id));
+    }
     setEmployees(empRes.data ?? []);
-    setCategories(catRes.data ?? []);
+    setCategories(cats);
     setUnits(unitRes.data ?? []);
-    setCredits(credRes.data ?? []);
-    setSchedules(schedRes.data ?? []);
-    setLeaves(leaveRes.data ?? []);
+    setCredits(cred);
+  }, [roleInfo?.team_id, isAdmin, isChief, isManager, isRH]);
+
+  // Dados do mês (escalas e folgas aprovadas)
+  const loadMonth = useCallback(async () => {
+    const teamId = roleInfo?.team_id;
+    if (!teamId) return;
+    setLoading(true);
+    const [sch, lv] = await Promise.all([
+      fetchAll<Schedule>(() =>
+        supabase.from('schedules')
+          .select('id, employee_id, date, shift_type, credit_amount, observations')
+          .eq('team_id', teamId)
+          .gte('date', monthStart)
+          .lte('date', monthEnd)
+          .order('date')
+      ),
+      fetchAll<LeaveReq>(() =>
+        supabase.from('leave_requests')
+          .select('id, employee_id, leave_dates, observations')
+          .eq('team_id', teamId)
+          .eq('status', 'approved')
+      ),
+    ]);
+    setSchedules(sch);
+    setLeaves(lv.filter(l => (l.leave_dates ?? []).some(d => d.startsWith(monthPrefix))));
     setLoading(false);
-  };
+  }, [roleInfo?.team_id, monthStart, monthEnd, monthPrefix]);
 
-  useEffect(() => {
-    load();
-  }, [roleInfo?.team_id]);
+  useEffect(() => { loadBase(); }, [loadBase]);
+  useEffect(() => { loadMonth(); }, [loadMonth]);
+  useDataSubscription(['schedules', 'leave_requests', 'leave_credits'], () => { loadMonth(); loadBase(); });
 
-  useDataSubscription(['employees', 'leave_credits', 'categories', 'units', 'schedules', 'leave_requests'], load);
+  // Mapas auxiliares
+  const empMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+  const catName = (id: string | null) => (id ? categories.find(c => c.id === id)?.name ?? '—' : '—');
+  const unitName = (id: string | null) => (id ? units.find(u => u.id === id)?.name ?? '—' : '—');
 
-  const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-  const unitMap = useMemo(() => new Map(units.map(u => [u.id, u.name])), [units]);
+  // Profissionais que passam nos filtros de unidade/categoria/profissional
+  const visibleEmployees = useMemo(() => employees.filter(e =>
+    (filterUnit === 'all' || e.unit_id === filterUnit) &&
+    (filterCat === 'all' || e.category_id === filterCat) &&
+    (filterEmp === 'all' || e.id === filterEmp)
+  ), [employees, filterUnit, filterCat, filterEmp]);
+  const visibleIds = useMemo(() => new Set(visibleEmployees.map(e => e.id)), [visibleEmployees]);
 
-  const getCat = (id: string | null) => (id ? catMap.get(id) : null);
-  const getUnitName = (id: string | null) => (id ? (unitMap.get(id) ?? '—') : '—');
-
-  const fmtCredit = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ','));
-
-  // Processa dados consolidados por profissional
-  const processedRows = useMemo(() => {
-    return employees.map(emp => {
-      // Saldo de créditos total
-      const empCredits = credits.filter(c => c.employee_id === emp.id);
-      const grossExtras = empCredits.filter(c => c.amount > 0).reduce((s, c) => s + c.amount, 0);
-      const adjustments = Math.abs(empCredits.filter(c => c.amount < 0 && c.origin !== 'leave_used').reduce((s, c) => s + c.amount, 0));
-      const extras = grossExtras - adjustments;
-      const used = Math.abs(empCredits.filter(c => c.amount < 0 && c.origin === 'leave_used').reduce((s, c) => s + c.amount, 0));
-      const balance = extras - used;
-
-      // Escalas no mês selecionado
-      const empSchedulesMonth = schedules
-        .filter(s => s.employee_id === emp.id && s.date.startsWith(monthPrefix))
-        .sort((a, b) => a.date.localeCompare(b.date));
-
-      // Folgas tiradas no mês selecionado
-      const empLeavesMonth: { date: string; observations: string | null }[] = [];
-      leaves
-        .filter(l => l.employee_id === emp.id)
-        .forEach(l => {
-          (l.leave_dates || []).forEach(d => {
-            if (d.startsWith(monthPrefix)) {
-              empLeavesMonth.push({
-                date: d,
-                observations: l.observations,
-              });
-            }
-          });
+  // Lista de lançamentos do mês (escalas + folgas), em ordem de data
+  const entries = useMemo<Entry[]>(() => {
+    const list: Entry[] = [];
+    schedules.forEach(s => {
+      if (!visibleIds.has(s.employee_id)) return;
+      list.push({
+        key: `s-${s.id}`,
+        date: s.date,
+        employeeId: s.employee_id,
+        kind: 'escala',
+        shift: s.shift_type === 'half' ? 'Meio turno' : 'Integral',
+        credit: s.credit_amount != null ? Number(s.credit_amount) : null,
+        obs: s.observations ?? '',
+      });
+    });
+    leaves.forEach(l => {
+      if (!visibleIds.has(l.employee_id)) return;
+      (l.leave_dates ?? []).filter(d => d.startsWith(monthPrefix)).forEach(d => {
+        list.push({
+          key: `l-${l.id}-${d}`,
+          date: d,
+          employeeId: l.employee_id,
+          kind: 'folga',
+          shift: '—',
+          credit: -1,
+          obs: l.observations ?? '',
         });
-      empLeavesMonth.sort((a, b) => a.date.localeCompare(b.date));
-
-      return {
-        employee: emp,
-        category: getCat(emp.category_id),
-        unitName: getUnitName(emp.unit_id),
-        balance,
-        schedulesMonth: empSchedulesMonth,
-        leavesMonth: empLeavesMonth,
-      };
+      });
     });
-  }, [employees, credits, schedules, leaves, monthPrefix, catMap, unitMap]);
+    return list
+      .filter(e => filterKind === 'all' || e.kind === filterKind)
+      .sort((a, b) => a.date.localeCompare(b.date) || (empMap.get(a.employeeId)?.name ?? '').localeCompare(empMap.get(b.employeeId)?.name ?? ''));
+  }, [schedules, leaves, visibleIds, filterKind, monthPrefix, empMap]);
 
-  // Aplicação dos filtros
-  const filtered = useMemo(() => {
-    return processedRows.filter(row => {
-      const nameMatch = row.employee.name.toLowerCase().includes(search.toLowerCase());
-      const catMatch = filterCat === 'all' || row.employee.category_id === filterCat;
-      const unitMatch = filterUnit === 'all' || row.employee.unit_id === filterUnit;
-      return nameMatch && catMatch && unitMatch;
-    });
-  }, [processedRows, search, filterCat, filterUnit]);
+  // Saldo atual por profissional
+  const balanceMap = useMemo(() => {
+    const m = new Map<string, number>();
+    credits.forEach(c => m.set(c.employee_id, (m.get(c.employee_id) ?? 0) + Number(c.amount)));
+    return m;
+  }, [credits]);
 
-  // Totais do mês para os cards de resumo
-  const totalSchedulesInMonth = filtered.reduce((acc, r) => acc + r.schedulesMonth.length, 0);
-  const totalLeavesInMonth = filtered.reduce((acc, r) => acc + r.leavesMonth.length, 0);
-  const totalBalanceFiltered = filtered.reduce((acc, r) => acc + r.balance, 0);
+  // Resumo por profissional
+  const summary = useMemo(() => visibleEmployees.map(e => {
+    const esc = schedules.filter(s => s.employee_id === e.id).length;
+    const fol = leaves
+      .filter(l => l.employee_id === e.id)
+      .reduce((acc, l) => acc + (l.leave_dates ?? []).filter(d => d.startsWith(monthPrefix)).length, 0);
+    return { emp: e, esc, fol, saldo: balanceMap.get(e.id) ?? 0 };
+  }), [visibleEmployees, schedules, leaves, balanceMap, monthPrefix]);
 
-  const showCategoryFilter = isAdmin || isRH;
+  const totalEsc = summary.reduce((a, r) => a + r.esc, 0);
+  const totalFol = summary.reduce((a, r) => a + r.fol, 0);
+  const totalSaldo = summary.reduce((a, r) => a + r.saldo, 0);
+
+  const showCategoryFilter = isAdmin || isRH || (isChief && (roleInfo?.category_ids?.length ?? 0) > 1);
   const showUnitFilter = isAdmin || isRH || isChief;
+  const years = [now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const cell = 'px-3 py-2 border border-border';
+  const head = 'px-3 py-2 border border-border font-semibold text-left';
 
   return (
-    <div className="space-y-6 animate-fade-in print:p-0">
-      {/* Header oficial */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+    <div className="space-y-6 animate-fade-in">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileText size={24} className="text-primary" />
-            Relatórios de Escalas & Folgas
+            Relatórios
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Acompanhamento mensal de dias trabalhados, folgas concedidas e saldo de créditos
-          </p>
+          <p className="text-muted-foreground text-sm">Escalas, folgas e saldo por profissional no mês</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handlePrint}
-            className="gap-2 bg-card border-border hover:bg-muted"
-          >
-            <Printer size={16} />
-            Imprimir Relatório
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => window.print()} className="gap-2 print:hidden">
+          <Printer size={16} /> Imprimir
+        </Button>
       </div>
 
-      {/* Cabeçalho impresso (visível apenas na impressão) */}
-      <div className="hidden print:block mb-6 border-b pb-4">
-        <h2 className="text-xl font-bold">Secretaria Municipal de Saúde</h2>
-        <h3 className="text-base font-semibold text-gray-700">Relatório Mensal de Escalas e Folgas</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Período de Referência: <strong className="capitalize">{monthLabel}</strong> | Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      </div>
-
-      {/* Summary Cards — estilo padrão idêntico */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:grid-cols-3 print:gap-2">
+      {/* Cards de resumo (mesma posição/estilo da antiga aba Saldo) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <CalendarDays size={20} className="text-primary" />
-          </div>
+          <div className="p-2.5 rounded-xl bg-primary/10"><CalendarDays size={20} className="text-primary" /></div>
           <div>
-            <p className="text-2xl font-bold text-primary">{totalSchedulesInMonth}</p>
-            <p className="text-xs text-muted-foreground">Escalas no Mês</p>
+            <p className="text-2xl font-bold text-primary">{totalEsc}</p>
+            <p className="text-xs text-muted-foreground">Dias escalados no mês</p>
           </div>
         </div>
-
         <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10">
-            <CalendarOff size={20} className="text-amber-600" />
-          </div>
+          <div className="p-2.5 rounded-xl bg-destructive/10"><CalendarOff size={20} className="text-destructive" /></div>
           <div>
-            <p className="text-2xl font-bold text-amber-600">{totalLeavesInMonth}</p>
-            <p className="text-xs text-muted-foreground">Folgas Concedidas no Mês</p>
+            <p className="text-2xl font-bold text-destructive">{totalFol}</p>
+            <p className="text-xs text-muted-foreground">Dias de folga no mês</p>
           </div>
         </div>
-
         <div className="stat-card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10">
-            <Wallet size={20} className="text-emerald-600" />
-          </div>
+          <div className="p-2.5 rounded-xl bg-accent/10"><Wallet size={20} className="text-accent-foreground" /></div>
           <div>
-            <p className="text-2xl font-bold text-emerald-600">{fmtCredit(totalBalanceFiltered)}</p>
-            <p className="text-xs text-muted-foreground">Saldo Total de Folgas</p>
+            <p className="text-2xl font-bold">{fmt(totalSaldo)}</p>
+            <p className="text-xs text-muted-foreground">Saldo atual (selecionados)</p>
           </div>
         </div>
       </div>
 
-      {/* Barra de Filtros — estilo padrão idêntico a Employees.tsx */}
+      {/* Filtros (mesmo padrão da aba Profissionais) */}
       <div className="flex flex-wrap items-center gap-3 bg-card rounded-xl border border-border p-3 print:hidden">
-        {/* Seletor de Mês */}
-        <div className="flex items-center gap-1.5 bg-muted/50 rounded-lg p-1 border border-border">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={prevMonth}>
-            <ChevronLeft size={14} />
-          </Button>
-          <span className="text-xs font-semibold capitalize min-w-[120px] text-center">
-            {monthLabel}
-          </span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
-            <ChevronRight size={14} />
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={goToday}>
-            Hoje
-          </Button>
-        </div>
+        <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((m, i) => <SelectItem key={m} value={String(i)}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
-        {/* Busca por Nome */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
-          <Input
-            placeholder="Buscar profissional..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9"
-          />
-        </div>
+        <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+          <SelectTrigger className="w-[100px] h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
-        {/* Filtro de Categoria */}
-        {showCategoryFilter && (
-          <Select value={filterCat} onValueChange={setFilterCat}>
-            <SelectTrigger className="w-[160px] h-9">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas Categorias</SelectItem>
-              {categories.map(c => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Filtro de Unidade */}
         {showUnitFilter && (
-          <Select value={filterUnit} onValueChange={setFilterUnit}>
-            <SelectTrigger className="w-[160px] h-9">
-              <SelectValue placeholder="Unidade" />
-            </SelectTrigger>
+          <Select value={filterUnit} onValueChange={v => { setFilterUnit(v); setFilterEmp('all'); }}>
+            <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Unidade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Unidades</SelectItem>
-              {units.map(u => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}
-                </SelectItem>
-              ))}
+              {units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
+
+        {showCategoryFilter && (
+          <Select value={filterCat} onValueChange={v => { setFilterCat(v); setFilterEmp('all'); }}>
+            <SelectTrigger className="w-[160px] h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas Categorias</SelectItem>
+              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={filterEmp} onValueChange={setFilterEmp}>
+          <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Profissional" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos Profissionais</SelectItem>
+            {employees
+              .filter(e => (filterUnit === 'all' || e.unit_id === filterUnit) && (filterCat === 'all' || e.category_id === filterCat))
+              .map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterKind} onValueChange={v => setFilterKind(v as any)}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Escalas e Folgas</SelectItem>
+            <SelectItem value="escala">Só Escalas</SelectItem>
+            <SelectItem value="folga">Só Folgas</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground print:hidden">
-        <span>{filtered.length} profissional(is) no relatório</span>
-        <span className="capitalize">Referência: {monthLabel}</span>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Referência: {MONTHS[month]} / {year} — {entries.length} lançamento(s)
+      </p>
 
-      {/* Conteúdo Principal */}
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Carregando relatório...</div>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state py-12">
-          <FileText className="mx-auto mb-3 text-muted-foreground" size={40} />
-          <p className="text-muted-foreground">Nenhum profissional encontrado com os filtros selecionados.</p>
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : (
         <>
-          {/* Visualização Mobile: Cards */}
-          <div className="space-y-4 sm:hidden print:hidden">
-            {filtered.map(row => (
-              <div key={row.employee.id} className="page-card p-4 space-y-3.5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{row.employee.name}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      {row.category && (
-                        <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded border"
-                          style={{
-                            backgroundColor: `${row.category.color}15`,
-                            borderColor: `${row.category.color}40`,
-                            color: row.category.color,
-                          }}
-                        >
-                          {row.category.name}
-                        </span>
-                      )}
-                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                        <MapPin size={10} /> {row.unitName}
-                      </span>
-                    </div>
-                  </div>
-                  <Badge
-                    variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                    className="font-mono font-bold"
-                  >
-                    Saldo: {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
-                  </Badge>
-                </div>
-
-                {/* Dias Escalados */}
-                <div className="bg-muted/30 p-2.5 rounded-lg space-y-1.5 border border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold flex items-center gap-1.5 text-primary">
-                      <CalendarDays size={13} /> Dias Escalados ({row.schedulesMonth.length})
-                    </span>
-                  </div>
-                  {row.schedulesMonth.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground italic">Nenhuma escala neste mês</p>
-                  ) : (
-                    <div className="flex flex-col gap-1 pt-1">
-                      {row.schedulesMonth.map(s => (
-                        <div key={s.id} className="text-xs flex flex-wrap items-center gap-1.5">
-                          <Badge variant="outline" className="font-mono text-[10px] bg-background">
-                            {new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </Badge>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            ({s.shift_type === 'half' ? 'Meio Turno' : 'Integral'})
-                          </span>
-                          {s.observations && (
-                            <span className="text-[11px] text-foreground/80 truncate">
-                              • {s.observations}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Dias de Folga */}
-                <div className="bg-muted/30 p-2.5 rounded-lg space-y-1.5 border border-border">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold flex items-center gap-1.5 text-amber-600">
-                      <CalendarOff size={13} /> Folgas Tiradas ({row.leavesMonth.length})
-                    </span>
-                  </div>
-                  {row.leavesMonth.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground italic">Nenhuma folga neste mês</p>
-                  ) : (
-                    <div className="flex flex-col gap-1 pt-1">
-                      {row.leavesMonth.map((l, idx) => (
-                        <div key={idx} className="text-xs flex flex-wrap items-center gap-1.5">
-                          <Badge variant="outline" className="font-mono text-[10px] bg-background text-amber-600 border-amber-300">
-                            {new Date(l.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </Badge>
-                          {l.observations && (
-                            <span className="text-[11px] text-foreground/80 truncate">
-                              • {l.observations}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs gap-1 text-muted-foreground hover:text-primary"
-                    onClick={() => setDetailEmp(row.employee)}
-                  >
-                    <Eye size={12} /> Ver Histórico Completo
-                  </Button>
-                </div>
-              </div>
-            ))}
+          {/* Lançamentos do mês */}
+          <div className="bg-card rounded-xl border border-border overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className={head}>Data</th>
+                  <th className={head}>Profissional</th>
+                  <th className={head}>Categoria</th>
+                  <th className={head}>Unidade</th>
+                  <th className={head}>Tipo</th>
+                  <th className={head}>Turno</th>
+                  <th className={head}>Créditos</th>
+                  <th className={head}>Observação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.length === 0 ? (
+                  <tr><td colSpan={8} className={`${cell} text-center text-muted-foreground py-6`}>Nenhum lançamento no período.</td></tr>
+                ) : entries.map(en => {
+                  const emp = empMap.get(en.employeeId);
+                  return (
+                    <tr key={en.key}>
+                      <td className={`${cell} whitespace-nowrap`}>{fmtDate(en.date)} <span className="text-muted-foreground text-xs">({weekday(en.date)})</span></td>
+                      <td className={cell}>{emp?.name ?? '—'}</td>
+                      <td className={cell}>{catName(emp?.category_id ?? null)}</td>
+                      <td className={cell}>{unitName(emp?.unit_id ?? null)}</td>
+                      <td className={`${cell} font-medium ${en.kind === 'escala' ? 'text-primary' : 'text-destructive'}`}>
+                        {en.kind === 'escala' ? 'Escala' : 'Folga'}
+                      </td>
+                      <td className={cell}>{en.shift}</td>
+                      <td className={`${cell} whitespace-nowrap`}>
+                        {en.credit == null ? '—' : en.credit > 0 ? `+${fmt(en.credit)}` : fmt(en.credit)}
+                      </td>
+                      <td className={cell}>{en.obs || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
-          {/* Visualização Desktop: Tabela de Relatório */}
-          <div className="hidden sm:block print:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-                  <tr>
-                    <th className="px-5 py-4 font-semibold w-[220px]">Profissional</th>
-                    <th className="px-5 py-4 font-semibold w-[140px]">Lotação</th>
-                    <th className="px-5 py-4 font-semibold">Dias Escalados no Mês</th>
-                    <th className="px-5 py-4 font-semibold">Folgas no Mês</th>
-                    <th className="px-5 py-4 font-semibold text-center w-[110px]">Saldo Total</th>
-                    <th className="px-4 py-4 font-semibold text-right w-[80px] print:hidden">Ação</th>
+          {/* Resumo por profissional */}
+          <div className="bg-card rounded-xl border border-border overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className={head}>Profissional</th>
+                  <th className={head}>Categoria</th>
+                  <th className={head}>Unidade</th>
+                  <th className={`${head} text-center`}>Dias escalados</th>
+                  <th className={`${head} text-center`}>Dias de folga</th>
+                  <th className={`${head} text-center`}>Saldo atual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.length === 0 ? (
+                  <tr><td colSpan={6} className={`${cell} text-center text-muted-foreground py-6`}>Nenhum profissional encontrado.</td></tr>
+                ) : summary.map(r => (
+                  <tr key={r.emp.id}>
+                    <td className={cell}>{r.emp.name}</td>
+                    <td className={cell}>{catName(r.emp.category_id)}</td>
+                    <td className={cell}>{unitName(r.emp.unit_id)}</td>
+                    <td className={`${cell} text-center`}>{r.esc}</td>
+                    <td className={`${cell} text-center`}>{r.fol}</td>
+                    <td className={`${cell} text-center font-semibold`}>{r.saldo > 0 ? `+${fmt(r.saldo)}` : fmt(r.saldo)}</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map(row => (
-                    <tr key={row.employee.id} className="hover:bg-muted/20 transition-colors">
-                      {/* Profissional */}
-                      <td className="px-5 py-3.5 align-top">
-                        <p className="font-semibold text-foreground text-sm leading-snug">
-                          {row.employee.name}
-                        </p>
-                        {row.category && (
-                          <span
-                            className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border mt-1"
-                            style={{
-                              backgroundColor: `${row.category.color}15`,
-                              borderColor: `${row.category.color}40`,
-                              color: row.category.color,
-                            }}
-                          >
-                            {row.category.name}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Lotação */}
-                      <td className="px-5 py-3.5 align-top text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} className="shrink-0" />
-                          <span className="truncate">{row.unitName}</span>
-                        </span>
-                      </td>
-
-                      {/* Dias Escalados */}
-                      <td className="px-5 py-3.5 align-top">
-                        {row.schedulesMonth.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        ) : (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary mb-1">
-                              <CalendarDays size={12} /> {row.schedulesMonth.length} dia(s)
-                            </span>
-                            <div className="flex flex-col gap-1 max-h-36 overflow-y-auto pr-1">
-                              {row.schedulesMonth.map(s => (
-                                <div key={s.id} className="text-xs flex items-center gap-1.5 flex-wrap">
-                                  <Badge variant="outline" className="font-mono text-[11px] bg-background px-1.5 py-0">
-                                    {new Date(s.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                  </Badge>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {s.shift_type === 'half' ? '½' : 'Int'}
-                                  </span>
-                                  {s.observations ? (
-                                    <span className="text-[11px] text-foreground/80 font-normal truncate max-w-[280px]" title={s.observations}>
-                                      • {s.observations}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground/60">• Plantão</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Folgas no Mês */}
-                      <td className="px-5 py-3.5 align-top">
-                        {row.leavesMonth.length === 0 ? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        ) : (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 mb-1">
-                              <CalendarOff size={12} /> {row.leavesMonth.length} folga(s)
-                            </span>
-                            <div className="flex flex-col gap-1 max-h-36 overflow-y-auto pr-1">
-                              {row.leavesMonth.map((l, idx) => (
-                                <div key={idx} className="text-xs flex items-center gap-1.5 flex-wrap">
-                                  <Badge variant="outline" className="font-mono text-[11px] bg-background text-amber-600 border-amber-300 px-1.5 py-0">
-                                    {new Date(l.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                  </Badge>
-                                  {l.observations && (
-                                    <span className="text-[11px] text-foreground/80 font-normal truncate max-w-[250px]" title={l.observations}>
-                                      • {l.observations}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Saldo Total */}
-                      <td className="px-5 py-3.5 align-top text-center">
-                        <Badge
-                          variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                          className="font-mono font-bold text-xs"
-                        >
-                          {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
-                        </Badge>
-                      </td>
-
-                      {/* Ação */}
-                      <td className="px-4 py-3.5 align-top text-right print:hidden">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Ver Histórico Completo"
-                          className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
-                          onClick={() => setDetailEmp(row.employee)}
-                        >
-                          <Eye size={14} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </>
       )}
-
-      {/* Modal de Detalhes do Profissional (reaproveitamento do componente padrão) */}
-      <EmployeeDetailDialog
-        employeeId={detailEmp?.id ?? null}
-        employeeName={detailEmp?.name ?? ''}
-        open={!!detailEmp}
-        onOpenChange={o => {
-          if (!o) setDetailEmp(null);
-        }}
-      />
     </div>
   );
 }
