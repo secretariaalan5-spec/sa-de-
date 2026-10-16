@@ -55,6 +55,7 @@ interface Credit {
   id?: string;
   amount: number;
   origin: string;
+  reference_id?: string | null;
   notes?: string | null;
   created_at: string;
 }
@@ -95,7 +96,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
     setLoading(true);
 
     Promise.all([
-      // 1. Escalas completas (com atividade/observação, unidade e turno)
+      // 1. Escalas completas (com atividade/observação, unidade, turno e valor de crédito)
       supabase
         .from('schedules')
         .select('id, date, type, unit_id, shift_type, credit_amount, observations')
@@ -117,10 +118,10 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
         .eq('employee_id', employeeId)
         .order('transferred_at', { ascending: false }),
 
-      // 4. Extrato de créditos com justificativas manuais
+      // 4. Extrato de créditos vinculados às escalas e ajustes manuais
       supabase
         .from('leave_credits')
-        .select('id, amount, origin, notes, created_at')
+        .select('id, amount, origin, reference_id, notes, created_at')
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false }),
 
@@ -153,6 +154,19 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   }, [employeeId, open]);
 
   const getUnitName = (id: string | null) => (id ? units.find(u => u.id === id)?.name ?? '—' : empUnitName);
+
+  // Calcula a quantidade exata de créditos ganhos para uma escala específica
+  const getScheduleCredits = (s: Schedule): number => {
+    if (s.type !== 'extra') return 0;
+    if (s.credit_amount != null && Number(s.credit_amount) > 0) {
+      return Number(s.credit_amount);
+    }
+    const linked = credits.find(c => c.reference_id === s.id && c.origin === 'extra_shift');
+    if (linked && Number(linked.amount) > 0) {
+      return Number(linked.amount);
+    }
+    return s.shift_type === 'half' ? 0.5 : 1;
+  };
 
   // Totais de créditos
   const totalShifts = credits.filter(c => c.origin === 'extra_shift').reduce((s, c) => s + Number(c.amount), 0);
@@ -361,22 +375,28 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       <thead>
         <tr>
           <th style="width: 18%;">Data</th>
-          <th style="width: 14%;">Tipo</th>
-          <th style="width: 22%;">Unidade</th>
+          <th style="width: 20%;">Tipo / Créditos</th>
+          <th style="width: 20%;">Unidade</th>
           <th style="width: 12%;">Turno</th>
-          <th style="width: 34%;">Atividade / O que foi escalado(a) para fazer</th>
+          <th style="width: 30%;">Atividade / O que foi escalado(a) para fazer</th>
         </tr>
       </thead>
       <tbody>
-        ${schedules.map(s => `
-          <tr>
-            <td><strong>${fmtDate(s.date)}</strong> (${weekday(s.date)})</td>
-            <td>${s.type === 'extra' ? 'Plantão Extra' : 'Escala Normal'}</td>
-            <td>${getUnitName(s.unit_id)}</td>
-            <td>${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}</td>
-            <td>${s.observations?.trim() || 'Plantão de escala na unidade'}</td>
-          </tr>
-        `).join('')}
+        ${schedules.map(s => {
+          const creds = getScheduleCredits(s);
+          const typeLabel = s.type === 'extra'
+            ? `Plantão Extra (+${fmtCredit(creds)})`
+            : 'Escala Normal';
+          return `
+            <tr>
+              <td><strong>${fmtDate(s.date)}</strong> (${weekday(s.date)})</td>
+              <td><strong>${typeLabel}</strong></td>
+              <td>${getUnitName(s.unit_id)}</td>
+              <td>${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}</td>
+              <td>${s.observations?.trim() || 'Plantão de escala na unidade'}</td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table>
   `}
@@ -407,30 +427,6 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
             </tr>
           `;
         }).join('')}
-      </tbody>
-    </table>
-  `}
-
-  <div class="section-title">3. Extrato de Ajustes de Saldo (${credits.length})</div>
-  ${credits.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhum crédito registrado.</p>' : `
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 18%;">Data</th>
-          <th style="width: 14%;">Valor</th>
-          <th style="width: 28%;">Origem</th>
-          <th style="width: 40%;">Observações / Motivo</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${credits.map(c => `
-          <tr>
-            <td>${fmtDate(c.created_at)}</td>
-            <td><strong>${c.amount > 0 ? '+' : ''}${fmtCredit(c.amount)}</strong></td>
-            <td>${c.origin === 'extra_shift' ? 'Plantão extra' : c.origin === 'leave_used' ? 'Folga utilizada' : c.origin === 'initial_balance' ? 'Saldo inicial' : 'Ajuste manual'}</td>
-            <td>${c.notes || '—'}</td>
-          </tr>
-        `).join('')}
       </tbody>
     </table>
   `}
@@ -467,9 +463,12 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       csv += `Categoria: ${empCategoryName};Unidade: ${empUnitName};Saldo Atual: ${fmtCredit(balance)}\n\n`;
 
       csv += 'ESCALAS E ATIVIDADES REALIZADAS\n';
-      csv += 'Data;Tipo;Unidade;Turno;O que foi escalado(a) para fazer\n';
+      csv += 'Data;Tipo;Créditos Ganhos;Unidade;Turno;O que foi escalado(a) para fazer\n';
       schedules.forEach(s => {
-        csv += `"${fmtDate(s.date)}";"${s.type === 'extra' ? 'Plantão Extra' : 'Escala Normal'}";"${getUnitName(s.unit_id)}";"${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}";"${(s.observations || '').replace(/"/g, '""')}"\n`;
+        const creds = getScheduleCredits(s);
+        const typeLabel = s.type === 'extra' ? `Plantão Extra (+${fmtCredit(creds)})` : 'Escala Normal';
+        const creditCol = s.type === 'extra' ? `+${fmtCredit(creds)}` : '0';
+        csv += `"${fmtDate(s.date)}";"${typeLabel}";"${creditCol}";"${getUnitName(s.unit_id)}";"${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}";"${(s.observations || '').replace(/"/g, '""')}"\n`;
       });
 
       csv += '\nPEDIDOS DE FOLGA E MOTIVOS\n';
@@ -576,40 +575,43 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
                 </TabsTrigger>
               </TabsList>
 
-              {/* ABA: ESCALAS COM O QUE FOI ESCALADO PARA FAZER */}
+              {/* ABA: ESCALAS COM O QUE FOI ESCALADO PARA FAZER E QUANTIDADE EXATA DE CRÉDITOS */}
               <TabsContent value="schedules" className="mt-3 max-h-[340px] overflow-y-auto space-y-2">
                 {schedules.length === 0 ? (
                   <p className="text-center text-muted-foreground text-sm py-6">Nenhuma escala registrada</p>
                 ) : (
-                  schedules.map(s => (
-                    <div key={s.id} className="p-3 rounded-lg border border-border bg-card space-y-1.5 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{fmtDate(s.date)}</span>
-                          <span className="text-xs text-muted-foreground">({weekday(s.date)})</span>
+                  schedules.map(s => {
+                    const creds = getScheduleCredits(s);
+                    return (
+                      <div key={s.id} className="p-3 rounded-lg border border-border bg-card space-y-1.5 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{fmtDate(s.date)}</span>
+                            <span className="text-xs text-muted-foreground">({weekday(s.date)})</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-[10px]">
+                              {s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}
+                            </Badge>
+                            <Badge variant={s.type === 'extra' ? 'default' : 'secondary'} className="text-[10px]">
+                              {s.type === 'extra' ? `Plantão Extra (+${fmtCredit(creds)})` : 'Normal'}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[10px]">
-                            {s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}
-                          </Badge>
-                          <Badge variant={s.type === 'extra' ? 'default' : 'secondary'} className="text-[10px]">
-                            {s.type === 'extra' ? 'Plantão Extra (+1)' : 'Normal'}
-                          </Badge>
+
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Building2 size={13} className="shrink-0 text-muted-foreground" />
+                          <span>Unidade: <strong>{getUnitName(s.unit_id)}</strong></span>
+                        </div>
+
+                        {/* Atividade / O que a pessoa foi escalada para fazer */}
+                        <div className="text-xs bg-muted/40 p-2 rounded border border-border/50 text-foreground">
+                          <span className="font-semibold text-foreground">Atividade: </span>
+                          <span>{s.observations?.trim() || 'Plantão de rotina na unidade.'}</span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Building2 size={13} className="shrink-0 text-muted-foreground" />
-                        <span>Unidade: <strong>{getUnitName(s.unit_id)}</strong></span>
-                      </div>
-
-                      {/* Atividade / O que a pessoa foi escalada para fazer */}
-                      <div className="text-xs bg-muted/40 p-2 rounded border border-border/50 text-foreground">
-                        <span className="font-semibold text-foreground">Atividade: </span>
-                        <span>{s.observations?.trim() || 'Plantão de rotina na unidade.'}</span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </TabsContent>
 
