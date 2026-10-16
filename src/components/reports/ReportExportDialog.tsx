@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Loader2, FileSpreadsheet } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/untyped-client';
 
 interface Employee {
   id: string;
@@ -31,6 +32,126 @@ interface Props {
 
 const fmtCredit = (n: number) => (n % 1 === 0 ? n.toString() : n.toFixed(1).replace('.', ','));
 
+const fmtDate = (d: string) => {
+  if (!d) return '—';
+  try {
+    return new Date(d.includes('T') ? d : d + 'T12:00:00').toLocaleDateString('pt-BR');
+  } catch {
+    return d;
+  }
+};
+
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Movimentação de um profissional (escala, folga ou crédito manual) */
+interface Entry {
+  kind: 'escala' | 'extra' | 'folga' | 'manual';
+  date: string; // YYYY-MM-DD
+  label: string;
+  desc: string;
+}
+
+/** Busca paginada sem limite de 1000 linhas */
+async function fetchAll(build: () => any): Promise<any[]> {
+  const all: any[] = [];
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await build().range(from, from + 999);
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return all;
+}
+
+/** Carrega escalas, folgas aprovadas e créditos manuais e monta a linha do tempo de cada profissional */
+async function loadEntries(employeeIds: string[]): Promise<Record<string, Entry[]>> {
+  const result: Record<string, Entry[]> = {};
+  employeeIds.forEach(id => (result[id] = []));
+
+  const unitRes = await supabase.from('units').select('id, name');
+  const unitName: Record<string, string> = Object.fromEntries(
+    (unitRes.data ?? []).map((u: any) => [u.id, u.name])
+  );
+
+  for (let i = 0; i < employeeIds.length; i += 40) {
+    const ids = employeeIds.slice(i, i + 40);
+
+    const [schedules, leaves, credits] = await Promise.all([
+      fetchAll(() =>
+        supabase
+          .from('schedules')
+          .select('id, employee_id, date, type, unit_id, shift_type, credit_amount, observations')
+          .in('employee_id', ids)
+          .order('date')
+      ),
+      fetchAll(() =>
+        supabase
+          .from('leave_requests')
+          .select('id, employee_id, leave_dates, observations, status')
+          .in('employee_id', ids)
+          .eq('status', 'approved')
+      ),
+      fetchAll(() =>
+        supabase
+          .from('leave_credits')
+          .select('id, employee_id, amount, origin, reference_id, notes, created_at')
+          .in('employee_id', ids)
+          .order('created_at')
+      ),
+    ]);
+
+    schedules.forEach((s: any) => {
+      let label = 'Escala';
+      if (s.type === 'extra') {
+        let amount = s.credit_amount != null && Number(s.credit_amount) > 0 ? Number(s.credit_amount) : 0;
+        if (!amount) {
+          const linked = credits.find((c: any) => c.reference_id === s.id && c.origin === 'extra_shift');
+          amount = linked ? Number(linked.amount) : s.shift_type === 'half' ? 0.5 : 1;
+        }
+        label = `Plantão extra (+${fmtCredit(amount)})`;
+      }
+      const unit = s.unit_id ? unitName[s.unit_id] : '';
+      const base = s.observations?.trim() || 'Plantão na unidade';
+      result[s.employee_id]?.push({
+        kind: s.type === 'extra' ? 'extra' : 'escala',
+        date: s.date,
+        label,
+        desc: unit ? `${base} — ${unit}` : base,
+      });
+    });
+
+    leaves.forEach((l: any) => {
+      (l.leave_dates ?? []).forEach((d: string) => {
+        result[l.employee_id]?.push({
+          kind: 'folga',
+          date: d,
+          label: 'Folga',
+          desc: l.observations?.trim() || 'Motivo não informado',
+        });
+      });
+    });
+
+    credits.forEach((c: any) => {
+      if (c.origin === 'extra_shift' || c.origin === 'leave_used') return;
+      const amount = Number(c.amount);
+      const add = amount > 0;
+      result[c.employee_id]?.push({
+        kind: 'manual',
+        date: String(c.created_at).slice(0, 10),
+        label: add ? `Crédito manual (+${fmtCredit(amount)})` : `Crédito retirado (-${fmtCredit(Math.abs(amount))})`,
+        desc: c.notes?.trim() || (c.origin === 'initial_balance' ? 'Saldo inicial' : 'Ajuste manual'),
+      });
+    });
+  }
+
+  Object.values(result).forEach(list => list.sort((a, b) => a.date.localeCompare(b.date)));
+  return result;
+}
+
 export default function ReportExportDialog({
   open,
   onOpenChange,
@@ -41,7 +162,7 @@ export default function ReportExportDialog({
   const [loading, setLoading] = useState(false);
 
   // Gera layout limpo, tradicional e institucional para impressão e PDF
-  const buildPrintHtml = (): string => {
+  const buildPrintHtml = (entries: Record<string, Entry[]>): string => {
     const totalShifts = rows.reduce((s, r) => s + r.shifts, 0);
     const totalManual = rows.reduce((s, r) => s + r.manual, 0);
     const totalUsed = rows.reduce((s, r) => s + r.used, 0);
@@ -49,19 +170,59 @@ export default function ReportExportDialog({
 
     const emissionDate = new Date().toLocaleString('pt-BR');
 
+    // Agrupar profissionais por Unidade de Saúde
+    const unitMap = new Map<string, BalanceRow[]>();
+    rows.forEach(r => {
+      const uName = r.unitName || 'Sem Unidade';
+      if (!unitMap.has(uName)) unitMap.set(uName, []);
+      unitMap.get(uName)!.push(r);
+    });
+
+    const sortedUnits = Array.from(unitMap.keys()).sort((a, b) => {
+      if (a === 'Sem Unidade') return 1;
+      if (b === 'Sem Unidade') return -1;
+      return a.localeCompare(b);
+    });
+
+    const unitSections = sortedUnits.map(unitName => {
+      // Ordenar por categoria primeiro, depois por nome do profissional
+      const unitRows = [...unitMap.get(unitName)!].sort((a, b) => {
+        const catA = a.categoryName || 'Sem Categoria';
+        const catB = b.categoryName || 'Sem Categoria';
+        if (catA === 'Sem Categoria' && catB !== 'Sem Categoria') return 1;
+        if (catB === 'Sem Categoria' && catA !== 'Sem Categoria') return -1;
+        const cmpCat = catA.localeCompare(catB);
+        if (cmpCat !== 0) return cmpCat;
+        return a.employee.name.localeCompare(b.employee.name);
+      });
+      const uShifts = unitRows.reduce((s, r) => s + r.shifts, 0);
+      const uManual = unitRows.reduce((s, r) => s + r.manual, 0);
+      const uUsed = unitRows.reduce((s, r) => s + r.used, 0);
+      const uBalance = unitRows.reduce((s, r) => s + r.balance, 0);
+
+      return {
+        unitName,
+        rows: unitRows,
+        totalShifts: uShifts,
+        totalManual: uManual,
+        totalUsed: uUsed,
+        totalBalance: uBalance,
+      };
+    });
+
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório de Saldo de Folgas — Saúde+</title>
+  <title>Relatório de Saldo de Folgas por Unidade e Categoria — Saúde+</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       color: #111827;
       background: #ffffff;
       padding: 24px;
-      font-size: 12px;
+      font-size: 11.5px;
       line-height: 1.4;
     }
     .header {
@@ -74,7 +235,7 @@ export default function ReportExportDialog({
     }
     .header-title h1 {
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 700;
       color: #111827;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -105,12 +266,12 @@ export default function ReportExportDialog({
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
     .summary-item {
       border: 1px solid #d1d5db;
       border-radius: 4px;
-      padding: 10px;
+      padding: 8px 12px;
       text-align: center;
       background: #f9fafb;
     }
@@ -119,36 +280,177 @@ export default function ReportExportDialog({
       text-transform: uppercase;
       color: #6b7280;
       font-weight: 600;
+      letter-spacing: 0.5px;
     }
     .summary-item .value {
       font-size: 16px;
       font-weight: bold;
-      margin-top: 4px;
+      margin-top: 3px;
       color: #111827;
     }
-    table {
+
+    .unit-block {
+      margin-bottom: 24px;
+      page-break-inside: auto;
+    }
+    .unit-header {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-bottom: 2px solid #374151;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+    }
+    .unit-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .unit-count {
+      font-size: 11px;
+      font-weight: normal;
+      color: #4b5563;
+      background: #e5e7eb;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .unit-stats {
+      font-size: 11px;
+      color: #374151;
+      display: flex;
+      gap: 12px;
+    }
+    .unit-stats strong {
+      font-family: monospace;
+      font-size: 11.5px;
+    }
+
+    /* Tabela Síntese Principal — visual imediato e intuitivo */
+    table.summary-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 8px;
-    }
-    th, td {
       border: 1px solid #d1d5db;
-      padding: 8px 10px;
+      border-top: none;
+      margin-bottom: 12px;
+    }
+    table.summary-table th, table.summary-table td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 10px;
       text-align: left;
     }
-    th {
-      background: #f3f4f6;
-      font-weight: bold;
-      font-size: 11px;
+    table.summary-table th {
+      background: #fafafa;
+      font-weight: 600;
+      font-size: 10.5px;
       text-transform: uppercase;
-      color: #374151;
+      color: #4b5563;
+      letter-spacing: 0.3px;
     }
-    tr:nth-child(even) { background: #fafafa; }
-    td.num {
+    table.summary-table tr:nth-child(even) { background: #fafafa; }
+    table.summary-table td.num {
       text-align: center;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 11.5px;
     }
+
+    /* Detalhamento das atividades e folgas */
+    .details-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #374151;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-left: 3px solid #2563eb;
+      padding: 5px 10px;
+      margin: 12px 0 8px 0;
+    }
+    .person-card {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #ffffff;
+      page-break-inside: avoid;
+    }
+    .p-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .p-name { font-size: 12px; font-weight: 700; color: #111827; }
+    .p-cat {
+      margin-left: 6px;
+      font-size: 10px;
+      color: #4b5563;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .p-sum { display: flex; gap: 6px; }
+    .chip {
+      font-size: 10px;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    .chip b { font-family: monospace; font-size: 11px; color: #111827; }
+    .chip.bal.pos b { color: #059669; }
+    .chip.bal.neg b { color: #b91c1c; }
+    .p-cols {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 12px;
+    }
+    .col-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #1d4ed8;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 2px;
+      margin-bottom: 3px;
+    }
+    .col-title.t-leave { color: #b91c1c; }
+    .col-title.t-man { color: #b45309; }
+    .ln {
+      font-size: 10px;
+      line-height: 1.35;
+      padding: 2px 0;
+      border-bottom: 1px dotted #f3f4f6;
+      color: #374151;
+    }
+    .ln .dt { font-weight: 700; color: #111827; margin-right: 4px; white-space: nowrap; }
+    .ln .dt i { font-style: normal; font-weight: 400; color: #6b7280; }
+    .tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    .tag.extra { background: #dbeafe; color: #1e40af; }
+    .tag.add { background: #fef3c7; color: #92400e; }
+    .tag.rem { background: #f3e8ff; color: #6b21a8; }
+    .none { font-size: 10px; color: #9ca3af; padding: 2px 0; }
+
     .footer {
       margin-top: 24px;
       border-top: 1px solid #e5e7eb;
@@ -168,7 +470,7 @@ export default function ReportExportDialog({
       color: #ffffff;
       border: none;
       border-radius: 4px;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
       font-size: 12px;
     }
@@ -179,7 +481,9 @@ export default function ReportExportDialog({
     @media print {
       body { padding: 0; }
       .actions-bar { display: none !important; }
-      th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .unit-header { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .unit-block { page-break-inside: auto; }
+      .person-card { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr { page-break-inside: avoid; }
     }
   </style>
@@ -193,11 +497,11 @@ export default function ReportExportDialog({
   <div class="header">
     <div class="header-title">
       <h1>Relatório Geral de Saldo de Folgas</h1>
-      <p>Secretaria de Saúde • Sistema de Gestão de Escalas e Folgas</p>
+      <p>Secretaria de Saúde • Organizado por Unidade de Saúde e Categoria Profissional</p>
     </div>
     <div class="header-meta">
       <p>Data de emissão: <strong>${emissionDate}</strong></p>
-      <p>Total de profissionais: <strong>${rows.length}</strong></p>
+      <p>Total de profissionais: <strong>${rows.length}</strong> em <strong>${unitSections.length} unidades</strong></p>
     </div>
   </div>
 
@@ -208,86 +512,203 @@ export default function ReportExportDialog({
 
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="label">Plantões Extras</div>
+      <div class="label">Créditos de Plantões</div>
       <div class="value">+${fmtCredit(totalShifts)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Ajustes Manuais</div>
+      <div class="label">Créditos Manuais</div>
       <div class="value">${totalManual > 0 ? '+' : ''}${fmtCredit(totalManual)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Folgas Usadas</div>
+      <div class="label">Folgas Descontadas</div>
       <div class="value">-${fmtCredit(totalUsed)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Saldo Total</div>
-      <div class="value">${totalBalance > 0 ? '+' : ''}${fmtCredit(totalBalance)}</div>
+      <div class="label">Saldo Atual Total</div>
+      <div class="value" style="color: #059669;">${totalBalance > 0 ? '+' : ''}${fmtCredit(totalBalance)}</div>
     </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 32%;">Profissional</th>
-        <th style="width: 20%;">Categoria</th>
-        <th style="width: 20%;">Unidade</th>
-        <th style="width: 7%; text-align: center;">Plantões</th>
-        <th style="width: 7%; text-align: center;">Manuais</th>
-        <th style="width: 7%; text-align: center;">Usadas</th>
-        <th style="width: 7%; text-align: center;">Saldo</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows.map(r => `
-        <tr>
-          <td><strong>${r.employee.name}</strong></td>
-          <td>${r.categoryName}</td>
-          <td>${r.unitName}</td>
-          <td class="num">+${fmtCredit(r.shifts)}</td>
-          <td class="num">${r.manual !== 0 ? (r.manual > 0 ? '+' : '') + fmtCredit(r.manual) : '—'}</td>
-          <td class="num">-${fmtCredit(r.used)}</td>
-          <td class="num" style="font-weight: bold;">${r.balance > 0 ? '+' : ''}${fmtCredit(r.balance)}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
+  ${unitSections.map(unit => {
+    // Profissionais desta unidade que têm histórico registrado
+    const activeRows = unit.rows.filter(r => (entries[r.employee.id] ?? []).length > 0);
+
+    return `
+    <div class="unit-block">
+      <div class="unit-header">
+        <div class="unit-title">
+          <span>${unit.unitName}</span>
+          <span class="unit-count">${unit.rows.length} ${unit.rows.length === 1 ? 'profissional' : 'profissionais'}</span>
+        </div>
+        <div class="unit-stats">
+          <span>Saldo da Unidade: <strong style="color: #059669;">${unit.totalBalance > 0 ? '+' : ''}${fmtCredit(unit.totalBalance)}</strong></span>
+        </div>
+      </div>
+
+      <!-- 1. Tabela Síntese Imediata: qualquer pessoa bate o olho e vê os saldos -->
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th style="width: 44%;">Profissional</th>
+            <th style="width: 26%;">Categoria</th>
+            <th style="width: 8%; text-align: center;">Plantões</th>
+            <th style="width: 7%; text-align: center;">Manuais</th>
+            <th style="width: 7%; text-align: center;">Folgas</th>
+            <th style="width: 8%; text-align: center;">Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${unit.rows.map(r => `
+            <tr>
+              <td><strong>${esc(r.employee.name)}</strong></td>
+              <td>${esc(r.categoryName)}</td>
+              <td class="num">+${fmtCredit(r.shifts)}</td>
+              <td class="num">${r.manual !== 0 ? (r.manual > 0 ? '+' : '') + fmtCredit(r.manual) : '—'}</td>
+              <td class="num">-${fmtCredit(r.used)}</td>
+              <td class="num" style="font-weight: bold; color: ${r.balance > 0 ? '#059669' : '#111827'};">
+                ${r.balance > 0 ? '+' : ''}${fmtCredit(r.balance)}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <!-- 2. Detalhamento de Atividades e Folgas (apenas quem tem movimentação) -->
+      ${activeRows.length > 0 ? `
+        <div class="details-section-title">
+          Detalhamento de Atividades, Folgas e Ajustes — ${unit.unitName} (${activeRows.length} com movimentação)
+        </div>
+        ${activeRows.map(r => {
+          const list = entries[r.employee.id] ?? [];
+          const wd = (d: string) => {
+            try { return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); } catch { return ''; }
+          };
+          const scales = list.filter(e => e.kind === 'escala' || e.kind === 'extra');
+          const leaves = list.filter(e => e.kind === 'folga');
+          const manuals = list.filter(e => e.kind === 'manual');
+          const signed = (n: number) => (n > 0 ? '+' : '') + fmtCredit(n);
+          const empty = '<div class="none">Nenhum registro</div>';
+
+          return `
+          <div class="person-card">
+            <div class="p-head">
+              <div>
+                <span class="p-name">${esc(r.employee.name)}</span>
+                <span class="p-cat">${esc(r.categoryName)}</span>
+              </div>
+              <div class="p-sum">
+                <span class="chip">Plantões <b>+${fmtCredit(r.shifts)}</b></span>
+                <span class="chip">Manuais <b>${r.manual !== 0 ? signed(r.manual) : '0'}</b></span>
+                <span class="chip">Folgas <b>-${fmtCredit(r.used)}</b></span>
+                <span class="chip bal ${r.balance > 0 ? 'pos' : r.balance < 0 ? 'neg' : ''}">Saldo <b>${signed(r.balance)}</b></span>
+              </div>
+            </div>
+            <div class="p-cols">
+              <div>
+                <div class="col-title">Plantões e Escalas (${scales.length})</div>
+                ${scales.length === 0 ? empty : scales.map(e => `
+                  <div class="ln">
+                    <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                    ${e.kind === 'extra' ? `<span class="tag extra">${esc(e.label.replace('Plantão extra ', 'Extra '))}</span>` : ''}
+                    <span class="tx">${esc(e.desc)}</span>
+                  </div>`).join('')}
+              </div>
+              <div>
+                <div class="col-title t-leave">Folgas Usufruídas (${leaves.length})</div>
+                ${leaves.length === 0 ? empty : leaves.map(e => `
+                  <div class="ln">
+                    <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                    <span class="tx">${esc(e.desc)}</span>
+                  </div>`).join('')}
+              </div>
+              <div>
+                <div class="col-title t-man">Ajustes Manuais (${manuals.length})</div>
+                ${manuals.length === 0 ? empty : manuals.map(e => {
+                  const removed = e.label.startsWith('Crédito retirado');
+                  return `
+                  <div class="ln">
+                    <span class="dt">${fmtDate(e.date).slice(0, 5)}</span>
+                    <span class="tag ${removed ? 'rem' : 'add'}">${esc(e.label.replace('Crédito manual', 'Adicionado').replace('Crédito retirado', 'Retirado'))}</span>
+                    <span class="tx">${esc(e.desc)}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      ` : ''}
+    </div>`;
+  }).join('')}
 
   <div class="footer">
-    Documento emitido eletronicamente pelo Sistema de Gestão de Escalas • Página 1/1
+    Documento emitido eletronicamente pelo Sistema de Gestão de Escalas da Secretaria de Saúde
   </div>
 </body>
 </html>`;
   };
 
-  // 1. Abrir visualização direta para PDF / Impressão
-  const handlePrintPdf = () => {
+  // 1. Abrir visualização direta para PDF / Impressão (inclui escalas, folgas e créditos manuais)
+  const handlePrintPdf = async () => {
+    // A janela precisa ser aberta no clique, antes de aguardar os dados
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('O navegador bloqueou a abertura da janela. Permita popups para visualizar o relatório.');
+      return;
+    }
+    printWindow.document.write('<p style="font-family:Arial;padding:24px">Gerando relatório...</p>');
     setLoading(true);
     try {
-      const html = buildPrintHtml();
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        toast.error('O navegador bloqueou a abertura da janela. Permita popups para visualizar o relatório.');
-        return;
-      }
+      const entries = await loadEntries(rows.map(r => r.employee.id));
+      const html = buildPrintHtml(entries);
       printWindow.document.open();
       printWindow.document.write(html);
       printWindow.document.close();
       onOpenChange(false);
     } catch (err: any) {
+      printWindow.close();
       toast.error('Erro ao gerar PDF: ' + (err.message || ''));
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Baixar Planilha Excel (CSV compatível com Excel pt-BR)
-  const handleDownloadExcel = () => {
+  // 2. Baixar Planilha Excel (CSV compatível com Excel pt-BR agrupado por Unidade e Categoria)
+  const handleDownloadExcel = async () => {
     setLoading(true);
     try {
+      const entries = await loadEntries(rows.map(r => r.employee.id));
+      // Ordenar por Unidade, depois por Categoria, e depois por Nome do Profissional
+      const sortedRows = [...rows].sort((a, b) => {
+        const uA = a.unitName || 'Sem Unidade';
+        const uB = b.unitName || 'Sem Unidade';
+        if (uA === 'Sem Unidade' && uB !== 'Sem Unidade') return 1;
+        if (uB === 'Sem Unidade' && uA !== 'Sem Unidade') return -1;
+        const cmpUnit = uA.localeCompare(uB);
+        if (cmpUnit !== 0) return cmpUnit;
+
+        const catA = a.categoryName || 'Sem Categoria';
+        const catB = b.categoryName || 'Sem Categoria';
+        if (catA === 'Sem Categoria' && catB !== 'Sem Categoria') return 1;
+        if (catB === 'Sem Categoria' && catA !== 'Sem Categoria') return -1;
+        const cmpCat = catA.localeCompare(catB);
+        if (cmpCat !== 0) return cmpCat;
+
+        return a.employee.name.localeCompare(b.employee.name);
+      });
+
       let csvContent = '\uFEFF'; // UTF-8 BOM
-      csvContent += 'Profissional;Categoria;Unidade;Plantões Extras;Créditos Manuais;Folgas Usadas;Saldo Atual\n';
-      rows.forEach(r => {
-        csvContent += `"${r.employee.name}";"${r.categoryName}";"${r.unitName}";"${fmtCredit(r.shifts)}";"${fmtCredit(r.manual)}";"${fmtCredit(r.used)}";"${fmtCredit(r.balance)}"\n`;
+      csvContent += 'Unidade de Saúde;Categoria;Profissional;Plantões Extras;Créditos Manuais;Folgas Usadas;Saldo Atual\n';
+      sortedRows.forEach(r => {
+        csvContent += `"${r.unitName}";"${r.categoryName}";"${r.employee.name}";"${fmtCredit(r.shifts)}";"${fmtCredit(r.manual)}";"${fmtCredit(r.used)}";"${fmtCredit(r.balance)}"\n`;
+      });
+
+      // Movimentação detalhada: dias de escala, folgas e créditos manuais de cada profissional
+      csvContent += '\nMOVIMENTAÇÃO DETALHADA\n';
+      csvContent += 'Unidade de Saúde;Categoria;Profissional;Data;Tipo;Descrição\n';
+      sortedRows.forEach(r => {
+        (entries[r.employee.id] ?? []).forEach(e => {
+          csvContent += `"${r.unitName}";"${r.categoryName}";"${r.employee.name}";"${fmtDate(e.date)}";"${e.label}";"${e.desc.replace(/"/g, '""')}"\n`;
+        });
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -300,7 +721,7 @@ export default function ReportExportDialog({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success('Planilha Excel gerada com sucesso!');
+      toast.success('Planilha Excel gerada com sucesso e organizada por unidade e categoria!');
       onOpenChange(false);
     } catch (err: any) {
       toast.error('Erro ao exportar planilha: ' + (err.message || ''));

@@ -1,8 +1,8 @@
 /**
  * Painel de Saldo de Folgas — Panorama geral simples e direto.
- * Mostra créditos de plantões/escalas, ajustes manuais, folgas utilizadas e saldo final por profissional.
+ * Organizado por Unidade de Saúde (postos um abaixo do outro) e ordenado por profissional.
  */
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Fragment } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Download, X, RefreshCw } from 'lucide-react';
+import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Download, X, RefreshCw, Building2 } from 'lucide-react';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import ReportExportDialog from '@/components/reports/ReportExportDialog';
 
@@ -153,8 +153,8 @@ export default function BalancePanel() {
       };
     });
 
-    // Ordenar por maior saldo primeiro, desempatando pelo nome
-    balances.sort((a, b) => b.balance - a.balance || a.employee.name.localeCompare(b.employee.name));
+    // Ordenar inicialmente por nome do funcionário
+    balances.sort((a, b) => a.employee.name.localeCompare(b.employee.name));
 
     setCategories(cats);
     setUnits(unts);
@@ -186,6 +186,43 @@ export default function BalancePanel() {
     });
   }, [rows, search, filterUnit, filterCat]);
 
+  // Agrupamento por Unidade de Saúde (postos um abaixo do outro)
+  // Dentro de cada posto, as categorias dos profissionais ficam sempre juntas (um abaixo do outro), ordenadas por nome
+  const groupedByUnit = useMemo(() => {
+    const map = new Map<string, BalanceRow[]>();
+    filtered.forEach(r => {
+      const uName = r.unitName || 'Sem Unidade';
+      if (!map.has(uName)) map.set(uName, []);
+      map.get(uName)!.push(r);
+    });
+
+    const sortedUnits = Array.from(map.keys()).sort((a, b) => {
+      if (a === 'Sem Unidade') return 1;
+      if (b === 'Sem Unidade') return -1;
+      return a.localeCompare(b);
+    });
+
+    return sortedUnits.map(unitName => {
+      const unitRows = [...map.get(unitName)!].sort((a, b) => {
+        const catA = a.categoryName || 'Sem Categoria';
+        const catB = b.categoryName || 'Sem Categoria';
+        if (catA === 'Sem Categoria' && catB !== 'Sem Categoria') return 1;
+        if (catB === 'Sem Categoria' && catA !== 'Sem Categoria') return -1;
+        const cmpCat = catA.localeCompare(catB);
+        if (cmpCat !== 0) return cmpCat;
+        return a.employee.name.localeCompare(b.employee.name);
+      });
+      return {
+        unitName,
+        rows: unitRows,
+        totalShifts: unitRows.reduce((s, r) => s + r.shifts, 0),
+        totalManual: unitRows.reduce((s, r) => s + r.manual, 0),
+        totalUsed: unitRows.reduce((s, r) => s + r.used, 0),
+        totalBalance: unitRows.reduce((s, r) => s + r.balance, 0),
+      };
+    });
+  }, [filtered]);
+
   // Totais do panorama geral para os profissionais visíveis
   const totalShifts = useMemo(() => filtered.reduce((s, r) => s + r.shifts, 0), [filtered]);
   const totalManual = useMemo(() => filtered.reduce((s, r) => s + r.manual, 0), [filtered]);
@@ -210,7 +247,7 @@ export default function BalancePanel() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-foreground">Saúde+ • Relatório de Saldo de Folgas</h1>
-            <p className="text-xs text-muted-foreground">Panorama geral de plantões extras, ajustes manuais, folgas e saldo</p>
+            <p className="text-xs text-muted-foreground">Panorama geral organizado por Unidade de Saúde</p>
           </div>
           <div className="text-right text-xs text-muted-foreground">
             <p>Emitido em: {new Date().toLocaleString('pt-BR')}</p>
@@ -227,7 +264,7 @@ export default function BalancePanel() {
             Saldo de Folgas
           </h1>
           <p className="text-muted-foreground text-sm">
-            Panorama geral de plantões extras, ajustes manuais, folgas e saldo por profissional
+            Panorama geral de plantões extras, ajustes manuais, folgas e saldo organizado por unidade de saúde
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
@@ -236,7 +273,7 @@ export default function BalancePanel() {
             <span className="hidden sm:inline">Atualizar</span>
           </Button>
 
-          {/* Botão de Exportação com o mesmo visual e suporte a relatório detalhado */}
+          {/* Botão de Exportação para PDF e Excel */}
           <Button
             size="sm"
             onClick={() => setExportOpen(true)}
@@ -248,7 +285,7 @@ export default function BalancePanel() {
         </div>
       </div>
 
-      {/* Cards de Resumo do Panorama Geral (mesmo design clássico de stat-cards) */}
+      {/* Cards de Resumo do Panorama Geral */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Plantões Extras */}
         <div className="stat-card flex items-center gap-3">
@@ -299,7 +336,7 @@ export default function BalancePanel() {
         </div>
       </div>
 
-      {/* Barra de Filtros Rápida e Simples (apenas texto, unidade e categoria) */}
+      {/* Barra de Filtros Rápida e Simples */}
       <div className="flex flex-wrap items-center gap-3 bg-card rounded-xl border border-border p-3 print:hidden">
         {/* Busca por texto */}
         <div className="relative flex-1 min-w-[200px]">
@@ -353,10 +390,12 @@ export default function BalancePanel() {
 
       {/* Indicador de resultados */}
       <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-        <span>Exibindo <strong>{filtered.length}</strong> de <strong>{rows.length}</strong> profissional(is)</span>
+        <span>
+          Exibindo <strong>{filtered.length}</strong> profissional(is) em <strong>{groupedByUnit.length}</strong> unidade(s) de saúde
+        </span>
       </div>
 
-      {/* Visualização de Dados */}
+      {/* Visualização de Dados Organizada por Unidade */}
       {loading ? (
         <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
           <RefreshCw className="animate-spin text-primary" size={24} />
@@ -370,140 +409,186 @@ export default function BalancePanel() {
         </div>
       ) : (
         <>
-          {/* Mobile View: Cards */}
-          <div className="space-y-3 sm:hidden">
-            {filtered.map(row => (
-              <div key={row.employee.id} className="page-card p-3.5 space-y-3 bg-card rounded-xl border border-border">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">{row.employee.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {row.categoryName} • {row.unitName}
-                    </p>
+          {/* Mobile View: Postos um abaixo do outro com cards dos profissionais */}
+          <div className="space-y-6 sm:hidden">
+            {groupedByUnit.map(group => (
+              <div key={group.unitName} className="space-y-3">
+                {/* Cabeçalho da Unidade */}
+                <div className="flex items-center justify-between px-1 border-b border-border pb-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-sm text-foreground uppercase tracking-wide">
+                    <Building2 size={16} className="text-primary" />
+                    <span>{group.unitName}</span>
                   </div>
-                  <Badge
-                    variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                    className="font-mono font-bold shrink-0"
-                  >
-                    {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
-                  <div className="bg-primary/5 p-2 rounded-lg flex flex-col items-center text-center">
-                    <span className="text-[10px] text-primary uppercase font-bold tracking-tight">Plantões</span>
-                    <span className="text-xs font-mono font-bold text-primary">+{fmtCredit(row.shifts)}</span>
-                  </div>
-                  <div className={`p-2 rounded-lg flex flex-col items-center text-center ${row.manual < 0 ? 'bg-purple-500/10' : 'bg-amber-500/10'}`}>
-                    <span className={`text-[10px] uppercase font-bold tracking-tight ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                      Manuais
-                    </span>
-                    <span className={`text-xs font-mono font-bold ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                      {row.manual !== 0 ? (row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)) : '0'}
-                    </span>
-                  </div>
-                  <div className="bg-destructive/5 p-2 rounded-lg flex flex-col items-center text-center">
-                    <span className="text-[10px] text-destructive uppercase font-bold tracking-tight">Usados</span>
-                    <span className="text-xs font-mono font-bold text-destructive">-{fmtCredit(row.used)}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {group.rows.length} profissional(is)
+                    </Badge>
+                    <Badge
+                      variant={group.totalBalance > 0 ? 'default' : group.totalBalance < 0 ? 'destructive' : 'secondary'}
+                      className="text-[10px] font-mono font-bold"
+                    >
+                      {group.totalBalance > 0 ? `+${fmtCredit(group.totalBalance)}` : fmtCredit(group.totalBalance)}
+                    </Badge>
                   </div>
                 </div>
 
-                <div className="pt-1 flex justify-end print:hidden">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5 hover:bg-primary/10 hover:text-primary"
-                    onClick={() => setDetailEmp(row.employee)}
-                  >
-                    <Eye size={14} /> Ver histórico
-                  </Button>
-                </div>
+                {group.rows.map(row => (
+                  <div key={row.employee.id} className="page-card p-3.5 space-y-3 bg-card rounded-xl border border-border">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{row.employee.name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{row.categoryName}</p>
+                      </div>
+                      <Badge
+                        variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
+                        className="font-mono font-bold shrink-0"
+                      >
+                        {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+                      <div className="bg-primary/5 p-2 rounded-lg flex flex-col items-center text-center">
+                        <span className="text-[10px] text-primary uppercase font-bold tracking-tight">Plantões</span>
+                        <span className="text-xs font-mono font-bold text-primary">+{fmtCredit(row.shifts)}</span>
+                      </div>
+                      <div className={`p-2 rounded-lg flex flex-col items-center text-center ${row.manual < 0 ? 'bg-purple-500/10' : 'bg-amber-500/10'}`}>
+                        <span className={`text-[10px] uppercase font-bold tracking-tight ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                          Manuais
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${row.manual < 0 ? 'text-purple-700 dark:text-purple-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                          {row.manual !== 0 ? (row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)) : '0'}
+                        </span>
+                      </div>
+                      <div className="bg-destructive/5 p-2 rounded-lg flex flex-col items-center text-center">
+                        <span className="text-[10px] text-destructive uppercase font-bold tracking-tight">Usados</span>
+                        <span className="text-xs font-mono font-bold text-destructive">-{fmtCredit(row.used)}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex justify-end print:hidden">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs gap-1.5 hover:bg-primary/10 hover:text-primary"
+                        onClick={() => setDetailEmp(row.employee)}
+                      >
+                        <Eye size={14} /> Ver histórico
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
 
-          {/* Desktop View: Tabela Limpa e Espaçada */}
-          <div className="hidden sm:block bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground border-b border-border">
-                  <tr>
-                    <th className="px-5 py-3.5 font-semibold">Profissional</th>
-                    <th className="px-5 py-3.5 font-semibold">Categoria</th>
-                    <th className="px-5 py-3.5 font-semibold">Unidade</th>
-                    <th className="px-4 py-3.5 font-semibold text-center" title="Créditos obtidos em escalas e plantões extras">Plantões</th>
-                    <th className="px-4 py-3.5 font-semibold text-center" title="Ajustes manuais e saldo inicial inseridos pela gestão">Manuais</th>
-                    <th className="px-4 py-3.5 font-semibold text-center" title="Créditos descontados por folgas usufruídas">Folgas Usadas</th>
-                    <th className="px-5 py-3.5 font-semibold text-center">Saldo Atual</th>
-                    <th className="px-4 py-3.5 font-semibold text-right print:hidden">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map(row => (
-                    <tr key={row.employee.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-foreground">{row.employee.name}</td>
-                      <td className="px-5 py-3 text-muted-foreground text-sm">{row.categoryName}</td>
-                      <td className="px-5 py-3 text-muted-foreground text-sm">{row.unitName}</td>
-                      
-                      {/* Plantões Extras */}
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary border-transparent">
-                          +{fmtCredit(row.shifts)}
-                        </Badge>
-                      </td>
+          {/* Desktop View: Cada Unidade de Saúde em seu bloco organizado */}
+          <div className="hidden sm:block space-y-6">
+            {groupedByUnit.map(group => (
+              <div key={group.unitName} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                {/* Cabeçalho Limpo da Unidade */}
+                <div className="bg-muted/40 px-5 py-3 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 size={16} className="text-primary" />
+                    <h2 className="font-bold text-sm text-foreground uppercase tracking-wide">
+                      {group.unitName}
+                    </h2>
+                    <Badge variant="outline" className="text-[11px] bg-background">
+                      {group.rows.length} {group.rows.length === 1 ? 'profissional' : 'profissionais'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Saldo da unidade:</span>
+                    <Badge
+                      variant={group.totalBalance > 0 ? 'default' : group.totalBalance < 0 ? 'destructive' : 'secondary'}
+                      className="font-mono font-bold"
+                    >
+                      {group.totalBalance > 0 ? `+${fmtCredit(group.totalBalance)}` : fmtCredit(group.totalBalance)}
+                    </Badge>
+                  </div>
+                </div>
 
-                      {/* Ajustes Manuais */}
-                      <td className="px-4 py-3 text-center">
-                        {row.manual !== 0 ? (
-                          <Badge
-                            variant="secondary"
-                            className={`font-mono border ${
-                              row.manual > 0
-                                ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/50 hover:bg-amber-500/20'
-                                : 'bg-purple-500/10 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-500/20'
-                            }`}
-                          >
-                            {row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/60">—</span>
-                        )}
-                      </td>
+                {/* Tabela dos Profissionais daquela Unidade */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-muted/20 text-xs uppercase text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="px-5 py-3 font-semibold">Profissional</th>
+                        <th className="px-5 py-3 font-semibold">Categoria</th>
+                        <th className="px-4 py-3 font-semibold text-center" title="Créditos obtidos em escalas e plantões extras">Plantões</th>
+                        <th className="px-4 py-3 font-semibold text-center" title="Ajustes manuais e saldo inicial inseridos pela gestão">Manuais</th>
+                        <th className="px-4 py-3 font-semibold text-center" title="Créditos descontados por folgas usufruídas">Folgas Usadas</th>
+                        <th className="px-5 py-3 font-semibold text-center">Saldo Atual</th>
+                        <th className="px-4 py-3 font-semibold text-right print:hidden">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {group.rows.map(row => (
+                        <tr key={row.employee.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-5 py-3 font-medium text-foreground">{row.employee.name}</td>
+                          <td className="px-5 py-3 text-muted-foreground text-sm">{row.categoryName}</td>
+                          
+                          {/* Plantões Extras */}
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="secondary" className="font-mono bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary border-transparent">
+                              +{fmtCredit(row.shifts)}
+                            </Badge>
+                          </td>
 
-                      {/* Folgas Usadas */}
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive border-transparent">
-                          -{fmtCredit(row.used)}
-                        </Badge>
-                      </td>
+                          {/* Ajustes Manuais */}
+                          <td className="px-4 py-3 text-center">
+                            {row.manual !== 0 ? (
+                              <Badge
+                                variant="secondary"
+                                className={`font-mono border ${
+                                  row.manual > 0
+                                    ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/50 hover:bg-amber-500/20'
+                                    : 'bg-purple-500/10 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-500/20'
+                                }`}
+                              >
+                                {row.manual > 0 ? `+${fmtCredit(row.manual)}` : fmtCredit(row.manual)}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/60">—</span>
+                            )}
+                          </td>
 
-                      {/* Saldo Atual */}
-                      <td className="px-5 py-3 text-center">
-                        <Badge
-                          variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
-                          className="font-mono font-bold shadow-none"
-                        >
-                          {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
-                        </Badge>
-                      </td>
+                          {/* Folgas Usadas */}
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="secondary" className="font-mono bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive border-transparent">
+                              -{fmtCredit(row.used)}
+                            </Badge>
+                          </td>
 
-                      {/* Botão de Histórico */}
-                      <td className="px-4 py-3 text-right print:hidden">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Ver histórico detalhado"
-                          className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
-                          onClick={() => setDetailEmp(row.employee)}
-                        >
-                          <Eye size={15} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          {/* Saldo Atual */}
+                          <td className="px-5 py-3 text-center">
+                            <Badge
+                              variant={row.balance > 0 ? 'default' : row.balance < 0 ? 'destructive' : 'secondary'}
+                              className="font-mono font-bold shadow-none"
+                            >
+                              {row.balance > 0 ? `+${fmtCredit(row.balance)}` : fmtCredit(row.balance)}
+                            </Badge>
+                          </td>
+
+                          {/* Botão de Histórico */}
+                          <td className="px-4 py-3 text-right print:hidden">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Ver histórico detalhado"
+                              className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                              onClick={() => setDetailEmp(row.employee)}
+                            >
+                              <Eye size={15} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}
