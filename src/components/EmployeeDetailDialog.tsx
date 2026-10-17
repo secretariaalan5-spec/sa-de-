@@ -13,7 +13,9 @@ import {
   Printer,
   FileSpreadsheet,
   Building2,
+  KeyRound,
 } from 'lucide-react';
+import AccessCodeDialog from '@/components/AccessCodeDialog';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -89,6 +91,8 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   const [categories, setCategories] = useState<Category[]>([]);
   const [empCategoryName, setEmpCategoryName] = useState<string>('—');
   const [empUnitName, setEmpUnitName] = useState<string>('—');
+  const [empPhone, setEmpPhone] = useState<string | null>(null);
+  const [codeOpen, setCodeOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -129,8 +133,8 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       supabase.from('units').select('id, name'),
       supabase.from('categories').select('id, name'),
 
-      // 6. Dados do próprio profissional (categoria e unidade)
-      supabase.from('employees').select('id, category_id, unit_id').eq('id', employeeId).maybeSingle(),
+      // 6. Dados do próprio profissional (categoria, unidade e telefone)
+      supabase.from('employees').select('id, category_id, unit_id, phone').eq('id', employeeId).maybeSingle(),
     ]).then(([s, l, t, c, u, cat, emp]) => {
       setSchedules(s.data ?? []);
       setLeaves(l.data ?? []);
@@ -147,6 +151,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
         const unitObj = uList.find(x => x.id === emp.data.unit_id);
         setEmpCategoryName(catObj?.name ?? '—');
         setEmpUnitName(unitObj?.name ?? '—');
+        setEmpPhone(emp.data.phone ?? null);
       }
 
       setLoading(false);
@@ -717,7 +722,8 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap pr-6">
@@ -730,6 +736,16 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
 
             {/* Apenas PDF e Excel - sem HTML */}
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCodeOpen(true)}
+                title="Visualizar e compartilhar código de acesso do portal"
+                className="gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              >
+                <KeyRound size={14} />
+                <span>Código Portal</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -974,5 +990,22 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
         )}
       </DialogContent>
     </Dialog>
+
+    <AccessCodeDialog
+      open={codeOpen}
+      onOpenChange={setCodeOpen}
+      employee={
+        employeeId
+          ? {
+              id: employeeId,
+              name: employeeName,
+              phone: empPhone,
+              unit_name: empUnitName,
+              category_name: empCategoryName,
+            }
+          : null
+      }
+    />
+  </>
   );
 }

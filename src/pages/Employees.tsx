@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle, CalendarPlus } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle, CalendarPlus, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import QuickScheduleDialog from '@/components/schedule/QuickScheduleDialog';
+import AccessCodeDialog from '@/components/AccessCodeDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { toast } from 'sonner';
 
@@ -48,6 +49,7 @@ export default function Employees() {
   const [filterUnit, setFilterUnit] = useState('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
+  const [codeEmp, setCodeEmp] = useState<{ id: string; name: string; phone?: string | null; unit_name?: string | null; category_name?: string | null } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Credit Adjustment State
@@ -359,6 +361,26 @@ export default function Employees() {
                 </Button>
                 
                 <div className="flex items-center gap-0.5">
+                  {(isAdmin || isRH || isChief || isManager) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Código de Acesso do Portal"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCodeEmp({
+                          id: emp.id,
+                          name: emp.name,
+                          phone: emp.phone,
+                          unit_name: getUnitName(emp.unit_id),
+                          category_name: getCat(emp.category_id)?.name,
+                        });
+                      }} 
+                      className="h-8 w-8 text-foreground/60 hover:text-amber-600 hover:bg-white/50"
+                    >
+                      <KeyRound size={14} />
+                    </Button>
+                  )}
                   {canCreateScheduleFor(emp) && (
                     <Button 
                       variant="ghost" 
@@ -470,7 +492,27 @@ export default function Employees() {
               </td>
               <td className="px-5 py-3.5 text-right">
                 <div className="flex justify-end gap-1 opacity-100 sm:opacity-50 sm:group-hover:opacity-100 transition-opacity">
-                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" title="Ver Histórico" onClick={(e) => { e.stopPropagation(); setDetailEmp(emp); }}><Eye size={14} /></Button>
+                  {(isAdmin || isRH || isChief || isManager) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Código de Acesso do Portal" 
+                      className="h-8 w-8 hover:bg-amber-500/10 hover:text-amber-600 transition-colors" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCodeEmp({
+                          id: emp.id,
+                          name: emp.name,
+                          phone: emp.phone,
+                          unit_name: getUnitName(emp.unit_id),
+                          category_name: getCat(emp.category_id)?.name,
+                        });
+                      }}
+                    >
+                      <KeyRound size={14} />
+                    </Button>
+                  )}
                   {canCreateScheduleFor(emp) && (
                     <Button 
                       variant="ghost" 
@@ -616,6 +658,13 @@ export default function Employees() {
         open={!!scheduleEmp}
         onOpenChange={(o) => { if (!o) setScheduleEmp(null); }}
         onSuccess={load}
+      />
+
+      {/* Access Code Dialog (Portal do Profissional) */}
+      <AccessCodeDialog
+        employee={codeEmp}
+        open={!!codeEmp}
+        onOpenChange={(o) => { if (!o) setCodeEmp(null); }}
       />
 
       {/* Credit Adjustment Dialog */}

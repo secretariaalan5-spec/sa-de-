@@ -47,6 +47,13 @@
     ],
     "shortcuts": [
         {
+            "name": "Portal do Profissional",
+            "short_name": "Meu Portal",
+            "description": "Consulte suas escalas, folgas e saldo de créditos",
+            "url": "/portal",
+            "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+        },
+        {
             "name": "Escalas",
             "short_name": "Escalas",
             "url": "/escalas",

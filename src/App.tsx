@@ -24,6 +24,7 @@ const Profile        = lazy(() => import("./pages/Profile"));
 const BalancePanel   = lazy(() => import("./pages/BalancePanel"));
 const AuditLogs      = lazy(() => import("./pages/AuditLogs"));
 const Holidays       = lazy(() => import("./pages/Holidays"));
+const ProfessionalPortal = lazy(() => import("./pages/ProfessionalPortal"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 
 // ─── QueryClient com cache inteligente ────────────────────────────────────────
@@ -155,6 +156,7 @@ const App = () => (
           <AuthProvider>
             <Routes>
               <Route path="/login"             element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path="/portal"            element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><ProfessionalPortal /></Suspense></AppErrorBoundary>} />
               <Route path="/registro"          element={<Register />} />
               <Route path="/registro/:token"   element={<Register />} />
               <Route path="/aceite-convite"    element={<AcceptInvite />} />

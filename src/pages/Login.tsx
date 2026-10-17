@@ -74,10 +74,17 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Institutional Footer */}
-          <div className="mt-10 pt-6 border-t border-slate-100 text-center">
+          {/* Institutional Footer & Portal Link */}
+          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
+            <a
+              href="/portal"
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 text-xs font-semibold transition-all border border-emerald-500/20"
+            >
+              <span>🏥 É servidor da saúde? Acesse o Portal com seu Código</span>
+              <span className="text-emerald-500 group-hover:translate-x-0.5 transition-transform">→</span>
+            </a>
             <p className="text-[11px] text-slate-400 font-medium">
-              Acesso exclusivo para funcionários autorizados.
+              Acesso administrativo restrito a gestores autorizados.
             </p>
           </div>
         </div>
