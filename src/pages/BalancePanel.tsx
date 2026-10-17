@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Download, X, RefreshCw, Building2 } from 'lucide-react';
+import { Wallet, Search, TrendingDown, CalendarDays, Sparkles, Eye, Download, X, RefreshCw, Building2, FileText } from 'lucide-react';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import ReportExportDialog from '@/components/reports/ReportExportDialog';
 
@@ -246,7 +246,7 @@ export default function BalancePanel() {
       <div className="hidden print:block pb-4 border-b border-border mb-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Saúde+ • Relatório de Saldo de Folgas</h1>
+            <h1 className="text-xl font-bold text-foreground">Saúde+ • Relatórios Gerais e Individuais</h1>
             <p className="text-xs text-muted-foreground">Panorama geral organizado por Unidade de Saúde</p>
           </div>
           <div className="text-right text-xs text-muted-foreground">
@@ -260,11 +260,11 @@ export default function BalancePanel() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wallet size={24} className="text-primary" />
-            Saldo de Folgas
+            <FileText size={24} className="text-primary" />
+            Relatórios
           </h1>
           <p className="text-muted-foreground text-sm">
-            Panorama geral de plantões extras, ajustes manuais, folgas e saldo organizado por unidade de saúde
+            Relatórios gerais e individuais de plantões extras, folgas e saldo organizado por unidade de saúde
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">

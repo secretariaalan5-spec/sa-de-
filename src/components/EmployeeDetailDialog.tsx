@@ -184,23 +184,31 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
     rejected: { label: 'Negado', variant: 'destructive' },
   };
 
-  // Constrói relatório funcional e formal para impressão/PDF (design institucional simples, sem cara de IA)
+  // Constrói relatório funcional individual no mesmo formato institucional de grade da aba Relatórios
   const buildIndividualPrintHtml = (): string => {
     const emissionDate = new Date().toLocaleString('pt-BR');
+    const esc = (s?: string | null) =>
+      (s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    const manualCredits = credits.filter(c => c.origin !== 'extra_shift' && c.origin !== 'leave_used');
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Ficha Funcional — ${employeeName}</title>
+  <title>Relatório Individual — ${esc(employeeName)} — Saúde+</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       color: #111827;
       background: #ffffff;
       padding: 24px;
-      font-size: 12px;
+      font-size: 11.5px;
       line-height: 1.4;
     }
     .header {
@@ -213,7 +221,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
     }
     .header-title h1 {
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 700;
       color: #111827;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -228,16 +236,29 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       font-size: 11px;
       color: #4b5563;
     }
-    .info-card {
-      background: #f9fafb;
-      border: 1px solid #d1d5db;
+    .info-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
       border-radius: 4px;
-      padding: 12px;
+      padding: 10px 14px;
       margin-bottom: 16px;
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      font-size: 11px;
+    }
+    .info-cell .info-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .info-cell .info-val {
       font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
     }
     .summary-grid {
       display: grid;
@@ -246,52 +267,125 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       margin-bottom: 20px;
     }
     .summary-item {
-      border: 1px solid #d1d5db;
+      border: 1px solid #cbd5e1;
       border-radius: 4px;
-      padding: 8px 10px;
+      padding: 8px 12px;
       text-align: center;
-      background: #f9fafb;
+      background: #f8fafc;
     }
     .summary-item .label {
       font-size: 10px;
       text-transform: uppercase;
-      color: #6b7280;
+      color: #64748b;
       font-weight: 600;
+      letter-spacing: 0.5px;
     }
     .summary-item .value {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: bold;
-      margin-top: 2px;
-      color: #111827;
+      margin-top: 3px;
+      color: #0f172a;
+      font-family: monospace;
     }
-    .section-title {
-      font-size: 13px;
-      font-weight: bold;
-      color: #111827;
-      text-transform: uppercase;
-      border-bottom: 1px solid #d1d5db;
-      padding-bottom: 4px;
-      margin: 20px 0 10px 0;
+
+    .unit-block {
+      margin-bottom: 22px;
+      page-break-inside: auto;
     }
-    table {
+    .unit-header {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-bottom: 2px solid #334155;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+    }
+    .unit-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .unit-count {
+      font-size: 11px;
+      font-weight: normal;
+      color: #475569;
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .unit-stats {
+      font-size: 11px;
+      color: #334155;
+      display: flex;
+      gap: 12px;
+    }
+    .unit-stats strong {
+      font-family: monospace;
+      font-size: 11.5px;
+    }
+
+    /* FORMATO DE GRADE TABULAR */
+    .grid-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 16px;
-    }
-    th, td {
-      border: 1px solid #d1d5db;
-      padding: 7px 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #f3f4f6;
-      font-weight: bold;
+      border: 1px solid #cbd5e1;
+      border-top: none;
+      background: #ffffff;
       font-size: 11px;
-      text-transform: uppercase;
-      color: #374151;
     }
-    tr:nth-child(even) { background: #fafafa; }
+    .grid-table thead th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    .grid-table tbody tr {
+      border-bottom: 1px solid #e2e8f0;
+      page-break-inside: avoid;
+    }
+    .grid-table tbody tr:nth-child(even) {
+      background: #fbfcfd;
+    }
+    .grid-table td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 10px;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+    .tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 2px;
+      margin-right: 4px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    .tag.extra { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .tag.normal { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .tag.add { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .tag.rem { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+    .tag.app { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .tag.pend { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .tag.rej { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .empty-row {
+      color: #94a3b8;
+      font-style: italic;
+      padding: 10px !important;
+      text-align: center;
+    }
+
     .footer {
       margin-top: 24px;
       border-top: 1px solid #e5e7eb;
@@ -311,19 +405,25 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       color: #ffffff;
       border: none;
       border-radius: 4px;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
       font-size: 12px;
     }
     .btn-close {
-      background: #e5e7eb;
-      color: #374151;
+      background: #e2e8f0;
+      color: #334155;
     }
     @media print {
       body { padding: 0; }
       .actions-bar { display: none !important; }
-      th { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      tr { page-break-inside: avoid; }
+      .unit-header { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .unit-block { page-break-inside: auto; }
+      .grid-table { page-break-inside: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-table thead { display: table-header-group; }
+      .grid-table tbody tr { page-break-inside: avoid; }
+      .grid-table thead th { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-table tbody tr:nth-child(even) { background: #fbfcfd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .tag, .summary-item, .info-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -335,104 +435,215 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
 
   <div class="header">
     <div class="header-title">
-      <h1>Ficha Funcional — Histórico Individual</h1>
-      <p>Secretaria de Saúde • Sistema de Gestão de Escalas e Folgas</p>
+      <h1>Relatório Funcional Individual</h1>
+      <p>Secretaria de Saúde • Extrato Detalhado do Profissional em Formato de Grade</p>
     </div>
     <div class="header-meta">
       <p>Data de emissão: <strong>${emissionDate}</strong></p>
+      <p>Situação do Cadastro: <strong style="color: #047857;">Ativo</strong></p>
     </div>
   </div>
 
-  <div class="info-card">
-    <div>Profissional: <strong>${employeeName}</strong></div>
-    <div>Categoria: <strong>${empCategoryName}</strong></div>
-    <div>Unidade de Lotação: <strong>${empUnitName}</strong></div>
-    <div>Situação: <strong>Ativo</strong></div>
+  <div class="info-box">
+    <div class="info-cell">
+      <span class="info-label">Profissional</span>
+      <span class="info-val">${esc(employeeName)}</span>
+    </div>
+    <div class="info-cell">
+      <span class="info-label">Categoria</span>
+      <span class="info-val">${esc(empCategoryName)}</span>
+    </div>
+    <div class="info-cell">
+      <span class="info-label">Unidade de Lotação</span>
+      <span class="info-val">${esc(empUnitName)}</span>
+    </div>
+    <div class="info-cell">
+      <span class="info-label">Situação Cadastral</span>
+      <span class="info-val" style="color: #047857;">Ativo</span>
+    </div>
   </div>
 
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="label">Plantões Extras</div>
+      <div class="label">Créditos de Plantões</div>
       <div class="value">+${fmtCredit(totalShifts)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Ajustes Manuais</div>
+      <div class="label">Créditos Manuais</div>
       <div class="value">${totalManual > 0 ? '+' : ''}${fmtCredit(totalManual)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Folgas Usadas</div>
+      <div class="label">Folgas Descontadas</div>
       <div class="value">-${fmtCredit(totalUsed)}</div>
     </div>
     <div class="summary-item">
-      <div class="label">Saldo Atual</div>
-      <div class="value" style="font-weight: bold;">${balance > 0 ? '+' : ''}${fmtCredit(balance)}</div>
+      <div class="label">Saldo Atual Total</div>
+      <div class="value" style="color: ${balance >= 0 ? '#047857' : '#b91c1c'};">${balance > 0 ? '+' : ''}${fmtCredit(balance)}</div>
     </div>
   </div>
 
-  <div class="section-title">1. Escalas e Atividades Realizadas (${schedules.length})</div>
-  ${schedules.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhuma escala registrada.</p>' : `
-    <table>
+  <!-- Bloco 1: Escalas e Plantões Extras -->
+  <div class="unit-block">
+    <div class="unit-header">
+      <div class="unit-title">
+        <span>1. Escalas e Plantões Extras Realizados</span>
+        <span class="unit-count">${schedules.length} ${schedules.length === 1 ? 'registro' : 'registros'}</span>
+      </div>
+      <div class="unit-stats">
+        <span>Créditos de Plantões: <strong style="color: #1d4ed8;">+${fmtCredit(totalShifts)}</strong></span>
+      </div>
+    </div>
+    <table class="grid-table">
       <thead>
         <tr>
-          <th style="width: 18%;">Data</th>
-          <th style="width: 20%;">Tipo / Créditos</th>
-          <th style="width: 20%;">Unidade</th>
-          <th style="width: 12%;">Turno</th>
-          <th style="width: 30%;">Atividade / O que foi escalado(a) para fazer</th>
+          <th style="width: 17%;">Data / Dia</th>
+          <th style="width: 22%;">Tipo / Créditos</th>
+          <th style="width: 18%;">Unidade</th>
+          <th style="width: 13%;">Turno</th>
+          <th style="width: 30%;">Atividade Realizada / O que foi escalado(a)</th>
         </tr>
       </thead>
       <tbody>
-        ${schedules.map(s => {
+        ${schedules.length === 0 ? `
+          <tr><td colspan="5" class="empty-row">Nenhuma escala registrada no período.</td></tr>
+        ` : schedules.map(s => {
           const creds = getScheduleCredits(s);
-          const typeLabel = s.type === 'extra'
-            ? `Plantão Extra (+${fmtCredit(creds)})`
-            : 'Escala Normal';
           return `
             <tr>
-              <td><strong>${fmtDate(s.date)}</strong> (${weekday(s.date)})</td>
-              <td><strong>${typeLabel}</strong></td>
-              <td>${getUnitName(s.unit_id)}</td>
+              <td><strong>${fmtDate(s.date)}</strong> <span style="color:#64748b;">(${weekday(s.date)})</span></td>
+              <td>
+                ${s.type === 'extra'
+                  ? `<span class="tag extra">Plantão Extra (+${fmtCredit(creds)})</span>`
+                  : `<span class="tag normal">Escala Normal</span>`}
+              </td>
+              <td>${esc(getUnitName(s.unit_id))}</td>
               <td>${s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}</td>
-              <td>${s.observations?.trim() || 'Plantão de escala na unidade'}</td>
+              <td>${esc(s.observations?.trim() || 'Plantão de escala na unidade')}</td>
             </tr>
           `;
         }).join('')}
       </tbody>
     </table>
-  `}
+  </div>
 
-  <div class="section-title">2. Pedidos de Folga e Motivos (${leaves.length})</div>
-  ${leaves.length === 0 ? '<p style="color: #6b7280; padding: 6px 0;">Nenhum pedido de folga registrado.</p>' : `
-    <table>
+  <!-- Bloco 2: Pedidos de Folga -->
+  <div class="unit-block">
+    <div class="unit-header">
+      <div class="unit-title">
+        <span>2. Pedidos de Folga e Motivos Declarados</span>
+        <span class="unit-count">${leaves.length} ${leaves.length === 1 ? 'solicitação' : 'solicitações'}</span>
+      </div>
+      <div class="unit-stats">
+        <span>Folgas Usufruídas: <strong style="color: #b91c1c;">-${fmtCredit(totalUsed)}</strong></span>
+      </div>
+    </div>
+    <table class="grid-table">
       <thead>
         <tr>
           <th style="width: 14%;">Situação</th>
-          <th style="width: 10%;">Dias</th>
-          <th style="width: 26%;">Datas da Folga</th>
-          <th style="width: 36%;">Motivo da Folga</th>
+          <th style="width: 10%;">Qtd</th>
+          <th style="width: 24%;">Datas da Folga</th>
+          <th style="width: 38%;">Motivo Declarado</th>
           <th style="width: 14%;">Data do Pedido</th>
         </tr>
       </thead>
       <tbody>
-        ${leaves.map(l => {
-          const statusCfg = statusLabels[l.status] ?? statusLabels.pending;
+        ${leaves.length === 0 ? `
+          <tr><td colspan="5" class="empty-row">Nenhum pedido de folga registrado.</td></tr>
+        ` : leaves.map(l => {
+          const statusTag = l.status === 'approved'
+            ? '<span class="tag app">Aprovado</span>'
+            : l.status === 'rejected'
+            ? '<span class="tag rej">Negado</span>'
+            : '<span class="tag pend">Pendente</span>';
           const datesFormatted = (l.leave_dates ?? []).map(d => fmtDate(d)).join(', ');
           return `
             <tr>
-              <td><strong>${statusCfg.label}</strong></td>
-              <td>${l.days_requested} dia(s)</td>
-              <td>${datesFormatted || '—'}</td>
-              <td>${l.observations?.trim() || 'Motivo não informado no pedido'}</td>
+              <td>${statusTag}</td>
+              <td><strong>${l.days_requested}</strong> dia(s)</td>
+              <td>${esc(datesFormatted || '—')}</td>
+              <td>${esc(l.observations?.trim() || 'Motivo não informado no pedido')}</td>
               <td>${fmtDate(l.created_at)}</td>
             </tr>
           `;
         }).join('')}
       </tbody>
     </table>
-  `}
+  </div>
+
+  <!-- Bloco 3: Ajustes Manuais de Crédito -->
+  <div class="unit-block">
+    <div class="unit-header">
+      <div class="unit-title">
+        <span>3. Ajustes Manuais e Histórico de Créditos</span>
+        <span class="unit-count">${manualCredits.length} ${manualCredits.length === 1 ? 'registro' : 'registros'}</span>
+      </div>
+      <div class="unit-stats">
+        <span>Saldo de Ajustes: <strong style="color: #b45309;">${totalManual > 0 ? '+' : ''}${fmtCredit(totalManual)}</strong></span>
+      </div>
+    </div>
+    <table class="grid-table">
+      <thead>
+        <tr>
+          <th style="width: 16%;">Data</th>
+          <th style="width: 24%;">Tipo de Movimentação</th>
+          <th style="width: 16%;">Quantidade</th>
+          <th style="width: 44%;">Justificativa / Motivo do Ajuste</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${manualCredits.length === 0 ? `
+          <tr><td colspan="4" class="empty-row">Nenhum ajuste manual registrado.</td></tr>
+        ` : manualCredits.map(c => {
+          const isAdd = Number(c.amount) > 0;
+          return `
+            <tr>
+              <td>${fmtDate(c.created_at)}</td>
+              <td>
+                <span class="tag ${isAdd ? 'add' : 'rem'}">
+                  ${isAdd ? 'Manual Adicionado' : 'Manual Retirado'}
+                </span>
+              </td>
+              <td><strong style="color: ${isAdd ? '#92400e' : '#6b21a8'};">${isAdd ? '+' : ''}${fmtCredit(c.amount)}</strong></td>
+              <td>${esc(c.notes?.trim() || 'Ajuste manual lançado no sistema')}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  ${transfers.length > 0 ? `
+  <!-- Bloco 4: Transferências entre Unidades -->
+  <div class="unit-block">
+    <div class="unit-header">
+      <div class="unit-title">
+        <span>4. Histórico de Transferências entre Unidades</span>
+        <span class="unit-count">${transfers.length}</span>
+      </div>
+    </div>
+    <table class="grid-table">
+      <thead>
+        <tr>
+          <th style="width: 22%;">Data da Transferência</th>
+          <th style="width: 39%;">Unidade de Origem</th>
+          <th style="width: 39%;">Unidade de Destino</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${transfers.map(t => `
+          <tr>
+            <td><strong>${fmtDate(t.transferred_at)}</strong> <span style="color:#64748b;">(${weekday(t.transferred_at)})</span></td>
+            <td>${esc(getUnitName(t.from_unit_id))}</td>
+            <td><strong>${esc(getUnitName(t.to_unit_id))}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>` : ''}
 
   <div class="footer">
-    Documento individual emitido para fins funcionais pelo Sistema de Gestão de Escalas • Página 1/1
+    Documento individual emitido eletronicamente pelo Sistema de Gestão de Escalas da Secretaria de Saúde
   </div>
 </body>
 </html>`;
@@ -459,7 +670,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   const handleDownloadExcel = () => {
     try {
       let csv = '\uFEFF';
-      csv += `FICHA FUNCIONAL - ${employeeName.toUpperCase()}\n`;
+      csv += `RELATÓRIO INDIVIDUAL - ${employeeName.toUpperCase()}\n`;
       csv += `Categoria: ${empCategoryName};Unidade: ${empUnitName};Saldo Atual: ${fmtCredit(balance)}\n\n`;
 
       csv += 'ESCALAS E ATIVIDADES REALIZADAS\n';
@@ -479,12 +690,22 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
         csv += `"${statusCfg.label}";"${l.days_requested}";"${datesStr}";"${(l.observations || '').replace(/"/g, '""')}";"${fmtDate(l.created_at)}"\n`;
       });
 
+      const manualCredits = credits.filter(c => c.origin !== 'extra_shift' && c.origin !== 'leave_used');
+      if (manualCredits.length > 0) {
+        csv += '\nAJUSTES MANUAIS DE CRÉDITO\n';
+        csv += 'Data;Tipo;Quantidade;Justificativa\n';
+        manualCredits.forEach(c => {
+          const type = Number(c.amount) > 0 ? 'Manual Adicionado' : 'Manual Retirado';
+          csv += `"${fmtDate(c.created_at)}";"${type}";"${c.amount > 0 ? '+' : ''}${fmtCredit(c.amount)}";"${(c.notes || '').replace(/"/g, '""')}"\n`;
+        });
+      }
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const cleanName = employeeName.toLowerCase().replace(/\s+/g, '-');
       a.href = url;
-      a.download = `historico-${cleanName}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `relatorio-individual-${cleanName}-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
