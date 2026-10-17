@@ -294,9 +294,9 @@ export default function ReportExportDialog({
       page-break-inside: auto;
     }
     .unit-header {
-      background: #f3f4f6;
-      border: 1px solid #d1d5db;
-      border-bottom: 2px solid #374151;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-bottom: 2px solid #334155;
       padding: 8px 12px;
       display: flex;
       justify-content: space-between;
@@ -307,7 +307,7 @@ export default function ReportExportDialog({
     .unit-title {
       font-size: 13px;
       font-weight: 700;
-      color: #111827;
+      color: #0f172a;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -315,14 +315,14 @@ export default function ReportExportDialog({
     .unit-count {
       font-size: 11px;
       font-weight: normal;
-      color: #4b5563;
-      background: #e5e7eb;
+      color: #475569;
+      background: #e2e8f0;
       padding: 2px 6px;
       border-radius: 3px;
     }
     .unit-stats {
       font-size: 11px;
-      color: #374151;
+      color: #334155;
       display: flex;
       gap: 12px;
     }
@@ -331,92 +331,105 @@ export default function ReportExportDialog({
       font-size: 11.5px;
     }
 
-    .unit-body {
-      border: 1px solid #d1d5db;
+    /* FORMATO DE GRADE TABULAR */
+    .grid-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cbd5e1;
       border-top: none;
-      padding: 10px;
-      background: #fafafa;
-    }
-    .person-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 9px 12px;
-      margin-bottom: 8px;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-      page-break-inside: avoid;
+      font-size: 11px;
     }
-    .person-card:last-child {
-      margin-bottom: 0;
-    }
-    .person-card.is-clean {
-      padding: 6px 12px;
-      background: #ffffff;
-    }
-    .no-mov {
-      font-size: 10px;
-      color: #9ca3af;
-      font-style: italic;
-      padding-top: 2px;
-    }
-    .p-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding-bottom: 6px;
-      margin-bottom: 6px;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    .p-name { font-size: 12px; font-weight: 700; color: #111827; }
-    .p-cat {
-      margin-left: 6px;
-      font-size: 10px;
-      color: #4b5563;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-    .p-sum { display: flex; gap: 6px; }
-    .chip {
-      font-size: 10px;
-      color: #4b5563;
-      border: 1px solid #e5e7eb;
-      background: #f9fafb;
-      padding: 1px 6px;
-      border-radius: 3px;
-    }
-    .chip b { font-family: monospace; font-size: 11px; color: #111827; }
-    .chip.bal.pos b { color: #059669; }
-    .chip.bal.neg b { color: #b91c1c; }
-    .p-cols {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr;
-      gap: 12px;
-    }
-    .col-title {
+    .grid-table thead th {
+      background: #f8fafc;
+      color: #334155;
       font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
-      color: #1d4ed8;
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 2px;
-      margin-bottom: 3px;
+      letter-spacing: 0.4px;
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
     }
-    .col-title.t-leave { color: #b91c1c; }
-    .col-title.t-man { color: #b45309; }
+    .grid-table tbody tr {
+      border-bottom: 1px solid #e2e8f0;
+      page-break-inside: avoid;
+    }
+    .grid-table tbody tr:nth-child(even) {
+      background: #fbfcfd;
+    }
+    .grid-table td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 9px;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+    .cell-prof {
+      vertical-align: top;
+    }
+    .p-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+    .p-cat {
+      display: inline-block;
+      margin-top: 3px;
+      font-size: 9.5px;
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    .col-pill {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-bottom: 4px;
+    }
+    .col-pill-shift {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    .col-pill-leave {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .ev-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5px;
+    }
     .ln {
       font-size: 10px;
       line-height: 1.35;
-      padding: 2px 0;
-      border-bottom: 1px dotted #f3f4f6;
-      color: #374151;
+      padding: 1px 0;
+      border-bottom: 1px dotted #f1f5f9;
+      color: #334155;
     }
-    .ln .dt { font-weight: 700; color: #111827; margin-right: 4px; white-space: nowrap; }
-    .ln .dt i { font-style: normal; font-weight: 400; color: #6b7280; }
+    .ln:last-child {
+      border-bottom: none;
+    }
+    .ln .dt {
+      font-weight: 700;
+      color: #0f172a;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    .ln .dt i {
+      font-style: normal;
+      font-weight: 400;
+      color: #64748b;
+    }
     .tag {
       font-size: 9px;
       font-weight: 700;
@@ -428,7 +441,52 @@ export default function ReportExportDialog({
     .tag.extra { background: #dbeafe; color: #1e40af; }
     .tag.add { background: #fef3c7; color: #92400e; }
     .tag.rem { background: #f3e8ff; color: #6b21a8; }
-    .none { font-size: 10px; color: #9ca3af; padding: 2px 0; }
+    .dash-empty {
+      color: #94a3b8;
+      font-weight: bold;
+      font-size: 12px;
+      display: inline-block;
+      padding: 2px 0;
+    }
+    .cell-bal {
+      text-align: center;
+      vertical-align: middle !important;
+      white-space: nowrap;
+    }
+    .bal-pill {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 800;
+      font-family: monospace;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+    }
+    .bal-pill.pos {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #a7f3d0;
+    }
+    .bal-pill.neg {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+    .bal-pill.zero {
+      background: #f8fafc;
+      color: #64748b;
+      border-color: #e2e8f0;
+    }
+    .bal-meta {
+      margin-top: 4px;
+      font-size: 9px;
+      color: #64748b;
+      line-height: 1.25;
+    }
+    .bal-meta b {
+      font-family: monospace;
+      color: #334155;
+    }
 
     .footer {
       margin-top: 24px;
@@ -460,10 +518,14 @@ export default function ReportExportDialog({
     @media print {
       body { padding: 0; }
       .actions-bar { display: none !important; }
-      .unit-header { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .unit-header { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .unit-block { page-break-inside: auto; }
-      .person-card { page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      tr { page-break-inside: avoid; }
+      .grid-table { page-break-inside: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-table thead { display: table-header-group; }
+      .grid-table tbody tr { page-break-inside: avoid; }
+      .grid-table thead th { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-table tbody tr:nth-child(even) { background: #fbfcfd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .bal-pill, .tag, .col-pill, .p-cat { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -476,7 +538,7 @@ export default function ReportExportDialog({
   <div class="header">
     <div class="header-title">
       <h1>Relatório Geral de Saldo de Folgas</h1>
-      <p>Secretaria de Saúde • Organizado por Unidade de Saúde e Categoria Profissional</p>
+      <p>Secretaria de Saúde • Grade Detalhada por Unidade e Categoria Profissional</p>
     </div>
     <div class="header-meta">
       <p>Data de emissão: <strong>${emissionDate}</strong></p>
@@ -520,72 +582,89 @@ export default function ReportExportDialog({
         </div>
       </div>
 
-      <div class="unit-body">
-        ${unit.rows.map(r => {
-          const list = entries[r.employee.id] ?? [];
-          const wd = (d: string) => {
-            try { return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); } catch { return ''; }
-          };
-          const scales = list.filter(e => e.kind === 'escala' || e.kind === 'extra');
-          const leaves = list.filter(e => e.kind === 'folga');
-          const manuals = list.filter(e => e.kind === 'manual');
-          const signed = (n: number) => (n > 0 ? '+' : '') + fmtCredit(n);
-          const hasMovement = scales.length > 0 || leaves.length > 0 || manuals.length > 0;
-          const empty = '<div class="none">Nenhum registro</div>';
+      <table class="grid-table">
+        <thead>
+          <tr>
+            <th style="width: 21%;">Profissional / Categoria</th>
+            <th style="width: 32%;">Plantões Extras & Escalas Realizadas</th>
+            <th style="width: 23%;">Folgas Usufruídas</th>
+            <th style="width: 14%;">Ajustes Manuais</th>
+            <th style="width: 10%; text-align: center;">Saldo Atual</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${unit.rows.map(r => {
+            const list = entries[r.employee.id] ?? [];
+            const wd = (d: string) => {
+              try { return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); } catch { return ''; }
+            };
+            const scales = list.filter(e => e.kind === 'escala' || e.kind === 'extra');
+            const leaves = list.filter(e => e.kind === 'folga');
+            const manuals = list.filter(e => e.kind === 'manual');
+            const signed = (n: number) => (n > 0 ? '+' : '') + fmtCredit(n);
 
-          return `
-          <div class="person-card ${!hasMovement ? 'is-clean' : ''}">
-            <div class="p-head">
-              <div>
-                <span class="p-name">${esc(r.employee.name)}</span>
+            return `
+            <tr>
+              <td class="cell-prof">
+                <div class="p-name">${esc(r.employee.name)}</div>
                 <span class="p-cat">${esc(r.categoryName)}</span>
-              </div>
-              <div class="p-sum">
-                <span class="chip">Plantões <b>+${fmtCredit(r.shifts)}</b></span>
-                <span class="chip">Manuais <b>${r.manual !== 0 ? signed(r.manual) : '0'}</b></span>
-                <span class="chip">Folgas <b>-${fmtCredit(r.used)}</b></span>
-                <span class="chip bal ${r.balance > 0 ? 'pos' : r.balance < 0 ? 'neg' : ''}">Saldo <b>${signed(r.balance)}</b></span>
-              </div>
-            </div>
-
-            ${hasMovement ? `
-              <div class="p-cols">
-                <div>
-                  <div class="col-title">Plantões e Escalas (${scales.length})</div>
-                  ${scales.length === 0 ? empty : scales.map(e => `
-                    <div class="ln">
-                      <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
-                      ${e.kind === 'extra' ? `<span class="tag extra">${esc(e.label.replace('Plantão extra ', 'Extra '))}</span>` : ''}
-                      <span class="tx">${esc(e.desc)}</span>
-                    </div>`).join('')}
+              </td>
+              <td class="cell-events">
+                ${scales.length === 0 ? '<span class="dash-empty">—</span>' : `
+                  <div class="col-pill col-pill-shift">+${fmtCredit(r.shifts)} créditos (${scales.length} ${scales.length === 1 ? 'escala' : 'escalas'})</div>
+                  <div class="ev-stack">
+                    ${scales.map(e => `
+                      <div class="ln">
+                        <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                        ${e.kind === 'extra' ? `<span class="tag extra">${esc(e.label.replace('Plantão extra ', 'Extra '))}</span>` : ''}
+                        <span class="tx">${esc(e.desc)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </td>
+              <td class="cell-events">
+                ${leaves.length === 0 ? '<span class="dash-empty">—</span>' : `
+                  <div class="col-pill col-pill-leave">-${fmtCredit(r.used)} ${r.used === 1 ? 'folga' : 'folgas'}</div>
+                  <div class="ev-stack">
+                    ${leaves.map(e => `
+                      <div class="ln">
+                        <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
+                        <span class="tx">${esc(e.desc)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </td>
+              <td class="cell-events">
+                ${manuals.length === 0 ? '<span class="dash-empty">—</span>' : `
+                  <div class="ev-stack">
+                    ${manuals.map(e => {
+                      const removed = e.label.startsWith('Crédito retirado');
+                      return `
+                      <div class="ln">
+                        <span class="dt">${fmtDate(e.date).slice(0, 5)}</span>
+                        <span class="tag ${removed ? 'rem' : 'add'}">${esc(e.label.replace('Crédito manual', 'Adicionado').replace('Crédito retirado', 'Retirado'))}</span>
+                        <span class="tx">${esc(e.desc)}</span>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                `}
+              </td>
+              <td class="cell-bal">
+                <div class="bal-pill ${r.balance > 0 ? 'pos' : r.balance < 0 ? 'neg' : 'zero'}">
+                  ${signed(r.balance)}
                 </div>
-                <div>
-                  <div class="col-title t-leave">Folgas Usufruídas (${leaves.length})</div>
-                  ${leaves.length === 0 ? empty : leaves.map(e => `
-                    <div class="ln">
-                      <span class="dt">${fmtDate(e.date).slice(0, 5)} <i>${wd(e.date)}</i></span>
-                      <span class="tx">${esc(e.desc)}</span>
-                    </div>`).join('')}
+                <div class="bal-meta">
+                  <div>Pl: <b>+${fmtCredit(r.shifts)}</b></div>
+                  ${r.manual !== 0 ? `<div>Aj: <b>${signed(r.manual)}</b></div>` : ''}
+                  <div>Fol: <b>-${fmtCredit(r.used)}</b></div>
                 </div>
-                <div>
-                  <div class="col-title t-man">Ajustes Manuais (${manuals.length})</div>
-                  ${manuals.length === 0 ? empty : manuals.map(e => {
-                    const removed = e.label.startsWith('Crédito retirado');
-                    return `
-                    <div class="ln">
-                      <span class="dt">${fmtDate(e.date).slice(0, 5)}</span>
-                      <span class="tag ${removed ? 'rem' : 'add'}">${esc(e.label.replace('Crédito manual', 'Adicionado').replace('Crédito retirado', 'Retirado'))}</span>
-                      <span class="tx">${esc(e.desc)}</span>
-                    </div>`;
-                  }).join('')}
-                </div>
-              </div>
-            ` : `
-              <div class="no-mov">Sem plantões extras, folgas ou ajustes registrados no período.</div>
-            `}
-          </div>`;
-        }).join('')}
-      </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
     </div>
   `).join('')}
 
