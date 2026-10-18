@@ -471,7 +471,7 @@ export default function ProfessionalPortal() {
   const pastLeaves = leaves.filter((l) => l.status !== 'pending');
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-foreground pb-20 sm:pb-12">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-foreground pb-8">
       {/* Modal de Aceite de Termos (LGPD) */}
       <PortalTermsDialog
         open={termsOpen}
@@ -1049,79 +1049,6 @@ export default function ProfessionalPortal() {
           </TabsContent>
         </Tabs>
       </main>
-
-      {/* ─── BOTTOM NAVIGATION BAR (Design Idêntico à Imagem: Início, Escalas, Extrato, Perfil) ─── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 shadow-lg">
-        <div className="max-w-md mx-auto grid grid-cols-4 h-16 items-center px-4">
-          {/* Botão 1: Início */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('schedules')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all py-1 ${
-              activeTab === 'schedules'
-                ? 'text-[#0284c7] font-bold'
-                : 'text-slate-400 hover:text-slate-600 font-medium'
-            }`}
-          >
-            <Home size={20} className={activeTab === 'schedules' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-            <span className="text-[10px] tracking-tight">Início</span>
-          </button>
-
-          {/* Botão 2: Escalas / Folgas */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('leaves')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all py-1 relative ${
-              activeTab === 'leaves'
-                ? 'text-[#0284c7] font-bold'
-                : 'text-slate-400 hover:text-slate-600 font-medium'
-            }`}
-          >
-            <div className="relative">
-              <CalendarDays size={20} className={activeTab === 'leaves' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-              {pendingLeaves.length > 0 && (
-                <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-amber-500 text-white rounded-full text-[8.5px] font-black flex items-center justify-center">
-                  {pendingLeaves.length}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] tracking-tight">Escalas</span>
-          </button>
-
-          {/* Botão 3: Extrato (com ícone em barra igual na imagem) */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('credits')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all py-1 ${
-              activeTab === 'credits'
-                ? 'text-[#0284c7] font-bold'
-                : 'text-slate-400 hover:text-slate-600 font-medium'
-            }`}
-          >
-            <SlidersHorizontal size={20} className={activeTab === 'credits' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-            <span className="text-[10px] tracking-tight">Extrato</span>
-          </button>
-
-          {/* Botão 4: Perfil / Ajuda */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('help')}
-            className={`flex flex-col items-center justify-center gap-1 transition-all py-1 ${
-              activeTab === 'help'
-                ? 'text-[#0284c7] font-bold'
-                : 'text-slate-400 hover:text-slate-600 font-medium'
-            }`}
-          >
-            <User size={20} className={activeTab === 'help' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
-            <span className="text-[10px] tracking-tight">Perfil</span>
-          </button>
-        </div>
-
-        {/* Home Indicator estilizado para iPhone PWA */}
-        <div className="w-full flex justify-center pb-2 pt-1">
-          <div className="w-32 h-1 bg-slate-900/90 dark:bg-white/90 rounded-full" />
-        </div>
-      </nav>
     </div>
   );
 }

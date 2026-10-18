@@ -15,6 +15,7 @@ import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import QuickScheduleDialog from '@/components/schedule/QuickScheduleDialog';
 import AccessCodeDialog from '@/components/AccessCodeDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 
 const getWhatsAppLink = (phone: string) => {
@@ -26,6 +27,7 @@ interface Employee {
   id: string; name: string; category_id: string | null;
   unit_id: string | null; active: boolean; team_id: string;
   phone?: string | null;
+  avatar_url?: string | null;
 }
 interface Category { id: string; name: string; color: string; }
 interface Unit { id: string; name: string; }
@@ -301,8 +303,16 @@ export default function Employees() {
             <div className="absolute inset-0 bg-white/40 pointer-events-none" />
             
             <div className="relative z-10">
-              <div className="flex justify-between items-start mb-2">
-                <p className="font-bold text-base text-foreground tracking-tight truncate pr-2">{emp.name}</p>
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Avatar className="w-10 h-10 rounded-full border border-black/10 shadow-xs shrink-0 bg-white">
+                    <AvatarImage src={emp.avatar_url || undefined} alt={emp.name} className="object-cover" />
+                    <AvatarFallback className="font-bold text-xs bg-primary/10 text-primary">
+                      {emp.name ? emp.name.slice(0, 2).toUpperCase() : 'PS'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p className="font-bold text-base text-foreground tracking-tight truncate">{emp.name}</p>
+                </div>
                 <Badge 
                   variant={balance > 0 ? 'default' : balance < 0 ? 'destructive' : 'secondary'}
                   className="font-mono text-[10px] shadow-sm shrink-0"
@@ -448,7 +458,17 @@ export default function Employees() {
         <tbody className="divide-y divide-border">
           {filtered.map(emp => (
             <tr key={emp.id} className="group hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setDetailEmp(emp)}>
-              <td className="px-5 py-3.5 font-medium text-foreground">{emp.name}</td>
+              <td className="px-5 py-3.5 font-medium text-foreground">
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="w-8 h-8 rounded-full border border-border shadow-2xs shrink-0">
+                    <AvatarImage src={emp.avatar_url || undefined} alt={emp.name} className="object-cover" />
+                    <AvatarFallback className="font-bold text-[11px] bg-primary/10 text-primary">
+                      {emp.name ? emp.name.slice(0, 2).toUpperCase() : 'PS'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{emp.name}</span>
+                </div>
+              </td>
               <td className="px-5 py-3.5">
                 {(isAdmin || isRH || isChief || isManager) && emp.phone ? (
                   <a

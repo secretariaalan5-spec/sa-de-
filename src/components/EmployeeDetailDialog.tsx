@@ -16,6 +16,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import AccessCodeDialog from '@/components/AccessCodeDialog';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -92,6 +93,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
   const [empCategoryName, setEmpCategoryName] = useState<string>('—');
   const [empUnitName, setEmpUnitName] = useState<string>('—');
   const [empPhone, setEmpPhone] = useState<string | null>(null);
+  const [empAvatarUrl, setEmpAvatarUrl] = useState<string | null>(null);
   const [codeOpen, setCodeOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -133,8 +135,8 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       supabase.from('units').select('id, name'),
       supabase.from('categories').select('id, name'),
 
-      // 6. Dados do próprio profissional (categoria, unidade e telefone)
-      supabase.from('employees').select('id, category_id, unit_id, phone').eq('id', employeeId).maybeSingle(),
+      // 6. Dados do próprio profissional (categoria, unidade, telefone e foto avatar_url)
+      supabase.from('employees').select('id, category_id, unit_id, phone, avatar_url').eq('id', employeeId).maybeSingle(),
     ]).then(([s, l, t, c, u, cat, emp]) => {
       setSchedules(s.data ?? []);
       setLeaves(l.data ?? []);
@@ -152,6 +154,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
         setEmpCategoryName(catObj?.name ?? '—');
         setEmpUnitName(unitObj?.name ?? '—');
         setEmpPhone(emp.data.phone ?? null);
+        setEmpAvatarUrl(emp.data.avatar_url ?? null);
       }
 
       setLoading(false);
@@ -727,11 +730,19 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap pr-6">
-            <div>
-              <DialogTitle className="text-lg">{employeeName}</DialogTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {empCategoryName} • {empUnitName}
-              </p>
+            <div className="flex items-center gap-3">
+              <Avatar className="w-12 h-12 rounded-full border border-border shadow-xs shrink-0">
+                <AvatarImage src={empAvatarUrl || undefined} alt={employeeName} className="object-cover" />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                  {employeeName ? employeeName.slice(0, 2).toUpperCase() : 'PS'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <DialogTitle className="text-lg">{employeeName}</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {empCategoryName} • {empUnitName}
+                </p>
+              </div>
             </div>
 
             {/* Apenas PDF e Excel - sem HTML */}
