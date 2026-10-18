@@ -251,10 +251,18 @@ export default function Employees() {
       // 3. Remove as escalas agora que os créditos sumiram
       await supabase.from('schedules').delete().eq('employee_id', id);
 
+      // 4. Remove notificações existentes vinculadas a este profissional
+      if (empName && empName.trim()) {
+        await supabase
+          .from('notifications')
+          .delete()
+          .ilike('message', `%${empName.trim()}%`);
+      }
+
       const { error } = await supabase.from('employees').update({ active: false }).eq('id', id);
       if (error) { toast.error('Erro ao desativar profissional.'); return; }
       
-      toast.success('Profissional removido e dados relacionados apagados!');
+      toast.success('Profissional removido e notificações apagadas!');
       load();
     } catch (err) {
       console.error('Erro na deleção cascade:', err);
