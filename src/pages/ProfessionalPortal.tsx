@@ -38,10 +38,20 @@ import {
   MapPin,
   Home,
   FileText,
+  Lock,
+  ArrowLeftRight,
+  Check,
+  CheckCheck,
 } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import PortalTermsDialog from '@/components/portal/PortalTermsDialog';
 import { compressAvatarImage } from '@/lib/imageCompressor';
 import logoSaude from '@/assets/logo-saude.png';
+import camocimBg from '@/assets/camocim-bg.jpg';
 import { toast } from 'sonner';
 
 interface DashboardData {
@@ -78,12 +88,27 @@ interface DashboardData {
     created_at: string;
     decided_at: string | null;
   }>;
+  transfers: Array<{
+    id: string;
+    from_unit_name: string;
+    to_unit_name: string;
+    transferred_at: string;
+  }>;
   credits: Array<{
     id: string;
     amount: number;
     origin: string;
     notes: string | null;
     created_at: string;
+  }>;
+  notifications: Array<{
+    id: string;
+    title: string;
+    message: string;
+    is_global: boolean;
+    priority: string;
+    created_at: string;
+    is_read: boolean;
   }>;
 }
 
@@ -142,10 +167,11 @@ export default function ProfessionalPortal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
-  // Estados de Navegação e Filtros Estilo App Nativo
-  const [activeTab, setActiveTab] = useState<'schedules' | 'leaves' | 'credits' | 'help'>('schedules');
+  // Estados de Navegação e Filtros Estilo App Nativo (Escalas, Folgas, Transferências, Créditos, Ajuda)
+  const [activeTab, setActiveTab] = useState<'schedules' | 'leaves' | 'transfers' | 'credits' | 'help'>('schedules');
   const [creditFilter, setCreditFilter] = useState<'all' | 'shifts' | 'manual' | 'used'>('all');
   const [leaveFilter, setLeaveFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -207,7 +233,7 @@ export default function ProfessionalPortal() {
     }
   }, [sessionToken, loadDashboard]);
 
-  // Realtime: escuta atualizações para manter escalas e folgas sempre sincronizadas
+  // Realtime: escuta atualizações para manter escalas, folgas e notificações sempre sincronizadas
   useEffect(() => {
     if (!data?.profile?.id) return;
     const empId = data.profile.id;
@@ -235,12 +261,70 @@ export default function ProfessionalPortal() {
           if (sessionToken) loadDashboard(sessionToken);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => {
+          if (sessionToken) loadDashboard(sessionToken);
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [data?.profile?.id, sessionToken, loadDashboard]);
+
+  // Logout do portal
+  const handleLogout = async () => {
+    if (!window.confirm('Deseja realmente sair do seu acesso no portal?')) return;
+    if (sessionToken) {
+      try {
+        await supabase.rpc('portal_logout', { p_token: sessionToken });
+      } catch (e) {
+        console.error('Erro no logout:', e);
+      }
+    }
+    localStorage.removeItem('saude_portal_token');
+    setSessionToken(null);
+    setData(null);
+    setInputCode('');
+    toast.success('Você saiu com segurança.');
+  };
+
+  // Notificações: marcar uma como lida
+  const handleMarkNotifRead = async (notifId: string) => {
+    if (!sessionToken) return;
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notifications: prev.notifications.map((n) =>
+          n.id === notifId ? { ...n, is_read: true } : n
+        ),
+      };
+    });
+    await supabase.rpc('portal_mark_notification_read', {
+      p_token: sessionToken,
+      p_notification_id: notifId,
+    });
+  };
+
+  // Notificações: marcar todas como lidas
+  const handleMarkAllNotifsRead = async () => {
+    if (!sessionToken) return;
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notifications: prev.notifications.map((n) => ({ ...n, is_read: true })),
+      };
+    });
+    await supabase.rpc('portal_mark_all_notifications_read', {
+      p_token: sessionToken,
+    });
+    toast.success('Todas as notificações marcadas como lidas.');
+  };
 
   // Manipulador de Login por Código de 3 Dígitos
   const handleLogin = async (e: React.FormEvent) => {
@@ -303,22 +387,6 @@ export default function ProfessionalPortal() {
     }
   };
 
-  // Logout do Portal
-  const handleLogout = async () => {
-    if (sessionToken) {
-      try {
-        await supabase.rpc('portal_logout', { p_token: sessionToken });
-      } catch {
-        // ignore
-      }
-    }
-    localStorage.removeItem('saude_portal_token');
-    setSessionToken(null);
-    setData(null);
-    setInputCode('');
-    toast.info('Sessão encerrada com sucesso.');
-  };
-
   // Upload e Compressão de Foto de Perfil
   const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -375,80 +443,142 @@ export default function ProfessionalPortal() {
   // ─────────────────────────────────────────────────────────────────────────────
   if (!sessionToken || (!data && !dataLoading)) {
     const formattedInput = inputCode.replace(/\D/g, '').slice(0, 3);
+    const pinDigits = [0, 1, 2];
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex flex-col justify-between p-4 sm:p-6 text-white font-sans antialiased selection:bg-primary selection:text-white">
-        <div className="w-full max-w-sm mx-auto my-auto py-8">
-          {/* Card Principal de Login */}
-          <div className="bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center">
-            {/* Logo e Cabeçalho */}
-            <div className="space-y-3">
-              <div className="inline-flex p-2.5 rounded-2xl bg-white/10 border border-white/20 shadow-inner">
-                <img src={logoSaude} alt="Saúde+ Oficial" className="w-16 h-16 object-contain rounded-xl" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight text-white">Portal do Profissional</h1>
-                <p className="text-xs text-slate-300 mt-1">
-                  Consulte suas escalas, plantões e saldo de folgas em tempo real
-                </p>
-              </div>
+      <div className="relative min-h-screen w-full flex flex-col justify-between p-4 sm:p-6 text-white font-sans antialiased overflow-hidden select-none">
+        {/* Foto de Fundo Oficial (Camocim) com Tratamento e Gradiente Azul Profundo */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
+          style={{ backgroundImage: `url(${camocimBg})` }}
+        />
+        {/* Camada de Gradiente Azul Institucional Idêntica ao Mockup */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b3b82]/95 via-[#08295e]/90 to-[#041533]/98 backdrop-blur-[1.5px]" />
+        
+        {/* Elemento sutil de onda/curva na base */}
+        <div className="absolute -bottom-24 -left-20 w-[600px] h-[600px] rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+
+        {/* Conteúdo Central */}
+        <div className="relative z-10 w-full max-w-sm mx-auto my-auto flex flex-col items-center text-center pt-4 pb-6 space-y-6">
+          {/* Logo e Marca Oficial */}
+          <div className="flex flex-col items-center space-y-2">
+            <div className="relative flex items-center justify-center">
+              {/* Sombra / Glow sutil */}
+              <div className="absolute w-20 h-20 rounded-full bg-blue-400/20 blur-xl" />
+              <img
+                src={logoSaude}
+                alt="Saúde+"
+                className="w-20 h-20 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.35)] relative z-10"
+              />
             </div>
 
-            {/* Formulário de Código */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2 text-left">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Código de Acesso (3 dígitos)</span>
-                  <span className="text-[11px] text-primary-foreground/70 font-mono">ex: 042</span>
-                </label>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-sm font-sans">
+                SAÚDE<span className="text-sky-300">+</span>
+              </h1>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-200/90">
+                Portal do Servidor
+              </p>
+              {/* Linha divisora ciano estilizada como no mockup */}
+              <div className="w-10 h-0.5 bg-sky-400/80 rounded-full mx-auto my-2" />
+              <p className="text-xs text-sky-100/85 font-medium leading-relaxed max-w-[240px] mx-auto">
+                Juntos por uma saúde melhor em Camocim.
+              </p>
+            </div>
+          </div>
 
-                <div className="relative">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={3}
-                    placeholder="000"
-                    value={formattedInput}
-                    onChange={(e) => setInputCode(e.target.value)}
-                    className="w-full text-center tracking-[0.5em] font-mono text-4xl font-black h-16 rounded-2xl bg-black/40 border border-white/20 text-white placeholder:text-white/20 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
+          {/* Card Flutuante de Vidro Fosco (Glassmorphism Azul) */}
+          <div className="w-full bg-[#0d346c]/60 backdrop-blur-xl border border-sky-400/25 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-5">
+            {/* Header do Card com Ícone de Cadeado Redondo */}
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300 shadow-inner shrink-0">
+                <Lock size={16} />
+              </div>
+              <span className="text-sm font-bold text-white tracking-wide">
+                Digite seu código de acesso
+              </span>
+            </div>
+
+            {/* Formulário com Slots Visuais de PIN de 3 Dígitos */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="relative">
+                {/* Input invisível sobreposto para capturar teclado nativo mobile / desktop */}
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={3}
+                  value={formattedInput}
+                  onChange={(e) => setInputCode(e.target.value)}
+                  autoFocus
+                  className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
+                  aria-label="Código de acesso de 3 dígitos"
+                />
+
+                {/* 3 Slots Quadrados com Vidro e Dots como no Mockup */}
+                <div className="grid grid-cols-3 gap-3 relative z-10 pointer-events-none">
+                  {pinDigits.map((idx) => {
+                    const digit = formattedInput[idx];
+                    const isFilled = digit !== undefined;
+                    const isCurrent = formattedInput.length === idx;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`h-16 rounded-2xl flex items-center justify-center transition-all duration-200 border ${
+                          isFilled
+                            ? 'bg-sky-500/25 border-sky-300/80 shadow-[0_0_15px_rgba(56,189,248,0.25)]'
+                            : isCurrent
+                            ? 'bg-white/10 border-sky-400 ring-2 ring-sky-400/40'
+                            : 'bg-black/20 border-white/15'
+                        }`}
+                      >
+                        {isFilled ? (
+                          <span className="text-2xl font-black font-mono text-white tracking-wider animate-in zoom-in-75 duration-150">
+                            {digit}
+                          </span>
+                        ) : (
+                          <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Botão de Entrar Estilo Pílula Azul Vibrante */}
               <Button
                 type="submit"
                 disabled={loginLoading || formattedInput.length !== 3}
-                className="w-full h-12 rounded-2xl font-bold text-sm bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2"
+                className="w-full h-12 rounded-2xl font-bold text-sm bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loginLoading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>Validando Acesso...</span>
+                    <span>Verificando...</span>
                   </>
                 ) : (
                   <>
-                    <span>Entrar no Portal</span>
-                    <ArrowRight size={16} />
+                    <span>Entrar</span>
+                    <ArrowRight size={17} />
                   </>
                 )}
               </Button>
             </form>
 
-            {/* Orientação */}
-            <div className="pt-2 border-t border-white/10 text-[11px] text-slate-400 space-y-1">
-              <p>Não possui seu código? Solicite à chefia imediata ou ao RH da sua unidade.</p>
-              <div className="inline-flex items-center gap-1 text-slate-400 font-medium">
-                <ShieldCheck size={13} className="text-emerald-400" />
-                <span>Acesso seguro em modo de leitura</span>
-              </div>
+            {/* Aviso de Segurança e Privacidade no Card */}
+            <div className="flex items-center justify-center gap-2 pt-1 text-center text-xs text-sky-200/80">
+              <ShieldCheck size={16} className="text-sky-300 shrink-0" />
+              <span className="text-[11.5px] leading-tight">
+                Seu acesso é seguro e pessoal.
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Rodapé institucional */}
-        <div className="text-center text-[10.5px] text-slate-400 pb-2">
-          Saúde+ Gestão Integrada • Secretaria Municipal de Saúde
+        {/* Rodapé da Página */}
+        <div className="relative z-10 text-center text-[11px] text-sky-200/60 pb-2">
+          Prefeitura Municipal de Camocim • Secretaria de Saúde
         </div>
       </div>
     );
@@ -461,8 +591,11 @@ export default function ProfessionalPortal() {
   const summary = data?.summary || { shifts: 0, manual: 0, used: 0, balance: 0 };
   const schedules = data?.schedules || [];
   const leaves = data?.leaves || [];
+  const transfers = data?.transfers || [];
   const credits = data?.credits || [];
+  const notifications = data?.notifications || [];
 
+  const unreadNotifsCount = notifications.filter((n) => !n.is_read).length;
   const pendingLeaves = leaves.filter((l) => l.status === 'pending');
   const pastLeaves = leaves.filter((l) => l.status !== 'pending');
 
@@ -502,7 +635,7 @@ export default function ProfessionalPortal() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {isInstallable && (
               <Button
                 variant="outline"
@@ -511,35 +644,108 @@ export default function ProfessionalPortal() {
                 className="h-8 gap-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-emerald-500/30 rounded-lg px-2"
               >
                 <Download size={13} />
-                <span>Instalar</span>
+                <span className="hidden xs:inline">Instalar</span>
               </Button>
             )}
 
-            <button
-              onClick={() => sessionToken && loadDashboard(sessionToken)}
-              disabled={dataLoading}
-              title="Atualizar dados"
-              className="relative p-2 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
-            >
-              <Bell size={18} />
-              {pendingLeaves.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
-              )}
-            </button>
+            {/* Popover Interativo de Notificações */}
+            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  title="Notificações e Avisos"
+                  className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Bell size={18} />
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs animate-pulse">
+                      {unreadNotifsCount}
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-80 sm:w-96 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+              >
+                <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
+                    <Bell size={14} className="text-primary" />
+                    <span>Notificações e Avisos</span>
+                    {unreadNotifsCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
+                        {unreadNotifsCount} nova(s)
+                      </span>
+                    )}
+                  </div>
+                  {unreadNotifsCount > 0 && (
+                    <button
+                      onClick={handleMarkAllNotifsRead}
+                      className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck size={12} />
+                      <span>Marcar lidas</span>
+                    </button>
+                  )}
+                </div>
 
-            {/* Avatar no topo */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      Nenhuma notificação no momento.
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
+                        className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
+                          n.is_read
+                            ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                            {n.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                            {fmtDate(n.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
+                          {n.message}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Avatar no topo com alteração de foto */}
             <div
               onClick={() => fileInputRef.current?.click()}
               className="cursor-pointer relative"
               title="Clique para alterar foto"
             >
-              <Avatar className="w-9 h-9 rounded-full border border-slate-200 shadow-2xs">
+              <Avatar className="w-9 h-9 rounded-full border border-slate-200 shadow-2xs hover:ring-2 hover:ring-primary/40 transition-all">
                 <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
                 <AvatarFallback className="bg-blue-100 text-blue-900 font-bold text-xs">
                   {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
                 </AvatarFallback>
               </Avatar>
             </div>
+
+            {/* Botão de Sair Explícito */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="Sair do Portal"
+              className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
+            >
+              <LogOut size={16} />
+            </Button>
           </div>
         </div>
       </header>
@@ -631,42 +837,50 @@ export default function ProfessionalPortal() {
           </div>
         </div>
 
-        {/* Abas Superiores Idênticas à Referência */}
+        {/* Abas com as mesmas opções do Histórico Funcional: Escalas, Folgas, Transferências, Créditos/Extrato e Ajuda */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="w-full grid grid-cols-4 h-12 rounded-2xl bg-[#eef3f8] dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
+          <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-[#eef3f8] dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
             <TabsTrigger
               value="schedules"
-              className="text-xs font-bold gap-1.5 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
             >
-              <CalendarDays size={16} />
-              <span className="text-[11px] leading-none">Escalas</span>
+              <CalendarDays size={15} />
+              <span className="text-[10.5px] leading-none">Escalas</span>
             </TabsTrigger>
 
             <TabsTrigger
               value="leaves"
-              className="text-xs font-bold gap-1.5 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
+              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
             >
-              <FileText size={16} />
-              <span className="text-[11px] leading-none">Folgas</span>
+              <FileText size={15} />
+              <span className="text-[10.5px] leading-none">Folgas</span>
               {pendingLeaves.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1.5 right-2" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1.5 right-1.5" />
               )}
             </TabsTrigger>
 
             <TabsTrigger
-              value="credits"
-              className="text-xs font-bold gap-1.5 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              value="transfers"
+              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
             >
-              <Sparkles size={16} />
-              <span className="text-[11px] leading-none">Extrato</span>
+              <ArrowLeftRight size={15} />
+              <span className="text-[10.5px] leading-none">Transf.</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="credits"
+              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+            >
+              <Sparkles size={15} />
+              <span className="text-[10.5px] leading-none">Extrato</span>
             </TabsTrigger>
 
             <TabsTrigger
               value="help"
-              className="text-xs font-bold gap-1.5 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
             >
-              <HelpCircle size={16} />
-              <span className="text-[11px] leading-none">Ajuda</span>
+              <HelpCircle size={15} />
+              <span className="text-[10.5px] leading-none">Ajuda</span>
             </TabsTrigger>
           </TabsList>
 
@@ -854,7 +1068,52 @@ export default function ProfessionalPortal() {
             })()}
           </TabsContent>
 
-          {/* ABA 3: EXTRATO COMPLETO DE CRÉDITOS E AJUSTES MANUAIS (DESIGN IDÊNTICO À IMAGEM) */}
+          {/* ABA 3: TRANSFERÊNCIAS ENTRE UNIDADES (FIEL AO HISTÓRICO FUNCIONAL) */}
+          <TabsContent value="transfers" className="mt-3 space-y-2">
+            {transfers.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                <ArrowLeftRight size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-xs font-medium">Nenhuma transferência de unidade registrada.</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">
+                  Seu histórico de lotação permanece na unidade atual.
+                </p>
+              </div>
+            ) : (
+              transfers.map((t) => (
+                <div
+                  key={t.id}
+                  className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-sm text-foreground">
+                        {fmtDate(t.transferred_at)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ({weekday(t.transferred_at)})
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-semibold border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">
+                      Transferência Oficial
+                    </Badge>
+                  </div>
+
+                  <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-1">
+                    <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
+                      Movimentação de Unidade:
+                    </span>
+                    <div className="flex items-center gap-2 font-medium">
+                      <span className="text-slate-600 dark:text-slate-300">{t.from_unit_name}</span>
+                      <ArrowRight size={13} className="text-primary shrink-0" />
+                      <strong className="text-primary font-bold">{t.to_unit_name}</strong>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </TabsContent>
+
+          {/* ABA 4: EXTRATO COMPLETO DE CRÉDITOS E AJUSTES MANUAIS (DESIGN IDÊNTICO À IMAGEM) */}
           <TabsContent value="credits" className="mt-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
