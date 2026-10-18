@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle, CalendarPlus, KeyRound } from 'lucide-react';
+import { Plus, Users, Pencil, Search, LayoutGrid, List, Trash2, Eye, Phone, MapPin, Wallet, AlertTriangle, CalendarPlus, KeyRound, QrCode, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import QuickScheduleDialog from '@/components/schedule/QuickScheduleDialog';
 import AccessCodeDialog from '@/components/AccessCodeDialog';
+import GeneralQrPrintDialog from '@/components/portal/GeneralQrPrintDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
@@ -52,6 +53,7 @@ export default function Employees() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
   const [codeEmp, setCodeEmp] = useState<{ id: string; name: string; phone?: string | null; unit_name?: string | null; category_name?: string | null } | null>(null);
+  const [printQrOpen, setPrintQrOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Credit Adjustment State
@@ -571,39 +573,53 @@ export default function Employees() {
           <h1 className="text-2xl font-bold">Profissionais</h1>
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
-        {canAdd && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus size={16} /> Novo Profissional</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Cadastrar Profissional</DialogTitle><DialogDescription>Adicione um novo profissional ao sistema.</DialogDescription></DialogHeader>
-              <form onSubmit={handleAdd} className="space-y-4">
-                <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
-                <div className="space-y-1.5"><Label>WhatsApp (Opcional)</Label><Input type="tel" placeholder="(00) 90000-0000" value={phone} onChange={e => setPhone(e.target.value)} /></div>
-                <div className="space-y-1.5">
-                  <Label>Categoria</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                {!isManager && (
+        <div className="flex items-center gap-2">
+          {(isAdmin || isRH || isManager || isChief) && (
+            <Button
+              variant="outline"
+              onClick={() => setPrintQrOpen(true)}
+              className="gap-2 border-primary/30 text-primary hover:bg-primary/5 hover:text-primary font-semibold text-xs h-9 shadow-xs"
+              title="Imprimir cartaz com QR Code Geral e instruções de acesso"
+            >
+              <QrCode size={16} />
+              <span>Imprimir Cartaz QR Code</span>
+            </Button>
+          )}
+
+          {canAdd && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 h-9 text-xs"><Plus size={16} /> Novo Profissional</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Cadastrar Profissional</DialogTitle><DialogDescription>Adicione um novo profissional ao sistema.</DialogDescription></DialogHeader>
+                <form onSubmit={handleAdd} className="space-y-4">
+                  <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                  <div className="space-y-1.5"><Label>WhatsApp (Opcional)</Label><Input type="tel" placeholder="(00) 90000-0000" value={phone} onChange={e => setPhone(e.target.value)} /></div>
                   <div className="space-y-1.5">
-                    <Label>Unidade</Label>
-                    <Select value={unitId} onValueChange={setUnitId}>
+                    <Label>Categoria</Label>
+                    <Select value={categoryId} onValueChange={setCategoryId}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                )}
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+                  {!isManager && (
+                    <div className="space-y-1.5">
+                      <Label>Unidade</Label>
+                      <Select value={unitId} onValueChange={setUnitId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -693,6 +709,13 @@ export default function Employees() {
         employee={codeEmp}
         open={!!codeEmp}
         onOpenChange={(o) => { if (!o) setCodeEmp(null); }}
+      />
+
+      {/* Cartaz Geral de QR Code para Impressão */}
+      <GeneralQrPrintDialog
+        open={printQrOpen}
+        onOpenChange={setPrintQrOpen}
+        unitName={filterUnit !== 'all' ? units.find(u => u.id === filterUnit)?.name : null}
       />
 
       {/* Credit Adjustment Dialog */}

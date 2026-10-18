@@ -242,12 +242,12 @@ export default function ProfessionalPortal() {
     };
   }, [data?.profile?.id, sessionToken, loadDashboard]);
 
-  // Manipulador de Login por Código de 6 Dígitos
+  // Manipulador de Login por Código de 3 Dígitos
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = inputCode.replace(/\D/g, '');
-    if (clean.length !== 6) {
-      toast.error('Digite o código de 6 dígitos completo.');
+    const clean = inputCode.replace(/\D/g, '').slice(0, 3);
+    if (clean.length !== 3) {
+      toast.error('Digite o código de 3 dígitos completo.');
       return;
     }
 
@@ -374,11 +374,7 @@ export default function ProfessionalPortal() {
   // 1. TELA DE LOGIN POR CÓDIGO (se não estiver autenticado)
   // ─────────────────────────────────────────────────────────────────────────────
   if (!sessionToken || (!data && !dataLoading)) {
-    const formattedInput = inputCode.replace(/\D/g, '').slice(0, 6);
-    const displayFormatted =
-      formattedInput.length > 3
-        ? `${formattedInput.slice(0, 3)}-${formattedInput.slice(3)}`
-        : formattedInput;
+    const formattedInput = inputCode.replace(/\D/g, '').slice(0, 3);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex flex-col justify-between p-4 sm:p-6 text-white font-sans antialiased selection:bg-primary selection:text-white">
@@ -402,8 +398,8 @@ export default function ProfessionalPortal() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2 text-left">
                 <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Código de Acesso (6 dígitos)</span>
-                  <span className="text-[11px] text-primary-foreground/70 font-mono">ex: 839-201</span>
+                  <span>Código de Acesso (3 dígitos)</span>
+                  <span className="text-[11px] text-primary-foreground/70 font-mono">ex: 042</span>
                 </label>
 
                 <div className="relative">
@@ -411,18 +407,18 @@ export default function ProfessionalPortal() {
                     type="tel"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={7}
-                    placeholder="000-000"
-                    value={displayFormatted}
+                    maxLength={3}
+                    placeholder="000"
+                    value={formattedInput}
                     onChange={(e) => setInputCode(e.target.value)}
-                    className="w-full text-center tracking-[0.3em] font-mono text-2xl font-black h-14 rounded-2xl bg-black/30 border border-white/20 text-white placeholder:text-white/20 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
+                    className="w-full text-center tracking-[0.5em] font-mono text-4xl font-black h-16 rounded-2xl bg-black/40 border border-white/20 text-white placeholder:text-white/20 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
               </div>
 
               <Button
                 type="submit"
-                disabled={loginLoading || formattedInput.length !== 6}
+                disabled={loginLoading || formattedInput.length !== 3}
                 className="w-full h-12 rounded-2xl font-bold text-sm bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2"
               >
                 {loginLoading ? (

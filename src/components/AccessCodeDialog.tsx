@@ -100,7 +100,7 @@ export default function AccessCodeDialog({ open, onOpenChange, employee }: Props
     }
   };
 
-  const formattedCode = code ? `${code.slice(0, 3)}-${code.slice(3)}` : '••••••';
+  const formattedCode = code || '•••';
 
   const getWhatsAppMessage = () => {
     const firstName = employee?.name.split(' ')[0] || '';
@@ -152,11 +152,11 @@ export default function AccessCodeDialog({ open, onOpenChange, employee }: Props
           <TabsList className="w-full grid grid-cols-2 h-10 rounded-xl bg-muted/60 p-1">
             <TabsTrigger value="code" className="text-xs font-semibold gap-1.5 rounded-lg">
               <KeyRound size={14} />
-              <span>Código PIN</span>
+              <span>Código PIN (3 dígitos)</span>
             </TabsTrigger>
             <TabsTrigger value="qrcode" className="text-xs font-semibold gap-1.5 rounded-lg">
               <QrCode size={14} />
-              <span>QR Code Rápido</span>
+              <span>QR Code Direto</span>
             </TabsTrigger>
           </TabsList>
 
@@ -165,7 +165,7 @@ export default function AccessCodeDialog({ open, onOpenChange, employee }: Props
             {/* Box de Exibição do Código */}
             <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 text-center space-y-2">
               <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                Código de Acesso Pessoal (6 dígitos)
+                Código de Acesso Pessoal (3 dígitos)
               </span>
 
               <div className="flex items-center justify-center gap-3">
@@ -175,7 +175,7 @@ export default function AccessCodeDialog({ open, onOpenChange, employee }: Props
                     <span>Carregando código...</span>
                   </div>
                 ) : (
-                  <div className="font-mono text-3xl font-extrabold tracking-widest text-primary selection:bg-primary/20">
+                  <div className="font-mono text-4xl font-black tracking-[0.25em] text-primary selection:bg-primary/20">
                     {formattedCode}
                   </div>
                 )}

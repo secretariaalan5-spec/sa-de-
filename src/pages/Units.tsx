@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Plus, Building2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Building2, Pencil, Trash2, QrCode, Printer } from 'lucide-react';
 import { UnitDetailDialog } from '@/components/UnitDetailDialog';
+import GeneralQrPrintDialog from '@/components/portal/GeneralQrPrintDialog';
 
 interface Unit { id: string; name: string; active: boolean; }
 
@@ -22,6 +23,7 @@ export default function Units() {
   
   // Detail Dialog State
   const [detailUnit, setDetailUnit] = useState<Unit | null>(null);
+  const [printUnit, setPrintUnit] = useState<Unit | null>(null);
 
   const load = async () => {
     if (!roleInfo?.team_id) return;
@@ -65,22 +67,37 @@ export default function Units() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Unidades</h1>
-        {isAdmin && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus size={16} /> Nova Unidade</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Nova Unidade</DialogTitle><DialogDescription>Cadastre uma nova unidade no sistema.</DialogDescription></DialogHeader>
-              <form onSubmit={handleAdd} className="space-y-4">
-                <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
-                <Button type="submit" className="w-full">Criar</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Unidades</h1>
+          <p className="text-xs text-muted-foreground">Gerencie as unidades e imprima o cartaz de acesso</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPrintUnit({ id: '', name: 'Geral', active: true })}
+            className="gap-2 border-primary/30 text-primary hover:bg-primary/5 hover:text-primary font-semibold text-xs h-9 shadow-xs"
+            title="Imprimir cartaz geral com instruções"
+          >
+            <QrCode size={16} />
+            <span>Imprimir Cartaz Geral</span>
+          </Button>
+
+          {isAdmin && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 h-9 text-xs"><Plus size={16} /> Nova Unidade</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Nova Unidade</DialogTitle><DialogDescription>Cadastre uma nova unidade no sistema.</DialogDescription></DialogHeader>
+                <form onSubmit={handleAdd} className="space-y-4">
+                  <div className="space-y-1.5"><Label>Nome</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+                  <Button type="submit" className="w-full">Criar</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -120,20 +137,41 @@ export default function Units() {
                   <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Unidade</span>
                 </div>
               </div>
-              {isAdmin && (
-                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => openEditDialog(e, u)}>
-                    <Pencil size={14} />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0" onClick={(e) => handleDelete(e, u.id)}>
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                  title={`Imprimir Cartaz com QR Code para ${u.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPrintUnit(u);
+                  }}
+                >
+                  <QrCode size={15} />
+                </Button>
+                {isAdmin && (
+                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => openEditDialog(e, u)}>
+                      <Pencil size={14} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0" onClick={(e) => handleDelete(e, u.id)}>
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Cartaz Geral / Unidade com QR Code para Impressão */}
+      <GeneralQrPrintDialog
+        open={!!printUnit}
+        onOpenChange={(op) => !op && setPrintUnit(null)}
+        unitName={printUnit?.name && printUnit.name !== 'Geral' ? printUnit.name : null}
+      />
     </div>
   );
 }
