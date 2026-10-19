@@ -986,6 +986,19 @@ export default function ProfessionalPortal() {
               >
                 ✕ Indeferidas ({leaves.filter((l) => l.status === 'rejected').length})
               </button>
+              {leaves.some((l) => l.status === 'cancelled') && (
+                <button
+                  type="button"
+                  onClick={() => setLeaveFilter('cancelled')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                    leaveFilter === 'cancelled'
+                      ? 'bg-slate-700 text-white shadow-xs'
+                      : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 hover:bg-slate-500/20'
+                  }`}
+                >
+                  ↩ Canceladas ({leaves.filter((l) => l.status === 'cancelled').length})
+                </button>
+              )}
             </div>
 
             {/* Listagem de Folgas */}
@@ -994,6 +1007,7 @@ export default function ProfessionalPortal() {
                 if (leaveFilter === 'pending') return l.status === 'pending';
                 if (leaveFilter === 'approved') return l.status === 'approved';
                 if (leaveFilter === 'rejected') return l.status === 'rejected';
+                if (leaveFilter === 'cancelled') return l.status === 'cancelled';
                 return true;
               });
 
@@ -1011,6 +1025,7 @@ export default function ProfessionalPortal() {
                   {filteredLeaves.map((l) => {
                     const isPending = l.status === 'pending';
                     const isApproved = l.status === 'approved';
+                    const isCancelled = l.status === 'cancelled';
 
                     return (
                       <div
@@ -1018,6 +1033,8 @@ export default function ProfessionalPortal() {
                         className={`p-3.5 rounded-2xl border ${
                           isPending
                             ? 'border-amber-400 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs'
+                            : isCancelled
+                            ? 'border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 opacity-90'
                             : 'border-border bg-white dark:bg-slate-900 shadow-2xs'
                         } space-y-2`}
                       >
@@ -1031,13 +1048,21 @@ export default function ProfessionalPortal() {
                                 ? 'bg-amber-500 text-white text-[10px] font-bold flex items-center gap-1'
                                 : isApproved
                                 ? 'bg-emerald-600 text-white text-[10px] font-bold'
+                                : isCancelled
+                                ? 'bg-slate-500 text-white text-[10px] font-bold'
                                 : 'bg-rose-600 text-white text-[10px] font-bold'
                             }
                           >
                             {isPending && <Clock size={11} />}
-                            {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : 'Indeferida'}
+                            {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : isCancelled ? 'Cancelada' : 'Indeferida'}
                           </Badge>
                         </div>
+
+                        {isCancelled && (
+                          <div className="text-[11px] font-medium text-muted-foreground bg-slate-100 dark:bg-slate-800/60 p-2 rounded-xl border border-border/50">
+                            ℹ️ Folga cancelada. Os créditos correspondentes permanecem disponíveis em seu saldo.
+                          </div>
+                        )}
 
                         <div className="text-xs text-muted-foreground">
                           <strong>Datas da folga: </strong>

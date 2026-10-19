@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, CalendarOff, Check, Clock, CheckCircle2, XCircle, AlertTriangle, Tag, MapPin } from 'lucide-react';
+import { Plus, CalendarOff, Check, Clock, CheckCircle2, XCircle, AlertTriangle, Tag, MapPin, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LeaveRequestForm from '@/components/leave/LeaveRequestForm';
 import { ResponsiveDialog } from '@/components/ui/responsive-dialog';
@@ -23,6 +23,9 @@ interface LeaveReq {
   decided_by: string | null;
   decided_at: string | null;
   is_short_notice?: boolean;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  cancellation_reason?: string | null;
 }
 
 interface Employee { id: string; name: string; category_id: string | null; unit_id: string | null; }
@@ -49,6 +52,9 @@ export default function LeaveRequests() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [cancellingRequest, setCancellingRequest] = useState<LeaveReq | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [cancellingLoading, setCancellingLoading] = useState(false);
 
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
@@ -173,6 +179,36 @@ export default function LeaveRequests() {
     }
   };
 
+  const handleConfirmCancel = async () => {
+    if (!cancellingRequest) return;
+    setCancellingLoading(true);
+    try {
+      const { data: res, error } = await supabase.rpc('cancel_leave_request', {
+        p_request_id: cancellingRequest.id,
+        p_reason: cancellationReason.trim() || null,
+      });
+
+      if (error) {
+        toast.error('Erro ao cancelar folga: ' + error.message);
+        return;
+      }
+
+      if (res && !res.ok) {
+        toast.error(res.message || 'Não foi possível cancelar a folga.');
+        return;
+      }
+
+      toast.success('Folga cancelada com sucesso! Créditos estornados e datas liberadas.');
+      setCancellingRequest(null);
+      setCancellationReason('');
+      load();
+    } catch (err: any) {
+      toast.error('Erro ao cancelar folga: ' + (err.message || ''));
+    } finally {
+      setCancellingLoading(false);
+    }
+  };
+
   const getEmployee = (id: string) => employees.find(e => e.id === id) ?? null;
   const getCategoryName = (catId: string | null) => catId ? (categories.find(c => c.id === catId)?.name ?? '') : '';
   const getUnitName = (unitId: string | null) => unitId ? (units.find(u => u.id === unitId)?.name ?? '') : '';
@@ -187,6 +223,7 @@ export default function LeaveRequests() {
     pending: activeRequests.filter(r => r.status === 'pending').length,
     approved: activeRequests.filter(r => r.status === 'approved').length,
     rejected: activeRequests.filter(r => r.status === 'rejected').length,
+    cancelled: activeRequests.filter(r => r.status === 'cancelled').length,
   };
 
   const roleDescription = isRH
@@ -210,11 +247,12 @@ export default function LeaveRequests() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { key: 'pending',  count: counts.pending,  label: 'Pendentes', color: 'text-amber-600',    bg: 'bg-amber-500/10',      border: 'border-amber-500/30' },
-          { key: 'approved', count: counts.approved, label: 'Aprovados', color: 'text-emerald-600',  bg: 'bg-emerald-500/10',    border: 'border-emerald-500/20' },
-          { key: 'rejected', count: counts.rejected, label: 'Negados',   color: 'text-destructive',  bg: 'bg-destructive/10',    border: 'border-destructive/20' },
+          { key: 'pending',   count: counts.pending,   label: 'Pendentes',  color: 'text-amber-600',    bg: 'bg-amber-500/10',      border: 'border-amber-500/30' },
+          { key: 'approved',  count: counts.approved,  label: 'Aprovados',  color: 'text-emerald-600',  bg: 'bg-emerald-500/10',    border: 'border-emerald-500/20' },
+          { key: 'rejected',  count: counts.rejected,  label: 'Negados',    color: 'text-destructive',  bg: 'bg-destructive/10',    border: 'border-destructive/20' },
+          { key: 'cancelled', count: counts.cancelled, label: 'Cancelados', color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
         ].map(({ key, count, label, color, bg, border }) => (
           <button
             key={key}
@@ -231,10 +269,11 @@ export default function LeaveRequests() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="pending">Pendentes ({counts.pending})</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
           <TabsTrigger value="rejected">Negados</TabsTrigger>
+          <TabsTrigger value="cancelled">Cancelados</TabsTrigger>
           <TabsTrigger value="all">Todos</TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-4">
@@ -258,6 +297,8 @@ export default function LeaveRequests() {
                   ? { label: 'Aprovado', bg: 'bg-white/90 text-emerald-700' }
                   : req.status === 'rejected'
                   ? { label: 'Negado', bg: 'bg-white/90 text-destructive' }
+                  : req.status === 'cancelled'
+                  ? { label: 'Cancelado', bg: 'bg-white/90 text-slate-600 dark:text-slate-300' }
                   : { label: 'Pendente', bg: 'bg-white/90 text-amber-700' };
 
                 return (
@@ -344,13 +385,25 @@ export default function LeaveRequests() {
                           Solicitado por <b>{getUserName(req.requested_by) ?? 'Desconhecido'}</b>{' '}
                           em {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                         </span>
-                        {req.decided_by && (
+                        {req.status === 'cancelled' ? (
+                          <>
+                            <span>
+                              Cancelado por <b>{getUserName(req.cancelled_by) ?? 'Desconhecido'}</b>{' '}
+                              em {req.cancelled_at && new Date(req.cancelled_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                            {req.cancellation_reason && (
+                              <span className="text-foreground/80 italic">
+                                Motivo: {req.cancellation_reason}
+                              </span>
+                            )}
+                          </>
+                        ) : req.decided_by ? (
                           <span>
                             {req.status === 'approved' ? 'Aprovado' : 'Negado'} por{' '}
                             <b>{getUserName(req.decided_by) ?? 'Desconhecido'}</b>{' '}
                             em {req.decided_at && new Date(req.decided_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* Balance + decision buttons */}
@@ -383,6 +436,24 @@ export default function LeaveRequests() {
                           </Button>
                         </div>
                       )}
+
+                      {/* Ação para Folga Aprovada: Cancelar / Revogar Folga */}
+                      {canApprove && req.status === 'approved' && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-auto min-h-[44px] lg:min-h-8 px-3 text-xs font-semibold text-rose-600 dark:text-rose-400 border-rose-300/80 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 gap-1.5 transition-colors"
+                            onClick={() => {
+                              setCancellingRequest(req);
+                              setCancellationReason('');
+                            }}
+                          >
+                            <RotateCcw size={13} />
+                            Cancelar Folga
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -408,6 +479,103 @@ export default function LeaveRequests() {
           onCancel={() => setOpen(false)}
         />
       </ResponsiveDialog>
+
+      {/* Dialog de Confirmação de Cancelamento de Folga */}
+      <Dialog open={!!cancellingRequest} onOpenChange={(isOpen) => !isOpen && setCancellingRequest(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <RotateCcw size={18} />
+              Cancelar Folga Aprovada
+            </DialogTitle>
+            <DialogDescription>
+              Esta ação cancelará a folga previamente aprovada para este profissional.
+            </DialogDescription>
+          </DialogHeader>
+
+          {cancellingRequest && (
+            <div className="space-y-4 pt-1">
+              <div className="p-3.5 rounded-xl bg-muted/60 border border-border/60 text-xs space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Profissional:</span>
+                  <span className="font-bold text-foreground">
+                    {getEmployee(cancellingRequest.employee_id)?.name ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Quantidade de dias:</span>
+                  <span className="font-semibold text-foreground">
+                    {cancellingRequest.days_requested} {cancellingRequest.days_requested > 1 ? 'dias' : 'dia'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-start gap-2">
+                  <span className="text-muted-foreground shrink-0">Datas da folga:</span>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {cancellingRequest.leave_dates?.map((d) => (
+                      <span key={d} className="px-2 py-0.5 rounded text-[11px] font-medium bg-background border">
+                        {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <strong>O que acontecerá ao confirmar:</strong>
+                  <ul className="list-disc list-inside mt-1 space-y-0.5 opacity-90">
+                    <li>Os <strong>{cancellingRequest.days_requested} crédito(s)</strong> serão devolvidos ao saldo do profissional.</li>
+                    <li>As datas ficarão <strong>liberadas imediatamente</strong> para o profissional ser escalado.</li>
+                    <li>A folga constará como <strong>Cancelada</strong> no histórico.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Motivo ou justificativa do cancelamento (opcional):
+                </label>
+                <textarea
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="Ex: Profissional desistiu da folga e estará disponível / Troca de planos"
+                  className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[70px] resize-none text-foreground"
+                  maxLength={300}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={cancellingLoading}
+                  onClick={() => setCancellingRequest(null)}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5 font-bold"
+                  disabled={cancellingLoading}
+                  onClick={handleConfirmCancel}
+                >
+                  {cancellingLoading ? (
+                    'Cancelando...'
+                  ) : (
+                    <>
+                      <RotateCcw size={14} />
+                      Confirmar Cancelamento
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
