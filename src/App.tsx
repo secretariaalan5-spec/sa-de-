@@ -25,6 +25,7 @@ const BalancePanel   = lazy(() => import("./pages/BalancePanel"));
 const AuditLogs      = lazy(() => import("./pages/AuditLogs"));
 const Holidays       = lazy(() => import("./pages/Holidays"));
 const ProfessionalPortal = lazy(() => import("./pages/ProfessionalPortal"));
+const PortalManagement = lazy(() => import("./pages/PortalManagement"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 
 // ─── QueryClient com cache inteligente ────────────────────────────────────────
@@ -173,6 +174,7 @@ const App = () => (
                 <Route path="/convites"      element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><Invites /></Suspense></AppErrorBoundary>} />
                 <Route path="/perfil"        element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><Profile /></Suspense></AppErrorBoundary>} />
                 <Route path="/saldo"         element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><BalancePanel /></Suspense></AppErrorBoundary>} />
+                <Route path="/portal-gestao" element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><PortalManagement /></Suspense></AppErrorBoundary>} />
                 <Route path="/auditoria"     element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><AuditLogs /></Suspense></AppErrorBoundary>} />
                 <Route path="/feriados"      element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><Holidays /></Suspense></AppErrorBoundary>} />
               </Route>

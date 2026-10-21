@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea';
 import EmployeeDetailDialog from '@/components/EmployeeDetailDialog';
 import QuickScheduleDialog from '@/components/schedule/QuickScheduleDialog';
 import AccessCodeDialog from '@/components/AccessCodeDialog';
-import GeneralQrPrintDialog from '@/components/portal/GeneralQrPrintDialog';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
@@ -53,7 +52,6 @@ export default function Employees() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
   const [codeEmp, setCodeEmp] = useState<{ id: string; name: string; phone?: string | null; unit_name?: string | null; category_name?: string | null } | null>(null);
-  const [printQrOpen, setPrintQrOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Credit Adjustment State
@@ -574,18 +572,6 @@ export default function Employees() {
           <p className="text-muted-foreground text-sm">{roleDescription}</p>
         </div>
         <div className="flex items-center gap-2">
-          {(isAdmin || isRH || isManager || isChief) && (
-            <Button
-              variant="outline"
-              onClick={() => setPrintQrOpen(true)}
-              className="gap-2 border-primary/30 text-primary hover:bg-primary/5 hover:text-primary font-semibold text-xs h-9 shadow-xs"
-              title="Imprimir cartaz com QR Code Geral e instruções de acesso"
-            >
-              <QrCode size={16} />
-              <span>Imprimir Cartaz QR Code</span>
-            </Button>
-          )}
-
           {canAdd && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
@@ -709,13 +695,6 @@ export default function Employees() {
         employee={codeEmp}
         open={!!codeEmp}
         onOpenChange={(o) => { if (!o) setCodeEmp(null); }}
-      />
-
-      {/* Cartaz Geral de QR Code para Impressão */}
-      <GeneralQrPrintDialog
-        open={printQrOpen}
-        onOpenChange={setPrintQrOpen}
-        unitName={filterUnit !== 'all' ? units.find(u => u.id === filterUnit)?.name : null}
       />
 
       {/* Credit Adjustment Dialog */}
