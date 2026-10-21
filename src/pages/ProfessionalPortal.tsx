@@ -87,6 +87,8 @@ interface DashboardData {
     observations: string | null;
     created_at: string;
     decided_at: string | null;
+    cancelled_at?: string | null;
+    cancellation_reason?: string | null;
   }>;
   transfers: Array<{
     id: string;
@@ -167,9 +169,9 @@ export default function ProfessionalPortal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
-  // Estados de Navegação e Filtros Estilo App Nativo (Escalas, Folgas, Transferências, Créditos, Ajuda)
-  const [activeTab, setActiveTab] = useState<'schedules' | 'leaves' | 'transfers' | 'credits' | 'help'>('schedules');
-  const [creditFilter, setCreditFilter] = useState<'all' | 'shifts' | 'manual' | 'used'>('all');
+  // Estados de Navegação Estilo App Mobile (Extrato sendo a primeira aba, Escalas, Folgas, Canceladas, Transferências)
+  const [activeTab, setActiveTab] = useState<'extrato' | 'schedules' | 'leaves' | 'cancelled' | 'transfers'>('extrato');
+  const [extratoFilter, setExtratoFilter] = useState<'all' | 'shifts' | 'leaves' | 'credits' | 'transfers'>('all');
   const [leaveFilter, setLeaveFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -598,737 +600,921 @@ export default function ProfessionalPortal() {
   const unreadNotifsCount = notifications.filter((n) => !n.is_read).length;
   const pendingLeaves = leaves.filter((l) => l.status === 'pending');
   const pastLeaves = leaves.filter((l) => l.status !== 'pending');
+  const cancelledLeaves = leaves.filter((l) => l.status === 'cancelled');
+
+  // ── Construção do Extrato Cronológico Unificado ──────────────────────────────
+  interface ExtratoItem {
+    id: string;
+    timestamp: number;
+    dateStr: string;
+    type: 'shift_extra' | 'shift_normal' | 'leave_pending' | 'leave_approved' | 'leave_rejected' | 'leave_cancelled' | 'credit_manual' | 'transfer';
+    category: 'shifts' | 'leaves' | 'credits' | 'transfers';
+    title: string;
+    categoryLabel: string;
+    description: string;
+    detail?: string | null;
+    badgeLabel: string;
+    badgeVariant: 'shift' | 'leave_approved' | 'leave_pending' | 'leave_rejected' | 'leave_cancelled' | 'credit_add' | 'credit_sub' | 'transfer';
+    amountBadge?: {
+      text: string;
+      positive: boolean;
+    };
+  }
+
+  const extratoTimeline: ExtratoItem[] = [];
+
+  // 1. Escalas (normais e extras)
+  schedules.forEach((s) => {
+    const isExtra = s.type === 'extra';
+    const timestamp = new Date(s.date + 'T12:00:00').getTime();
+    extratoTimeline.push({
+      id: `sched-${s.id}`,
+      timestamp,
+      dateStr: s.date,
+      type: isExtra ? 'shift_extra' : 'shift_normal',
+      category: 'shifts',
+      title: isExtra ? 'Plantão Extra Realizado' : 'Plantão na Escala',
+      categoryLabel: 'Escala',
+      description: `${s.unit_name} • ${s.shift_type === 'half' ? 'Meio Turno' : 'Turno Integral'}`,
+      detail: s.observations || null,
+      badgeLabel: isExtra ? 'Extra' : 'Normal',
+      badgeVariant: isExtra ? 'credit_add' : 'shift',
+      amountBadge: isExtra
+        ? { text: `+${fmtCredit(s.credit_amount ?? 1)} dia`, positive: true }
+        : undefined,
+    });
+  });
+
+  // 2. Pedidos de folga (aprovados, pendentes, indeferidos e cancelados)
+  leaves.forEach((l) => {
+    const isCancelled = l.status === 'cancelled';
+    const isApproved = l.status === 'approved';
+    const isPending = l.status === 'pending';
+    const isRejected = l.status === 'rejected';
+
+    const dateRef = isCancelled
+      ? (l.cancelled_at || l.decided_at || l.created_at)
+      : (l.decided_at || l.created_at);
+    const timestamp = new Date(dateRef).getTime();
+
+    let title = 'Solicitação de Folga';
+    let badgeLabel = 'Em Análise';
+    let badgeVariant: ExtratoItem['badgeVariant'] = 'leave_pending';
+    let amountBadge: { text: string; positive: boolean } | undefined;
+
+    if (isCancelled) {
+      title = 'Folga Cancelada';
+      badgeLabel = 'Cancelada';
+      badgeVariant = 'leave_cancelled';
+      amountBadge = { text: `+${l.days_requested} dia(s) estornados`, positive: true };
+    } else if (isApproved) {
+      title = 'Folga Aprovada';
+      badgeLabel = 'Aprovada';
+      badgeVariant = 'leave_approved';
+      amountBadge = { text: `-${l.days_requested} dia(s) usufruídos`, positive: false };
+    } else if (isRejected) {
+      title = 'Folga Indeferida';
+      badgeLabel = 'Indeferida';
+      badgeVariant = 'leave_rejected';
+    } else {
+      title = 'Pedido de Folga';
+      badgeLabel = 'Em Análise';
+      badgeVariant = 'leave_pending';
+    }
+
+    const datesFormatted = (l.leave_dates || []).map(fmtDate).join(', ');
+    const detail = isCancelled && l.cancellation_reason
+      ? `Motivo do cancelamento: ${l.cancellation_reason}`
+      : l.observations || null;
+
+    extratoTimeline.push({
+      id: `leave-${l.id}`,
+      timestamp,
+      dateStr: dateRef,
+      type: isCancelled ? 'leave_cancelled' : isApproved ? 'leave_approved' : isRejected ? 'leave_rejected' : 'leave_pending',
+      category: 'leaves',
+      title,
+      categoryLabel: 'Folga',
+      description: `${l.days_requested} dia(s) (${datesFormatted})`,
+      detail,
+      badgeLabel,
+      badgeVariant,
+      amountBadge,
+    });
+  });
+
+  // 3. Créditos e Ajustes Manuais
+  credits.forEach((c) => {
+    const isShift = c.origin === 'extra_shift';
+    const isLeave = c.origin === 'leave_used';
+    if (isShift || isLeave) return; // evita duplicar plantões de escala e folgas já listados
+
+    const timestamp = new Date(c.created_at).getTime();
+    const isAdd = Number(c.amount) > 0;
+
+    extratoTimeline.push({
+      id: `credit-${c.id}`,
+      timestamp,
+      dateStr: c.created_at,
+      type: 'credit_manual',
+      category: 'credits',
+      title: isAdd ? 'Ajuste Manual Adicionado' : 'Ajuste Manual Retirado',
+      categoryLabel: 'Ajuste',
+      description: c.notes?.trim() || (isAdd ? 'Crédito inserido pela gestão' : 'Estorno autorizado'),
+      detail: null,
+      badgeLabel: isAdd ? 'Crédito' : 'Débito',
+      badgeVariant: isAdd ? 'credit_add' : 'credit_sub',
+      amountBadge: {
+        text: isAdd ? `+${fmtCredit(c.amount)} dia(s)` : `${fmtCredit(c.amount)} dia(s)`,
+        positive: isAdd,
+      },
+    });
+  });
+
+  // 4. Transferências de Lotação
+  transfers.forEach((t) => {
+    const timestamp = new Date(t.transferred_at).getTime();
+    extratoTimeline.push({
+      id: `transfer-${t.id}`,
+      timestamp,
+      dateStr: t.transferred_at,
+      type: 'transfer',
+      category: 'transfers',
+      title: 'Transferência de Unidade',
+      categoryLabel: 'Transferência',
+      description: `${t.from_unit_name} → ${t.to_unit_name}`,
+      detail: null,
+      badgeLabel: 'Movimentação',
+      badgeVariant: 'transfer',
+    });
+  });
+
+  // Ordenação decrescente: o mais recente primeiro!
+  extratoTimeline.sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased text-foreground pb-8">
-      {/* Modal de Aceite de Termos (LGPD) */}
-      <PortalTermsDialog
-        open={termsOpen}
-        employeeName={profile?.name || ''}
-        onAccept={handleAcceptTerms}
-        loading={termsLoading}
-      />
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-foreground selection:bg-primary/20">
+      {/* Moldura de Aplicativo Mobile (sem esticar horizontalmente no monitor) */}
+      <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:max-h-[94vh] bg-slate-50 dark:bg-slate-900 sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden relative">
+        {/* Modal de Aceite de Termos (LGPD) */}
+        <PortalTermsDialog
+          open={termsOpen}
+          employeeName={profile?.name || ''}
+          onAccept={handleAcceptTerms}
+          loading={termsLoading}
+        />
 
-      {/* Input de arquivo invisível para a foto */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleAvatarSelect}
-        accept="image/*"
-        className="hidden"
-      />
+        {/* Input de arquivo invisível para a foto */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleAvatarSelect}
+          accept="image/*"
+          className="hidden"
+        />
 
-      {/* Header Superior PWA Estilo Governo / Aplicativo */}
-      <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shadow-2xs px-4 py-3">
-        <div className="max-w-md mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-blue-900 flex items-center justify-center p-1.5 shadow-xs shrink-0">
-              <img src={logoSaude} alt="Brasão / Logo" className="w-full h-full object-contain" />
+        {/* Header Superior PWA Estilo Aplicativo */}
+        <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-2xs px-4 py-3 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-900 flex items-center justify-center p-1.5 shadow-xs shrink-0">
+                <img src={logoSaude} alt="Brasão / Logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight truncate">
+                  Portal do Servidor
+                </h1>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
+                  {profile?.unit_name || 'SECRETARIA DE SAÚDE'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight truncate">
-                Portal do Servidor
-              </h1>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                {profile?.unit_name || 'SECRETARIA DE SAÚDE'}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            {isInstallable && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleInstallPWA}
-                className="h-8 gap-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-emerald-500/30 rounded-lg px-2"
-              >
-                <Download size={13} />
-                <span className="hidden xs:inline">Instalar</span>
-              </Button>
-            )}
-
-            {/* Popover Interativo de Notificações */}
-            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  title="Notificações e Avisos"
-                  className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isInstallable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInstallPWA}
+                  className="h-8 gap-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-emerald-500/30 rounded-lg px-2"
                 >
-                  <Bell size={18} />
-                  {unreadNotifsCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs animate-pulse">
-                      {unreadNotifsCount}
-                    </span>
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="w-80 sm:w-96 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-              >
-                <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
-                    <Bell size={14} className="text-primary" />
-                    <span>Notificações e Avisos</span>
+                  <Download size={13} />
+                  <span className="hidden xs:inline">Instalar</span>
+                </Button>
+              )}
+
+              {/* Popover de Notificações Exclusivas do Profissional */}
+              <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    title="Suas Notificações"
+                    className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Bell size={18} />
                     {unreadNotifsCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
-                        {unreadNotifsCount} nova(s)
+                      <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs animate-pulse">
+                        {unreadNotifsCount}
                       </span>
                     )}
-                  </div>
-                  {unreadNotifsCount > 0 && (
-                    <button
-                      onClick={handleMarkAllNotifsRead}
-                      className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
-                    >
-                      <CheckCheck size={12} />
-                      <span>Marcar lidas</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-slate-400">
-                      Nenhuma notificação no momento.
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-80 sm:w-88 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                >
+                  <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
+                      <Bell size={14} className="text-primary" />
+                      <span>Suas Notificações</span>
+                      {unreadNotifsCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
+                          {unreadNotifsCount} nova(s)
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
-                        className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
-                          n.is_read
-                            ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                            : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
-                        }`}
+                    {unreadNotifsCount > 0 && (
+                      <button
+                        onClick={handleMarkAllNotifsRead}
+                        className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                            {n.title}
-                          </span>
-                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                            {fmtDate(n.created_at)}
-                          </span>
-                        </div>
-                        <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
-                          {n.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+                        <CheckCheck size={12} />
+                        <span>Marcar lidas</span>
+                      </button>
+                    )}
+                  </div>
 
-            {/* Avatar no topo com alteração de foto */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="cursor-pointer relative"
-              title="Clique para alterar foto"
-            >
-              <Avatar className="w-9 h-9 rounded-full border border-slate-200 shadow-2xs hover:ring-2 hover:ring-primary/40 transition-all">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-400">
+                        Nenhuma notificação direcionada a você no momento.
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
+                          className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
+                            n.is_read
+                              ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                              : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                              {n.title}
+                            </span>
+                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                              {fmtDate(n.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
+                            {n.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Avatar com alteração de foto */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="cursor-pointer relative"
+                title="Clique para alterar foto"
+              >
+                <Avatar className="w-8 h-8 rounded-full border border-slate-200 shadow-2xs hover:ring-2 hover:ring-primary/40 transition-all">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
+                  <AvatarFallback className="bg-blue-100 text-blue-900 font-bold text-xs">
+                    {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+
+              {/* Botão de Sair */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                title="Sair do Portal"
+                className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
+              >
+                <LogOut size={16} />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Conteúdo Principal com Scroll Interno (App-Like) */}
+        <main className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+          {/* Card do Perfil do Servidor */}
+          <div className="rounded-2xl bg-gradient-to-r from-[#173059] via-[#1b3d75] to-[#143261] text-white p-4 shadow-md relative overflow-hidden flex items-center gap-3.5">
+            <div className="relative shrink-0">
+              <Avatar className="w-16 h-16 rounded-full border-2 border-white/30 bg-blue-100 shadow-inner">
                 <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
-                <AvatarFallback className="bg-blue-100 text-blue-900 font-bold text-xs">
+                <AvatarFallback className="bg-[#e2edff] text-[#1a365d] font-black text-xl rounded-full">
                   {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
                 </AvatarFallback>
               </Avatar>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                title="Alterar foto"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#3b82f6] text-white flex items-center justify-center shadow-md hover:bg-blue-600 transition-all active:scale-95 border-2 border-white"
+              >
+                {uploadingAvatar ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
+              </button>
             </div>
 
-            {/* Botão de Sair Explícito */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              title="Sair do Portal"
-              className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
-            >
-              <LogOut size={16} />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Conteúdo Principal */}
-      <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* Card do Perfil do Servidor (Azul Profundo Governo com Avatar Redondo e Ícone de Câmera) */}
-        <div className="rounded-2xl bg-gradient-to-r from-[#173059] via-[#1b3d75] to-[#143261] text-white p-4 shadow-md relative overflow-hidden flex items-center gap-3.5">
-          <div className="relative shrink-0">
-            <Avatar className="w-16 h-16 rounded-full border-2 border-white/30 bg-blue-100 shadow-inner">
-              <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
-              <AvatarFallback className="bg-[#e2edff] text-[#1a365d] font-black text-xl rounded-full">
-                {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
-              </AvatarFallback>
-            </Avatar>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              title="Alterar foto"
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#3b82f6] text-white flex items-center justify-center shadow-md hover:bg-blue-600 transition-all active:scale-95 border-2 border-white"
-            >
-              {uploadingAvatar ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
-            </button>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-extrabold tracking-tight uppercase truncate leading-tight text-white">
+                  {profile?.name}
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#34d399]/20 text-[#34d399] border border-[#34d399]/40">
+                  Ativo
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider truncate">
+                {profile?.category_name || 'Servidor(a)'}
+              </p>
+              <div className="flex items-center gap-1 text-[11px] text-slate-300 font-medium">
+                <MapPin size={12} className="text-slate-300 shrink-0" />
+                <span className="truncate uppercase">{profile?.unit_name || 'Lotação'}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm font-extrabold tracking-tight uppercase truncate leading-tight text-white">
-                {profile?.name}
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#34d399]/20 text-[#34d399] border border-[#34d399]/40">
-                Ativo
+          {/* Card Saldo Disponível de Folgas */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-bold text-sm">
+                <CalendarDays size={16} className="text-slate-500" />
+                <span>Saldo disponível de folgas</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#2e7d32] text-white">
+                {summary.balance > 0 ? `+${fmtCredit(summary.balance)} dias` : `${fmtCredit(summary.balance)} dias`}
               </span>
             </div>
-            <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider truncate">
-              {profile?.category_name || 'Servidor(a)'}
-            </p>
-            <div className="flex items-center gap-1 text-[11px] text-slate-300 font-medium">
-              <MapPin size={12} className="text-slate-300 shrink-0" />
-              <span className="truncate uppercase">{profile?.unit_name || 'Lotação'}</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Card Saldo Disponível de Folgas com as 3 Caixas Coloridas Suaves da Imagem */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-bold text-sm">
-              <CalendarDays size={16} className="text-slate-500" />
-              <span>Saldo disponível de folgas</span>
-            </div>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#2e7d32] text-white">
-              {summary.balance > 0 ? `+${fmtCredit(summary.balance)} dias` : `${fmtCredit(summary.balance)} dias`}
-            </span>
-          </div>
-
-          {/* As 3 Caixas com cantos arredondados e tons pastéis idênticos à imagem */}
-          <div className="grid grid-cols-3 gap-2 text-center pt-1">
-            {/* Box 1: Plantões (Azul Claro) */}
-            <div className="p-3 rounded-2xl bg-[#dff1fd] border border-[#bce2fb] dark:bg-blue-950/40 dark:border-blue-900/60 flex flex-col justify-center">
-              <div className="text-lg font-black text-[#0284c7] font-mono leading-none">
-                +{fmtCredit(summary.shifts)}
-              </div>
-              <div className="text-[10px] font-bold text-[#0369a1] uppercase tracking-wider mt-1.5">
-                Plantões
-              </div>
-            </div>
-
-            {/* Box 2: Ajustes (Bege/Amarelo Claro) */}
-            <div className="p-3 rounded-2xl bg-[#fef5d8] border border-[#fbe5a7] dark:bg-amber-950/40 dark:border-amber-900/60 flex flex-col justify-center">
-              <div className="text-lg font-black text-[#b45309] font-mono leading-none">
-                {summary.manual > 0 ? `+${fmtCredit(summary.manual)}` : fmtCredit(summary.manual)}
-              </div>
-              <div className="text-[10px] font-bold text-[#92400e] uppercase tracking-wider mt-1.5">
-                Ajustes
-              </div>
-            </div>
-
-            {/* Box 3: Usufruídas (Rosa/Vermelho Claro) */}
-            <div className="p-3 rounded-2xl bg-[#fee4e4] border border-[#fccfcf] dark:bg-rose-950/40 dark:border-rose-900/60 flex flex-col justify-center">
-              <div className="text-lg font-black text-[#e11d48] font-mono leading-none">
-                -{fmtCredit(summary.used)}
-              </div>
-              <div className="text-[10px] font-bold text-[#be123c] uppercase tracking-wider mt-1.5">
-                Usufruídas
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Abas com as mesmas opções do Histórico Funcional: Escalas, Folgas, Transferências, Créditos/Extrato e Ajuda */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-[#eef3f8] dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
-            <TabsTrigger
-              value="schedules"
-              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-            >
-              <CalendarDays size={15} />
-              <span className="text-[10.5px] leading-none">Escalas</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="leaves"
-              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
-            >
-              <FileText size={15} />
-              <span className="text-[10.5px] leading-none">Folgas</span>
-              {pendingLeaves.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1.5 right-1.5" />
-              )}
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="transfers"
-              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-            >
-              <ArrowLeftRight size={15} />
-              <span className="text-[10.5px] leading-none">Transf.</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="credits"
-              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-            >
-              <Sparkles size={15} />
-              <span className="text-[10.5px] leading-none">Extrato</span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="help"
-              className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-            >
-              <HelpCircle size={15} />
-              <span className="text-[10.5px] leading-none">Ajuda</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ABA 1: ESCALAS E PLANTÕES EXTRAS */}
-          <TabsContent value="schedules" className="mt-3 space-y-2">
-            {schedules.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
-                <CalendarDays size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-xs font-medium">Nenhuma escala registrada no sistema.</p>
-              </div>
-            ) : (
-              schedules.map((s) => {
-                const isExtra = s.type === 'extra';
-                return (
-                  <div
-                    key={s.id}
-                    className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5 font-bold text-sm text-foreground">
-                        <span>{fmtDate(s.date)}</span>
-                        <span className="text-xs text-muted-foreground font-normal">({weekday(s.date)})</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px]">
-                          {s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}
-                        </Badge>
-                        <Badge
-                          className={
-                            isExtra
-                              ? 'bg-primary text-white text-[10px] font-bold'
-                              : 'bg-muted text-muted-foreground text-[10px]'
-                          }
-                        >
-                          {isExtra ? `Extra (+${fmtCredit(s.credit_amount ?? 1)})` : 'Normal'}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Building2 size={13} className="text-primary shrink-0" />
-                      <span className="truncate">{s.unit_name}</span>
-                    </div>
-
-                    {s.observations && (
-                      <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-border/60 text-foreground">
-                        <strong className="text-foreground">Atividade: </strong>
-                        <span>{s.observations}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </TabsContent>
-
-          {/* ABA 2: FOLGAS PENDENTES E HISTÓRICO */}
-          <TabsContent value="leaves" className="mt-3 space-y-3">
-            {/* Filtros Rápidos de Situação da Folga */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              <button
-                type="button"
-                onClick={() => setLeaveFilter('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  leaveFilter === 'all'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'bg-muted/70 text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Todas ({leaves.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setLeaveFilter('pending')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  leaveFilter === 'pending'
-                    ? 'bg-amber-500 text-white shadow-xs'
-                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
-                }`}
-              >
-                ⏳ Em Análise ({pendingLeaves.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setLeaveFilter('approved')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  leaveFilter === 'approved'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
-                }`}
-              >
-                ✓ Aprovadas ({leaves.filter((l) => l.status === 'approved').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setLeaveFilter('rejected')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  leaveFilter === 'rejected'
-                    ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20'
-                }`}
-              >
-                ✕ Indeferidas ({leaves.filter((l) => l.status === 'rejected').length})
-              </button>
-              {leaves.some((l) => l.status === 'cancelled') && (
-                <button
-                  type="button"
-                  onClick={() => setLeaveFilter('cancelled')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                    leaveFilter === 'cancelled'
-                      ? 'bg-slate-700 text-white shadow-xs'
-                      : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 hover:bg-slate-500/20'
-                  }`}
-                >
-                  ↩ Canceladas ({leaves.filter((l) => l.status === 'cancelled').length})
-                </button>
-              )}
-            </div>
-
-            {/* Listagem de Folgas */}
-            {(() => {
-              const filteredLeaves = leaves.filter((l) => {
-                if (leaveFilter === 'pending') return l.status === 'pending';
-                if (leaveFilter === 'approved') return l.status === 'approved';
-                if (leaveFilter === 'rejected') return l.status === 'rejected';
-                if (leaveFilter === 'cancelled') return l.status === 'cancelled';
-                return true;
-              });
-
-              if (filteredLeaves.length === 0) {
-                return (
-                  <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
-                    <CalendarOff size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-xs font-medium">Nenhum pedido de folga neste filtro.</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-2">
-                  {filteredLeaves.map((l) => {
-                    const isPending = l.status === 'pending';
-                    const isApproved = l.status === 'approved';
-                    const isCancelled = l.status === 'cancelled';
-
-                    return (
-                      <div
-                        key={l.id}
-                        className={`p-3.5 rounded-2xl border ${
-                          isPending
-                            ? 'border-amber-400 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs'
-                            : isCancelled
-                            ? 'border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 opacity-90'
-                            : 'border-border bg-white dark:bg-slate-900 shadow-2xs'
-                        } space-y-2`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-sm text-foreground">
-                            {l.days_requested} dia(s) solicitado(s)
-                          </span>
-                          <Badge
-                            className={
-                              isPending
-                                ? 'bg-amber-500 text-white text-[10px] font-bold flex items-center gap-1'
-                                : isApproved
-                                ? 'bg-emerald-600 text-white text-[10px] font-bold'
-                                : isCancelled
-                                ? 'bg-slate-500 text-white text-[10px] font-bold'
-                                : 'bg-rose-600 text-white text-[10px] font-bold'
-                            }
-                          >
-                            {isPending && <Clock size={11} />}
-                            {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : isCancelled ? 'Cancelada' : 'Indeferida'}
-                          </Badge>
-                        </div>
-
-                        {isCancelled && (
-                          <div className="text-[11px] font-medium text-muted-foreground bg-slate-100 dark:bg-slate-800/60 p-2 rounded-xl border border-border/50">
-                            ℹ️ Folga cancelada. Os créditos correspondentes permanecem disponíveis em seu saldo.
-                          </div>
-                        )}
-
-                        <div className="text-xs text-muted-foreground">
-                          <strong>Datas da folga: </strong>
-                          <span className="text-foreground font-medium">
-                            {(l.leave_dates || []).map((d) => fmtDate(d)).join(', ')}
-                          </span>
-                        </div>
-
-                        {/* Motivo declarado fiel ao histórico individual */}
-                        <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-0.5">
-                          <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
-                            Motivo / Justificativa declarada:
-                          </span>
-                          <span className="text-foreground leading-relaxed">
-                            {l.observations?.trim() || 'Motivo não especificado no pedido.'}
-                          </span>
-                        </div>
-
-                        <div className="text-[10.5px] text-muted-foreground pt-0.5 flex items-center justify-between">
-                          <span>Solicitado em {fmtDate(l.created_at)}</span>
-                          {l.decided_at && <span>Decisão em {fmtDate(l.decided_at)}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* As 3 Caixas Coloridas Suaves */}
+            <div className="grid grid-cols-3 gap-2 text-center pt-1">
+              {/* Box 1: Plantões (Azul Claro) */}
+              <div className="p-3 rounded-2xl bg-[#dff1fd] border border-[#bce2fb] dark:bg-blue-950/40 dark:border-blue-900/60 flex flex-col justify-center">
+                <div className="text-lg font-black text-[#0284c7] font-mono leading-none">
+                  +{fmtCredit(summary.shifts)}
                 </div>
-              );
-            })()}
-          </TabsContent>
-
-          {/* ABA 3: TRANSFERÊNCIAS ENTRE UNIDADES (FIEL AO HISTÓRICO FUNCIONAL) */}
-          <TabsContent value="transfers" className="mt-3 space-y-2">
-            {transfers.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
-                <ArrowLeftRight size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-xs font-medium">Nenhuma transferência de unidade registrada.</p>
-                <p className="text-[11px] text-muted-foreground/70 mt-1">
-                  Seu histórico de lotação permanece na unidade atual.
-                </p>
-              </div>
-            ) : (
-              transfers.map((t) => (
-                <div
-                  key={t.id}
-                  className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-sm text-foreground">
-                        {fmtDate(t.transferred_at)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({weekday(t.transferred_at)})
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] font-semibold border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">
-                      Transferência Oficial
-                    </Badge>
-                  </div>
-
-                  <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-1">
-                    <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
-                      Movimentação de Unidade:
-                    </span>
-                    <div className="flex items-center gap-2 font-medium">
-                      <span className="text-slate-600 dark:text-slate-300">{t.from_unit_name}</span>
-                      <ArrowRight size={13} className="text-primary shrink-0" />
-                      <strong className="text-primary font-bold">{t.to_unit_name}</strong>
-                    </div>
-                  </div>
+                <div className="text-[10px] font-bold text-[#0369a1] uppercase tracking-wider mt-1.5">
+                  Plantões
                 </div>
-              ))
-            )}
-          </TabsContent>
+              </div>
 
-          {/* ABA 4: EXTRATO COMPLETO DE CRÉDITOS E AJUSTES MANUAIS (DESIGN IDÊNTICO À IMAGEM) */}
-          <TabsContent value="credits" className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
-                Histórico / Extrato
-              </h3>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCreditFilter('all')}
-                  className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                    creditFilter === 'all' ? 'bg-slate-800 text-white dark:bg-white dark:text-black' : 'text-slate-500'
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreditFilter('manual')}
-                  className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                    creditFilter === 'manual' ? 'bg-amber-500 text-white' : 'text-slate-500'
-                  }`}
-                >
+              {/* Box 2: Ajustes (Bege/Amarelo Claro) */}
+              <div className="p-3 rounded-2xl bg-[#fef5d8] border border-[#fbe5a7] dark:bg-amber-950/40 dark:border-amber-900/60 flex flex-col justify-center">
+                <div className="text-lg font-black text-[#b45309] font-mono leading-none">
+                  {summary.manual > 0 ? `+${fmtCredit(summary.manual)}` : fmtCredit(summary.manual)}
+                </div>
+                <div className="text-[10px] font-bold text-[#92400e] uppercase tracking-wider mt-1.5">
                   Ajustes
-                </button>
+                </div>
+              </div>
+
+              {/* Box 3: Usufruídas (Rosa/Vermelho Claro) */}
+              <div className="p-3 rounded-2xl bg-[#fee4e4] border border-[#fccfcf] dark:bg-rose-950/40 dark:border-rose-900/60 flex flex-col justify-center">
+                <div className="text-lg font-black text-[#e11d48] font-mono leading-none">
+                  -{fmtCredit(summary.used)}
+                </div>
+                <div className="text-[10px] font-bold text-[#be123c] uppercase tracking-wider mt-1.5">
+                  Usufruídas
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Lista com Cards Brancos Idênticos à Imagem */}
-            {(() => {
-              const filteredCredits = credits.filter((c) => {
-                const isShift = c.origin === 'extra_shift';
-                const isLeave = c.origin === 'leave_used';
-                const isManual = !isShift && !isLeave;
-                if (creditFilter === 'shifts') return isShift;
-                if (creditFilter === 'manual') return isManual;
-                if (creditFilter === 'used') return isLeave;
-                return true;
-              });
+          {/* Abas Mobile: Extrato (1ª), Escalas (2ª), Folgas (3ª), Canceladas (4ª), Transf (5ª) */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+            <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-[#eef3f8] dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
+              <TabsTrigger
+                value="extrato"
+                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              >
+                <History size={15} />
+                <span className="text-[10px] leading-none">Extrato</span>
+              </TabsTrigger>
 
-              if (filteredCredits.length === 0) {
+              <TabsTrigger
+                value="schedules"
+                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              >
+                <CalendarDays size={15} />
+                <span className="text-[10px] leading-none">Escalas</span>
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="leaves"
+                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
+              >
+                <CalendarOff size={15} />
+                <span className="text-[10px] leading-none">Folgas</span>
+                {pendingLeaves.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-1" />
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="cancelled"
+                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
+              >
+                <XCircle size={15} />
+                <span className="text-[10px] leading-none">Canceladas</span>
+                {cancelledLeaves.length > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 absolute top-1 right-1" />
+                )}
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="transfers"
+                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+              >
+                <ArrowLeftRight size={15} />
+                <span className="text-[10px] leading-none">Transf.</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ABA 1: EXTRATO COMPLETO EM ORDEM CRONOLÓGICA */}
+            <TabsContent value="extrato" className="mt-3 space-y-3">
+              {/* Filtros Rápidos do Extrato */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setExtratoFilter('all')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    extratoFilter === 'all'
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-black shadow-xs'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  Tudo ({extratoTimeline.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtratoFilter('shifts')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    extratoFilter === 'shifts'
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20'
+                  }`}
+                >
+                  Plantões ({extratoTimeline.filter((i) => i.category === 'shifts').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtratoFilter('leaves')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    extratoFilter === 'leaves'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                  }`}
+                >
+                  Folgas ({extratoTimeline.filter((i) => i.category === 'leaves').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtratoFilter('credits')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    extratoFilter === 'credits'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  Ajustes ({extratoTimeline.filter((i) => i.category === 'credits').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtratoFilter('transfers')}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    extratoFilter === 'transfers'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20'
+                  }`}
+                >
+                  Transf. ({extratoTimeline.filter((i) => i.category === 'transfers').length})
+                </button>
+              </div>
+
+              {/* Linha do Tempo / Feed do Extrato */}
+              {(() => {
+                const filtered = extratoTimeline.filter((item) => {
+                  if (extratoFilter === 'shifts') return item.category === 'shifts';
+                  if (extratoFilter === 'leaves') return item.category === 'leaves';
+                  if (extratoFilter === 'credits') return item.category === 'credits';
+                  if (extratoFilter === 'transfers') return item.category === 'transfers';
+                  return true;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                      <History size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        Nenhum evento registrado
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Não encontramos registros para este filtro no momento.
+                      </p>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80">
-                    <Sparkles size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-xs font-medium">Nenhum lançamento registrado.</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-2.5">
-                  {filteredCredits.map((c) => {
-                    const isShift = c.origin === 'extra_shift';
-                    const isLeave = c.origin === 'leave_used';
-                    const isManualAdd = !isShift && !isLeave && Number(c.amount) > 0;
-                    const isManualRemove = !isShift && !isLeave && Number(c.amount) < 0;
-                    const isAdd = Number(c.amount) > 0;
-
-                    let title = 'Plantão Extra na Escala';
-                    let subtitle = 'Crédito de escala extra';
-
-                    if (isShift) {
-                      title = 'Plantão Extra na Escala';
-                      subtitle = c.notes?.trim() || 'Crédito de escala extra';
-                    } else if (isManualAdd) {
-                      title = 'Ajuste Manual Adicionado';
-                      subtitle = c.notes?.trim() || 'Crédito inserido pela gestão';
-                    } else if (isManualRemove) {
-                      title = 'Ajuste Manual Retirado';
-                      subtitle = c.notes?.trim() || 'Estorno autorizado';
-                    } else if (isLeave) {
-                      title = 'Folga Usufruída';
-                      subtitle = c.notes?.trim() || 'Desconto referente a folga gozada';
-                    }
-
-                    return (
+                  <div className="space-y-2.5">
+                    {filtered.map((item) => (
                       <div
-                        key={c.id}
-                        className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-center justify-between gap-3 transition-colors hover:border-slate-300"
+                        key={item.id}
+                        className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2 transition-all hover:border-slate-300"
                       >
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="text-xs text-slate-900 dark:text-slate-100 font-normal truncate">
-                            <strong className="font-extrabold text-slate-900 dark:text-white mr-1.5">
-                              {title}
-                            </strong>
-                            <span className="text-slate-500 font-normal">
-                              {fmtDateExtenso(c.created_at)}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 dark:text-white">
+                            <span>{fmtDate(item.dateStr)}</span>
+                            <span className="text-[11px] font-normal text-muted-foreground">
+                              ({weekday(item.dateStr)})
                             </span>
                           </div>
-                          <p className="text-[11.5px] text-slate-400 dark:text-slate-400 truncate">
-                            {subtitle}
+
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] font-bold ${
+                                item.badgeVariant === 'credit_add'
+                                  ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:text-emerald-300'
+                                  : item.badgeVariant === 'leave_approved'
+                                  ? 'bg-emerald-600 text-white border-transparent'
+                                  : item.badgeVariant === 'leave_pending'
+                                  ? 'bg-amber-500 text-white border-transparent'
+                                  : item.badgeVariant === 'leave_cancelled'
+                                  ? 'bg-slate-600 text-white border-transparent'
+                                  : item.badgeVariant === 'leave_rejected'
+                                  ? 'bg-rose-600 text-white border-transparent'
+                                  : item.badgeVariant === 'credit_sub'
+                                  ? 'bg-rose-500/10 text-rose-700 border-rose-300 dark:text-rose-300'
+                                  : item.badgeVariant === 'transfer'
+                                  ? 'bg-indigo-500/10 text-indigo-700 border-indigo-300 dark:text-indigo-300'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {item.badgeLabel}
+                            </Badge>
+
+                            {item.amountBadge && (
+                              <span
+                                className={`text-[11px] font-black font-mono px-2 py-0.5 rounded-lg ${
+                                  item.amountBadge.positive
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                                }`}
+                              >
+                                {item.amountBadge.text}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                            {item.title}
+                          </h4>
+                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                            {item.description}
                           </p>
                         </div>
 
-                        <div
-                          className={`font-mono text-base font-extrabold shrink-0 px-2 py-0.5 rounded-lg ${
-                            isAdd
-                              ? 'text-[#059669] dark:text-[#10b981]'
-                              : 'text-[#e11d48] dark:text-[#f43f5e]'
-                          }`}
-                        >
-                          {isAdd ? `+${fmtCredit(c.amount)}` : fmtCredit(c.amount)}
+                        {item.detail && (
+                          <div className="text-[11.5px] bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {item.detail}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
+            {/* ABA 2: ESCALAS E PLANTÕES */}
+            <TabsContent value="schedules" className="mt-3 space-y-2">
+              {schedules.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                  <CalendarDays size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-xs font-medium">Nenhuma escala registrada no sistema.</p>
+                </div>
+              ) : (
+                schedules.map((s) => {
+                  const isExtra = s.type === 'extra';
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 font-bold text-sm text-foreground">
+                          <span>{fmtDate(s.date)}</span>
+                          <span className="text-xs text-muted-foreground font-normal">({weekday(s.date)})</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px]">
+                            {s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}
+                          </Badge>
+                          <Badge
+                            className={
+                              isExtra
+                                ? 'bg-primary text-white text-[10px] font-bold'
+                                : 'bg-muted text-muted-foreground text-[10px]'
+                            }
+                          >
+                            {isExtra ? `Extra (+${fmtCredit(s.credit_amount ?? 1)})` : 'Normal'}
+                          </Badge>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Building2 size={13} className="text-primary shrink-0" />
+                        <span className="truncate">{s.unit_name}</span>
+                      </div>
+
+                      {s.observations && (
+                        <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-border/60 text-foreground">
+                          <strong className="text-foreground">Atividade: </strong>
+                          <span>{s.observations}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </TabsContent>
+
+            {/* ABA 3: PEDIDOS DE FOLGA */}
+            <TabsContent value="leaves" className="mt-3 space-y-3">
+              {/* Filtros Rápidos de Situação da Folga */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setLeaveFilter('all')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                    leaveFilter === 'all'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  Todas ({leaves.filter((l) => l.status !== 'cancelled').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaveFilter('pending')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                    leaveFilter === 'pending'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                  }`}
+                >
+                  ⏳ Em Análise ({pendingLeaves.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaveFilter('approved')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                    leaveFilter === 'approved'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  ✓ Aprovadas ({leaves.filter((l) => l.status === 'approved').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaveFilter('rejected')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                    leaveFilter === 'rejected'
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20'
+                  }`}
+                >
+                  ✕ Indeferidas ({leaves.filter((l) => l.status === 'rejected').length})
+                </button>
+              </div>
+
+              {/* Listagem de Folgas */}
+              {(() => {
+                const activeLeavesOnly = leaves.filter((l) => {
+                  if (leaveFilter === 'pending') return l.status === 'pending';
+                  if (leaveFilter === 'approved') return l.status === 'approved';
+                  if (leaveFilter === 'rejected') return l.status === 'rejected';
+                  return l.status !== 'cancelled';
+                });
+
+                if (activeLeavesOnly.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                      <CalendarOff size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-xs font-medium">Nenhum pedido de folga neste filtro.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {activeLeavesOnly.map((l) => {
+                      const isPending = l.status === 'pending';
+                      const isApproved = l.status === 'approved';
+
+                      return (
+                        <div
+                          key={l.id}
+                          className={`p-3.5 rounded-2xl border ${
+                            isPending
+                              ? 'border-amber-400 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs'
+                              : 'border-border bg-white dark:bg-slate-900 shadow-2xs'
+                          } space-y-2`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-sm text-foreground">
+                              {l.days_requested} dia(s) solicitado(s)
+                            </span>
+                            <Badge
+                              className={
+                                isPending
+                                  ? 'bg-amber-500 text-white text-[10px] font-bold flex items-center gap-1'
+                                  : isApproved
+                                  ? 'bg-emerald-600 text-white text-[10px] font-bold'
+                                  : 'bg-rose-600 text-white text-[10px] font-bold'
+                              }
+                            >
+                              {isPending && <Clock size={11} />}
+                              {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : 'Indeferida'}
+                            </Badge>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            <strong>Datas da folga: </strong>
+                            <span className="text-foreground font-medium">
+                              {(l.leave_dates || []).map((d) => fmtDate(d)).join(', ')}
+                            </span>
+                          </div>
+
+                          <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-0.5">
+                            <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
+                              Motivo / Justificativa declarada:
+                            </span>
+                            <span className="text-foreground leading-relaxed">
+                              {l.observations?.trim() || 'Motivo não especificado no pedido.'}
+                            </span>
+                          </div>
+
+                          <div className="text-[10.5px] text-muted-foreground pt-0.5 flex items-center justify-between">
+                            <span>Solicitado em {fmtDate(l.created_at)}</span>
+                            {l.decided_at && <span>Decisão em {fmtDate(l.decided_at)}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+
+            {/* ABA 4: FOLGAS CANCELADAS */}
+            <TabsContent value="cancelled" className="mt-3 space-y-3">
+              <div className="rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 p-3 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+                  <XCircle size={16} />
                 </div>
-              );
-            })()}
-          </TabsContent>
-
-          {/* ABA 4: COMO FUNCIONA O PORTAL (GUIA COMPLETO) */}
-          <TabsContent value="help" className="mt-3 space-y-3">
-            <div className="p-4 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-border">
-                <BookOpen size={18} className="text-primary" />
-                <h3 className="font-bold text-sm text-foreground">Como Funciona o Portal do Servidor</h3>
+                <div className="min-w-0 text-xs">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200">
+                    Folgas Canceladas & Estornos
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                    Quando uma folga é cancelada pela coordenação, os dias voltam automaticamente para o seu saldo disponível.
+                  </p>
+                </div>
               </div>
 
-              {/* Seção 1: Escalas */}
-              <div className="space-y-1 text-xs">
-                <strong className="text-foreground flex items-center gap-1.5 font-bold">
-                  <CalendarDays size={14} className="text-primary" />
-                  1. Escalas de Trabalho e Plantões Extras
-                </strong>
-                <p className="text-muted-foreground leading-relaxed pl-5">
-                  Aqui você visualiza seus plantões programados, horários (diurno/noturno/24h) e unidade de atendimento. Plantões marcados como <strong className="text-amber-600 dark:text-amber-400">"Plantão Extra"</strong> geram créditos automáticos para você usufruir de folgas no futuro.
-                </p>
-              </div>
+              {cancelledLeaves.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                  <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    Nenhuma folga cancelada
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Todas as suas solicitações estão válidas ou foram gozadas normalmente.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {cancelledLeaves.map((l) => (
+                    <div
+                      key={l.id}
+                      className="p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                            {l.days_requested} dia(s) cancelado(s)
+                          </span>
+                        </div>
+                        <Badge className="bg-slate-600 hover:bg-slate-600 text-white text-[10px] font-bold">
+                          Cancelada
+                        </Badge>
+                      </div>
 
-              {/* Seção 2: Folgas */}
-              <div className="space-y-1 text-xs">
-                <strong className="text-foreground flex items-center gap-1.5 font-bold">
-                  <CalendarOff size={14} className="text-amber-600" />
-                  2. Solicitações de Folga (Pendentes e Aprovadas)
-                </strong>
-                <p className="text-muted-foreground leading-relaxed pl-5">
-                  Na aba de folgas, acompanhe o andamento dos seus pedidos. Os pedidos com badge amarelo <strong className="text-amber-600">"Em Análise"</strong> aguardam parecer da coordenação. Quando aprovados, o sistema debita automaticamente os dias do seu saldo de créditos.
-                </p>
-              </div>
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
+                        <CheckCircle2 size={13} className="shrink-0" />
+                        <span>Créditos estornados: <strong>+{l.days_requested} dia(s)</strong> no seu saldo</span>
+                      </div>
 
-              {/* Seção 3: Saldo e Créditos */}
-              <div className="space-y-1 text-xs">
-                <strong className="text-foreground flex items-center gap-1.5 font-bold">
-                  <Wallet size={14} className="text-emerald-600" />
-                  3. Saldo e Extrato de Créditos
-                </strong>
-                <p className="text-muted-foreground leading-relaxed pl-5">
-                  Seu saldo compensatório é calculado em tempo real: <br />
-                  <code className="text-[11px] font-mono bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold">
-                    Saldo = (Plantões Extras) + (Ajustes Autorizados) - (Folgas Gozadas)
-                  </code>
-                </p>
-              </div>
+                      <div className="text-xs text-muted-foreground">
+                        <strong>Datas da folga: </strong>
+                        <span className="text-foreground font-medium">
+                          {(l.leave_dates || []).map((d) => fmtDate(d)).join(', ')}
+                        </span>
+                      </div>
 
-              {/* Seção 4: Foto de Perfil */}
-              <div className="space-y-1 text-xs">
-                <strong className="text-foreground flex items-center gap-1.5 font-bold">
-                  <Camera size={14} className="text-primary" />
-                  4. Foto de Perfil Sincronizada
-                </strong>
-                <p className="text-muted-foreground leading-relaxed pl-5">
-                  Ao clicar no ícone de câmera na sua foto, você pode enviar uma foto pessoal. Ela é comprimida instantaneamente no seu celular para carregar rápido e fica sincronizada tanto no seu portal quanto no painel dos gestores.
-                </p>
-              </div>
+                      {l.cancellation_reason && (
+                        <div className="text-xs bg-rose-50/60 dark:bg-rose-950/20 p-2.5 rounded-xl border border-rose-200/60 dark:border-rose-900/40 text-rose-900 dark:text-rose-200 space-y-0.5">
+                          <span className="font-bold text-[10.5px] uppercase tracking-wider block text-rose-700 dark:text-rose-300">
+                            Motivo do cancelamento:
+                          </span>
+                          <p className="text-xs leading-relaxed">{l.cancellation_reason}</p>
+                        </div>
+                      )}
 
-              {/* Seção 5: QR Code e Instalação */}
-              <div className="space-y-1 text-xs">
-                <strong className="text-foreground flex items-center gap-1.5 font-bold">
-                  <QrCode size={14} className="text-indigo-600" />
-                  5. Acesso Rápido por QR Code & App PWA
-                </strong>
-                <p className="text-muted-foreground leading-relaxed pl-5">
-                  Você pode salvar o portal na tela inicial do seu celular usando o botão <strong>"Instalar App"</strong> no topo, ou ler o QR Code fornecido pelo RH para entrar diretamente sem precisar digitar o código.
-                </p>
-              </div>
+                      {l.observations && (
+                        <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-0.5">
+                          <span className="font-semibold text-muted-foreground block text-[10.5px] uppercase tracking-wider">
+                            Motivo original solicitado:
+                          </span>
+                          <p className="text-xs leading-relaxed">{l.observations}</p>
+                        </div>
+                      )}
 
-              {/* Caixa Jurídica LGPD */}
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/70 text-[11px] text-muted-foreground space-y-1">
-                <span className="font-semibold text-foreground flex items-center gap-1">
-                  <ShieldCheck size={13} className="text-emerald-600" />
-                  Proteção de Dados (LGPD):
-                </span>
-                <p>
-                  Suas informações são pessoais e intransferíveis. O portal opera em modo de leitura e auditoria contínua, garantindo conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+                      <div className="text-[10.5px] text-muted-foreground pt-0.5 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 mt-1">
+                        <span>Solicitado em: {fmtDate(l.created_at)}</span>
+                        {l.cancelled_at && <span>Cancelado em: {fmtDate(l.cancelled_at)}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ABA 5: TRANSFERÊNCIAS ENTRE UNIDADES */}
+            <TabsContent value="transfers" className="mt-3 space-y-2">
+              {transfers.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                  <ArrowLeftRight size={28} className="mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-xs font-medium">Nenhuma transferência de unidade registrada.</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-1">
+                    Seu histórico de lotação permanece na unidade atual.
+                  </p>
+                </div>
+              ) : (
+                transfers.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-sm text-foreground">
+                          {fmtDate(t.transferred_at)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({weekday(t.transferred_at)})
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-semibold border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">
+                        Transferência Oficial
+                      </Badge>
+                    </div>
+
+                    <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-1">
+                      <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
+                        Movimentação de Unidade:
+                      </span>
+                      <div className="flex items-center gap-2 font-medium">
+                        <span className="text-slate-600 dark:text-slate-300">{t.from_unit_name}</span>
+                        <ArrowRight size={13} className="text-primary shrink-0" />
+                        <strong className="text-primary font-bold">{t.to_unit_name}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }
