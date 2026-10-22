@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -36,6 +36,7 @@ const SHELL_ASSETS = [
     '/icon-192.png',
     '/icon-512.png',
     '/logo-saude.png',
+    '/logo-saude-emblem.png',
 ];
 
 // ─── INSTALL ─────────────────────────────────────────────────────────────────
