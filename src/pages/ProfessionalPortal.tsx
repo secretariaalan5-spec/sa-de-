@@ -51,6 +51,7 @@ import {
 import PortalTermsDialog from '@/components/portal/PortalTermsDialog';
 import { compressAvatarImage } from '@/lib/imageCompressor';
 import logoSaude from '@/assets/logo-saude.png';
+import logoSaudeEmblem from '@/assets/logo-saude-emblem.png';
 import camocimBg from '@/assets/camocim-bg.jpg';
 import { toast } from 'sonner';
 
@@ -176,6 +177,7 @@ export default function ProfessionalPortal() {
   const [notifOpen, setNotifOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
   // Capturar evento de instalação PWA (Add to Home Screen)
   useEffect(() => {
@@ -449,137 +451,141 @@ export default function ProfessionalPortal() {
 
     return (
       <div className="relative min-h-screen w-full flex flex-col justify-between p-4 sm:p-6 text-white font-sans antialiased overflow-hidden select-none">
-        {/* Foto de Fundo Oficial (Camocim) com Tratamento e Gradiente Azul Profundo */}
+        {/* Foto de Fundo Oficial (Camocim) com Tratamento Suave e Blur */}
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105 filter blur-[3px]"
           style={{ backgroundImage: `url(${camocimBg})` }}
         />
-        {/* Camada de Gradiente Azul Institucional Idêntica ao Mockup */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0b3b82]/95 via-[#08295e]/90 to-[#041533]/98 backdrop-blur-[1.5px]" />
+        {/* Camada de Gradiente Azul Institucional Idêntica à Referência */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b3b82]/95 via-[#08295e]/92 to-[#041533]/98 backdrop-blur-[2px]" />
         
-        {/* Elemento sutil de onda/curva na base */}
-        <div className="absolute -bottom-24 -left-20 w-[600px] h-[600px] rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+        {/* Brilhos / Glows Sutis de Fundo */}
+        <div className="absolute -bottom-24 -left-20 w-[600px] h-[600px] rounded-full bg-blue-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 -right-20 w-[400px] h-[400px] rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
 
-        {/* Conteúdo Central */}
-        <div className="relative z-10 w-full max-w-sm mx-auto my-auto flex flex-col items-center text-center pt-4 pb-6 space-y-6">
-          {/* Logo e Marca Oficial */}
-          <div className="flex flex-col items-center space-y-2">
-            <div className="relative flex items-center justify-center">
-              {/* Sombra / Glow sutil */}
-              <div className="absolute w-20 h-20 rounded-full bg-blue-400/20 blur-xl" />
+        {/* Conteúdo: Topo com Logo e Região Inferior com o Card de Código */}
+        <div className="relative z-10 w-full max-w-sm mx-auto flex-1 flex flex-col justify-between pt-8 sm:pt-14 pb-4">
+          {/* Região Superior: Logo Oficial Transparente e Tipografia Institucional */}
+          <div className="flex flex-col items-center text-center space-y-2.5">
+            <div className="relative flex items-center justify-center mb-1">
+              <div className="absolute w-24 h-24 rounded-full bg-sky-400/20 blur-2xl pointer-events-none" />
               <img
-                src={logoSaude}
+                src={logoSaudeEmblem}
                 alt="Saúde+"
-                className="w-20 h-20 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.35)] relative z-10"
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] relative z-10"
               />
             </div>
 
-            <div className="space-y-1">
-              <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-sm font-sans">
-                SAÚDE<span className="text-sky-300">+</span>
+            <div className="space-y-1.5">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-md font-sans">
+                SAÚDE<span className="text-sky-400">+</span>
               </h1>
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-200/90">
-                Portal do Servidor
+              <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-sky-200/90">
+                PORTAL DO SERVIDOR
               </p>
-              {/* Linha divisora ciano estilizada como no mockup */}
-              <div className="w-10 h-0.5 bg-sky-400/80 rounded-full mx-auto my-2" />
-              <p className="text-xs text-sky-100/85 font-medium leading-relaxed max-w-[240px] mx-auto">
+              {/* Linha divisora ciano estilizada idêntica à referência */}
+              <div className="w-12 h-0.5 bg-sky-400/90 rounded-full mx-auto my-2" />
+              <p className="text-xs sm:text-[13px] text-sky-100/90 font-medium leading-relaxed max-w-[260px] mx-auto drop-shadow-xs">
                 Juntos por uma saúde melhor em Camocim.
               </p>
             </div>
           </div>
 
-          {/* Card Flutuante de Vidro Fosco (Glassmorphism Azul) */}
-          <div className="w-full bg-[#0d346c]/60 backdrop-blur-xl border border-sky-400/25 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-5">
-            {/* Header do Card com Ícone de Cadeado Redondo */}
-            <div className="flex items-center gap-3 text-left">
-              <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300 shadow-inner shrink-0">
-                <Lock size={16} />
-              </div>
-              <span className="text-sm font-bold text-white tracking-wide">
-                Digite seu código de acesso
-              </span>
-            </div>
-
-            {/* Formulário com Slots Visuais de PIN de 3 Dígitos */}
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="relative">
-                {/* Input invisível sobreposto para capturar teclado nativo mobile / desktop */}
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={3}
-                  value={formattedInput}
-                  onChange={(e) => setInputCode(e.target.value)}
-                  autoFocus
-                  className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
-                  aria-label="Código de acesso de 3 dígitos"
-                />
-
-                {/* 3 Slots Quadrados com Vidro e Dots como no Mockup */}
-                <div className="grid grid-cols-3 gap-3 relative z-10 pointer-events-none">
-                  {pinDigits.map((idx) => {
-                    const digit = formattedInput[idx];
-                    const isFilled = digit !== undefined;
-                    const isCurrent = formattedInput.length === idx;
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`h-16 rounded-2xl flex items-center justify-center transition-all duration-200 border ${
-                          isFilled
-                            ? 'bg-sky-500/25 border-sky-300/80 shadow-[0_0_15px_rgba(56,189,248,0.25)]'
-                            : isCurrent
-                            ? 'bg-white/10 border-sky-400 ring-2 ring-sky-400/40'
-                            : 'bg-black/20 border-white/15'
-                        }`}
-                      >
-                        {isFilled ? (
-                          <span className="text-2xl font-black font-mono text-white tracking-wider animate-in zoom-in-75 duration-150">
-                            {digit}
-                          </span>
-                        ) : (
-                          <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
-                        )}
-                      </div>
-                    );
-                  })}
+          {/* Região Inferior: Card com Digitação do Código de Acesso */}
+          <div className="w-full mt-auto pt-6 space-y-4">
+            <div
+              onClick={() => pinInputRef.current?.focus()}
+              className="w-full bg-[#0a2754]/85 backdrop-blur-xl border border-sky-400/25 rounded-3xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-5 cursor-text"
+            >
+              {/* Header do Card com Ícone de Cadeado Redondo */}
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-400/35 flex items-center justify-center text-sky-300 shadow-inner shrink-0">
+                  <Lock size={18} />
                 </div>
+                <span className="text-base font-bold text-white tracking-wide">
+                  Digite seu código de acesso
+                </span>
               </div>
 
-              {/* Botão de Entrar Estilo Pílula Azul Vibrante */}
-              <Button
-                type="submit"
-                disabled={loginLoading || formattedInput.length !== 3}
-                className="w-full h-12 rounded-2xl font-bold text-sm bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loginLoading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Verificando...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Entrar</span>
-                    <ArrowRight size={17} />
-                  </>
-                )}
-              </Button>
-            </form>
+              {/* Formulário com Slots Visuais de PIN de 3 Dígitos */}
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="relative">
+                  {/* Input invisível sobreposto para capturar teclado nativo mobile / desktop */}
+                  <input
+                    ref={pinInputRef}
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={3}
+                    value={formattedInput}
+                    onChange={(e) => setInputCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                    autoFocus
+                    className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
+                    aria-label="Código de acesso de 3 dígitos"
+                  />
 
-            {/* Aviso de Segurança e Privacidade no Card */}
-            <div className="flex items-center justify-center gap-2 pt-1 text-center text-xs text-sky-200/80">
-              <ShieldCheck size={16} className="text-sky-300 shrink-0" />
-              <span className="text-[11.5px] leading-tight">
-                Seu acesso é seguro e pessoal.
-              </span>
+                  {/* 3 Slots Quadrados com Vidro e Dots Idênticos à Imagem de Referência */}
+                  <div className="grid grid-cols-3 gap-3 relative z-10 pointer-events-none">
+                    {pinDigits.map((idx) => {
+                      const digit = formattedInput[idx];
+                      const isFilled = digit !== undefined;
+                      const isCurrent = formattedInput.length === idx;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`h-16 rounded-2xl flex items-center justify-center transition-all duration-200 border ${
+                            isCurrent
+                              ? 'bg-[#153e78]/90 border-2 border-sky-400 ring-2 ring-sky-400/30 shadow-[0_0_20px_rgba(56,189,248,0.35)]'
+                              : isFilled
+                              ? 'bg-[#123668]/85 border-sky-400/40'
+                              : 'bg-[#0d2852]/80 border-sky-500/20'
+                          }`}
+                        >
+                          {isFilled ? (
+                            <div className="w-3.5 h-3.5 rounded-full bg-white shadow-sm animate-in zoom-in-75 duration-150" />
+                          ) : (
+                            <div className="w-2.5 h-2.5 rounded-full bg-slate-400/40" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Botão de Entrar Estilo Azul Real com Seta */}
+                <Button
+                  type="submit"
+                  disabled={loginLoading || formattedInput.length !== 3}
+                  className="w-full h-12 rounded-2xl font-bold text-sm bg-gradient-to-r from-[#175ec9] to-[#1d6ee6] hover:from-[#1b68dc] hover:to-[#2277f5] text-white shadow-lg shadow-blue-700/35 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loginLoading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Verificando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Entrar</span>
+                      <ArrowRight size={17} />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              {/* Aviso de Segurança e Privacidade no Card */}
+              <div className="flex items-center justify-center gap-2 pt-0.5 text-center text-xs text-sky-200/80">
+                <ShieldCheck size={16} className="text-sky-300 shrink-0" />
+                <span className="text-[12px] font-medium leading-tight">
+                  Seu acesso é seguro e pessoal.
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Rodapé da Página */}
-        <div className="relative z-10 text-center text-[11px] text-sky-200/60 pb-2">
+        <div className="relative z-10 text-center text-[11px] text-sky-200/60 pb-2 font-medium tracking-wide">
           Prefeitura Municipal de Camocim • Secretaria de Saúde
         </div>
       </div>
