@@ -238,6 +238,34 @@ export default function ProfessionalPortal() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pinInputRef = useRef<HTMLInputElement>(null);
 
+  // Configurar título, meta tags do iOS e manifest dedicado para que 'Adicionar à Tela de Início' no iPhone abra direto em /portal com o nome 'Saúde+ Portal'
+  useEffect(() => {
+    document.title = 'Saúde+ Portal';
+    
+    // Altera ou cria apple-mobile-web-app-title
+    let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (!appleTitle) {
+      appleTitle = document.createElement('meta');
+      appleTitle.setAttribute('name', 'apple-mobile-web-app-title');
+      document.head.appendChild(appleTitle);
+    }
+    const origAppleTitle = appleTitle.getAttribute('content');
+    appleTitle.setAttribute('content', 'Saúde+ Portal');
+
+    // Troca manifest para manifest-portal.json (start_url: /portal)
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    const origManifest = manifestLink?.getAttribute('href');
+    if (manifestLink) {
+      manifestLink.setAttribute('href', '/manifest-portal.json');
+    }
+
+    return () => {
+      document.title = 'Saúde+ - Gestão de Escalas';
+      if (appleTitle && origAppleTitle) appleTitle.setAttribute('content', origAppleTitle);
+      if (manifestLink && origManifest) manifestLink.setAttribute('href', origManifest);
+    };
+  }, []);
+
   // Capturar evento de instalação PWA (Add to Home Screen)
   useEffect(() => {
     const handler = (e: any) => {
