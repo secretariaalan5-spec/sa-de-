@@ -496,13 +496,15 @@ export default function ProfessionalPortal() {
   }, [loadDashboard]);
 
   // Login automático quando vier do QR Code (?codigo=XXX) ou quando tiver código de 3 dígitos salvo
-  // Roda apenas na montagem e quando autoLoginTick muda (não dispara enquanto o usuário digita)
   useEffect(() => {
-    if (!sessionToken && inputCode.length === 3) {
-      performLogin(inputCode);
+    if (!sessionToken) {
+      const codeToAttempt = inputCode || readSaved('saude_portal_saved_code');
+      if (codeToAttempt && codeToAttempt.length === 3) {
+        performLogin(codeToAttempt);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoginTick]);
+  }, [autoLoginTick, sessionToken]);
 
   // Manipulador de envio do formulário de login
   const handleLogin = (e: React.FormEvent) => {

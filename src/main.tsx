@@ -12,7 +12,13 @@ if ('serviceWorker' in navigator) {
 
     if (!isInIframe && !isPreview) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
+          reg.update().catch(() => {});
+        }).catch(() => {});
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Se um novo service worker assumiu, atualiza automaticamente em background
       });
     }
   } else {
