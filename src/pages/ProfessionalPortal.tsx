@@ -164,19 +164,31 @@ const readSaved = (key: string): string | null => {
 const writeSaved = (key: string, value: string) => {
   try { localStorage.setItem(key, value); } catch {}
   try {
-    document.cookie = `${key}=${encodeURIComponent(value)}; max-age=31536000; path=/; SameSite=Lax`;
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isHttps ? '; Secure' : '';
+    document.cookie = `${key}=${encodeURIComponent(value)}; max-age=31536000; path=/; SameSite=Lax${secureFlag}`;
   } catch {}
 };
 const clearSaved = (key: string) => {
   try { localStorage.removeItem(key); } catch {}
-  try { document.cookie = `${key}=; max-age=0; path=/; SameSite=Lax`; } catch {}
+  try {
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isHttps ? '; Secure' : '';
+    document.cookie = `${key}=; max-age=0; path=/; SameSite=Lax${secureFlag}`;
+  } catch {}
 };
 
 export default function ProfessionalPortal() {
-  const wasReturningRef = useRef<boolean>(
-    !!readSaved('saude_portal_token') || !!readSaved('saude_portal_saved_code')
-  );
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
+    // Se o link/QR traz um código diferente do salvo (ex.: outra pessoa no mesmo aparelho),
+    // não reaproveita a sessão anterior: limpa e faz novo login com o código do link.
+    try {
+      const urlCode = new URLSearchParams(window.location.search).get('codigo')?.replace(/\D/g, '').slice(0, 3);
+      if (urlCode && urlCode !== readSaved('saude_portal_saved_code')) {
+        clearSaved('saude_portal_token');
+        return null;
+      }
+    } catch {}
     return readSaved('saude_portal_token');
   });
   const [autoLoginTick, setAutoLoginTick] = useState(0);
