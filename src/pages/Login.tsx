@@ -88,16 +88,10 @@ export default function Login() {
           </div>
 
           {/* Institutional Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
+          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
             <p className="text-xs text-slate-500 font-medium text-center">
               Acesso exclusivo para administradores, chefes de categoria e gerentes de unidade.
             </p>
-            <a
-              href="/portal"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 bg-sky-50 px-3.5 py-1.5 rounded-full border border-sky-100 transition-colors"
-            >
-              Sou profissional / servidor: Acessar Portal
-            </a>
           </div>
         </div>
 

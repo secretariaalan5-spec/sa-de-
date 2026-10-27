@@ -25,8 +25,19 @@
 
     <link rel="icon" type="image/png" href="/logo-saude.png" />
     <link rel="apple-touch-icon" href="/logo-saude.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link id="app-manifest" rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="hsl(210, 15%, 95%)" />
+    <script>
+      (function() {
+        if (window.location.pathname.startsWith('/portal')) {
+          document.title = 'Saúde+ Portal';
+          var m = document.getElementById('app-manifest');
+          if (m) m.setAttribute('href', '/manifest-portal.json');
+          var metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+          if (metaTitle) metaTitle.setAttribute('content', 'Saúde+ Portal');
+        }
+      })();
+    </script>
   </head>
 
   <body style="overscroll-behavior:none;-webkit-user-select:none;user-select:none;">
