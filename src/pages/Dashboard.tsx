@@ -37,6 +37,19 @@ export default function Dashboard() {
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [scheduleStat, setScheduleStat] = useState<ScheduleStat>({ total: 0, extras: 0 });
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [profileName, setProfileName] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.display_name) setProfileName(data.display_name);
+      });
+  }, [user]);
 
   const load = useCallback(async () => {
     if (!roleInfo?.team_id) return;
@@ -189,7 +202,15 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{greeting()}</h1>
+          <h1 className="text-2xl font-bold">
+            {greeting()}
+            {(() => {
+              const rawName = profileName || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
+              const parts = rawName.trim().split(/\s+/).filter(Boolean);
+              const two = parts.slice(0, 2).join(' ');
+              return two ? `, ${two}` : '';
+            })()}!
+          </h1>
           <p className="text-muted-foreground text-sm">
             {roleDescription || (roleInfo ? roleLabels[roleInfo.role] : 'Acesso Limitado (Perfil Incompleto)')}
             {isRH && ' — somente visualização'}

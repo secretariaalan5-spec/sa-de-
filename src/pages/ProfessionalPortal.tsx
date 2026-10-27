@@ -913,6 +913,17 @@ export default function ProfessionalPortal() {
   // Ordenação decrescente: o mais recente primeiro!
   extratoTimeline.sort((a, b) => b.timestamp - a.timestamp);
 
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
+  const twoNames = profile?.name
+    ? profile.name.trim().split(/\s+/).slice(0, 2).join(' ')
+    : 'Servidor';
+
   return (
     <div className="min-h-screen bg-[#dcebf7] flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-slate-900 selection:bg-primary/20">
       {/* Moldura de Aplicativo Mobile (sempre com fundo limpo mesmo em dark mode do Android) */}
@@ -951,8 +962,8 @@ export default function ProfessionalPortal() {
         {/* Header Superior PWA Estilo Aplicativo Nativo */}
         <header className="px-5 pt-6 pb-2 shrink-0 relative z-20 flex items-start justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-none font-sans drop-shadow-xs">
-              Saúde+
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-tight font-sans drop-shadow-xs">
+              {greeting()}, {twoNames}!
             </h1>
             <p className="text-[10px] sm:text-[11px] font-bold text-sky-200/90 tracking-widest uppercase mt-1">
               PORTAL DO SERVIDOR
