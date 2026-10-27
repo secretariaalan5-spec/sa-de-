@@ -782,16 +782,16 @@ export default function ProfessionalPortal() {
   extratoTimeline.sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="min-h-screen bg-[#dcebf7] dark:bg-slate-950 flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-foreground selection:bg-primary/20">
-      {/* Moldura de Aplicativo Mobile (sem esticar horizontalmente no monitor) */}
-      <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:max-h-[94vh] bg-[#f0f6fc] dark:bg-slate-900 sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-[#dcebf7] flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-slate-900 selection:bg-primary/20">
+      {/* Moldura de Aplicativo Mobile (sempre com fundo limpo mesmo em dark mode do Android) */}
+      <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:max-h-[94vh] bg-[#f0f6fc] sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200/80 flex flex-col overflow-hidden relative">
         {/* Imagem de Fundo Oficial do Portal (Ondas Fluidas & Pulso Médico) */}
         <div
           className="absolute inset-0 bg-cover bg-top bg-no-repeat pointer-events-none z-0"
           style={{ backgroundImage: `url(${portalBg})` }}
         />
         {/* Suave camada de luz para contraste e harmonia com os cartões */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/40 dark:from-slate-950/40 dark:to-slate-950/80 pointer-events-none z-0" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/40 pointer-events-none z-0" />
 
         {/* Modal de Aceite de Termos (LGPD) */}
         <PortalTermsDialog
@@ -860,14 +860,14 @@ export default function ProfessionalPortal() {
                 </PopoverTrigger>
                 <PopoverContent
                 align="end"
-                className="w-80 sm:w-88 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                className="w-80 sm:w-88 p-0 rounded-2xl shadow-xl border border-slate-200 bg-white"
               >
-                <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
+                <div className="p-3 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
                     <Bell size={14} className="text-primary" />
                     <span>Suas Notificações</span>
                     {unreadNotifsCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 font-extrabold text-[10px]">
                         {unreadNotifsCount} nova(s)
                       </span>
                     )}
@@ -883,7 +883,7 @@ export default function ProfessionalPortal() {
                   )}
                 </div>
 
-                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 p-1">
                   {notifications.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-400">
                       Nenhuma notificação direcionada a você no momento.
@@ -895,19 +895,19 @@ export default function ProfessionalPortal() {
                         onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
                         className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
                           n.is_read
-                            ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            ? 'opacity-70 hover:bg-slate-50'
                             : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          <span className="font-bold text-xs text-slate-900 truncate">
                             {n.title}
                           </span>
                           <span className="text-[10px] text-slate-400 shrink-0 font-medium">
                             {fmtDate(n.created_at)}
                           </span>
                         </div>
-                        <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
+                        <p className="text-[11.5px] text-slate-600 leading-snug">
                           {n.message}
                         </p>
                       </div>
