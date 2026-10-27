@@ -149,10 +149,40 @@ const weekday = (dateStr?: string | null) => {
   }
 };
 
+// Armazenamento resiliente: localStorage + cookie de 1 ano (fallback)
+const readSaved = (key: string): string | null => {
+  try {
+    const v = localStorage.getItem(key);
+    if (v) return v;
+  } catch {}
+  try {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + key + '=([^;]*)'));
+    if (m) return decodeURIComponent(m[1]);
+  } catch {}
+  return null;
+};
+const writeSaved = (key: string, value: string) => {
+  try { localStorage.setItem(key, value); } catch {}
+  try {
+    document.cookie = `${key}=${encodeURIComponent(value)}; max-age=31536000; path=/; SameSite=Lax`;
+  } catch {}
+};
+const clearSaved = (key: string) => {
+  try { localStorage.removeItem(key); } catch {}
+  try { document.cookie = `${key}=; max-age=0; path=/; SameSite=Lax`; } catch {}
+};
+
 export default function ProfessionalPortal() {
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
-    return localStorage.getItem('saude_portal_token');
+    return readSaved('saude_portal_token');
   });
+  const [autoLoginTick, setAutoLoginTick] = useState(0);
+  const retriedRef = useRef(false);
+
+  // Pede ao navegador armazenamento persistente (evita limpeza automática)
+  useEffect(() => {
+    try { navigator.storage?.persist?.(); } catch {}
+  }, []);
 
   // Estado de Login com Código (busca salvo no aparelho ou captura automático se vier de QR Code)
   const [inputCode, setInputCode] = useState(() => {
@@ -162,13 +192,12 @@ export default function ProfessionalPortal() {
       if (urlCode) {
         const clean = urlCode.replace(/\D/g, '').slice(0, 3);
         if (clean) {
-          try { localStorage.setItem('saude_portal_saved_code', clean); } catch {}
+          writeSaved('saude_portal_saved_code', clean);
+          try { window.history.replaceState({}, '', window.location.pathname); } catch {}
           return clean;
         }
       }
-      try {
-        return localStorage.getItem('saude_portal_saved_code') || '';
-      } catch {}
+      return readSaved('saude_portal_saved_code') || '';
     }
     return '';
   });
@@ -192,9 +221,12 @@ export default function ProfessionalPortal() {
   // Tour guiado automático no primeiro acesso após carregar dados e aceitar termos
   useEffect(() => {
     if (data && !dataLoading && !termsOpen) {
-      const tourCompleted = localStorage.getItem('saude_portal_tour_completed');
+      const tourCompleted = readSaved('saude_portal_tour_completed');
       if (!tourCompleted) {
-        const timer = setTimeout(() => setTourOpen(true), 750);
+        const timer = setTimeout(() => {
+          writeSaved('saude_portal_tour_completed', 'true');
+          setTourOpen(true);
+        }, 750);
         return () => clearTimeout(timer);
       }
     }
@@ -236,13 +268,22 @@ export default function ProfessionalPortal() {
       if (error) throw error;
       if (!res || !res.ok) {
         // Sessão expirada ou inválida
-        localStorage.removeItem('saude_portal_token');
+        clearSaved('saude_portal_token');
         setSessionToken(null);
         setData(null);
+        const saved = readSaved('saude_portal_saved_code');
+        if (saved && saved.length === 3 && !retriedRef.current) {
+          // Re-login silencioso com o código salvo
+          retriedRef.current = true;
+          setInputCode(saved);
+          setAutoLoginTick((t) => t + 1);
+          return;
+        }
         toast.error('Sessão expirada. Digite seu código de acesso novamente.');
         return;
       }
 
+      retriedRef.current = false;
       setData(res);
       if (res.profile?.needs_terms) {
         setTermsOpen(true);
@@ -313,9 +354,9 @@ export default function ProfessionalPortal() {
         console.error('Erro no logout:', e);
       }
     }
-    try {
-      localStorage.removeItem('saude_portal_token');
-    } catch {}
+    clearSaved('saude_portal_token');
+    clearSaved('saude_portal_saved_code');
+    setInputCode('');
     setSessionToken(null);
     setData(null);
     toast.success('Você saiu com segurança.');
@@ -377,16 +418,15 @@ export default function ProfessionalPortal() {
         } else {
           toast.error('Código de acesso inválido. Verifique com a coordenação ou RH.');
           // Remove código salvo se for inválido para não entrar em loop
-          try { localStorage.removeItem('saude_portal_saved_code'); } catch {}
+          clearSaved('saude_portal_saved_code');
         }
         return;
       }
 
       // Salva o código e o token da sessão para acessos futuros
-      try {
-        localStorage.setItem('saude_portal_saved_code', clean);
-        localStorage.setItem('saude_portal_token', res.token);
-      } catch {}
+      writeSaved('saude_portal_saved_code', clean);
+      writeSaved('saude_portal_token', res.token);
+      retriedRef.current = false;
 
       setSessionToken(res.token);
       await loadDashboard(res.token);
@@ -399,11 +439,13 @@ export default function ProfessionalPortal() {
   }, [loadDashboard]);
 
   // Login automático quando vier do QR Code (?codigo=XXX) ou quando tiver código de 3 dígitos salvo
+  // Roda apenas na montagem e quando autoLoginTick muda (não dispara enquanto o usuário digita)
   useEffect(() => {
-    if (!sessionToken && inputCode && inputCode.length === 3 && !loginLoading && !data) {
+    if (!sessionToken && inputCode.length === 3) {
       performLogin(inputCode);
     }
-  }, [sessionToken, inputCode, loginLoading, data, performLogin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoginTick]);
 
   // Manipulador de envio do formulário de login
   const handleLogin = (e: React.FormEvent) => {
