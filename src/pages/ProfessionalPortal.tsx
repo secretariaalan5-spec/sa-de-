@@ -221,24 +221,19 @@ export default function ProfessionalPortal() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
 
-  // Tour guiado automático no primeiro acesso após carregar dados e aceitar termos
+  // Tour guiado: só no primeiro acesso de verdade (logo após aceitar os termos, registrado no servidor).
+  // Não depende do armazenamento do aparelho, então não reaparece em iPhone/Safari ao reabrir.
+  const [tourPending, setTourPending] = useState(false);
   useEffect(() => {
-    if (data && !dataLoading && !termsOpen) {
-      const tourCompleted = readSaved('saude_portal_tour_completed');
-      if (!tourCompleted) {
-        if (wasReturningRef.current) {
-          // Já tinha login salvo neste aparelho: nunca mostrar o tour
-          writeSaved('saude_portal_tour_completed', 'true');
-          return;
-        }
-        const timer = setTimeout(() => {
-          writeSaved('saude_portal_tour_completed', 'true');
-          setTourOpen(true);
-        }, 750);
-        return () => clearTimeout(timer);
-      }
+    if (tourPending && data && !dataLoading && !termsOpen) {
+      const timer = setTimeout(() => {
+        writeSaved('saude_portal_tour_completed', 'true');
+        setTourPending(false);
+        setTourOpen(true);
+      }, 750);
+      return () => clearTimeout(timer);
     }
-  }, [data, dataLoading, termsOpen]);
+  }, [tourPending, data, dataLoading, termsOpen]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pinInputRef = useRef<HTMLInputElement>(null);
@@ -486,6 +481,7 @@ export default function ProfessionalPortal() {
       if (!res.ok) throw new Error('Não foi possível registrar o aceite');
 
       setTermsOpen(false);
+      setTourPending(true);
       toast.success('Termos de uso aceitos com sucesso!');
       await loadDashboard(sessionToken);
     } catch (err: any) {
