@@ -297,6 +297,16 @@ export default function ProfessionalPortal() {
         setTermsOpen(true);
       }
     } catch (err: any) {
+      const saved = readSaved('saude_portal_saved_code');
+      if (!silent && saved && saved.length === 3 && !retriedRef.current) {
+        retriedRef.current = true;
+        clearSaved('saude_portal_token');
+        setSessionToken(null);
+        setData(null);
+        setInputCode(saved);
+        setAutoLoginTick((t) => t + 1);
+        return;
+      }
       if (!silent) toast.error('Erro ao carregar seus dados: ' + (err.message || ''));
     } finally {
       if (!silent) setDataLoading(false);
