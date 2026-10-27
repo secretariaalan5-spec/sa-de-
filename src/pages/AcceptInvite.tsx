@@ -64,24 +64,25 @@ export default function AcceptInvite() {
         return;
       }
 
-      const [inviteRes, userRes] = await Promise.all([
-        supabase.from('category_invites').select('*').eq('token', token).single(),
+      const [inviteRpcRes, userRes] = await Promise.all([
+        supabase.rpc('get_category_invite_details', { p_token: token }),
         supabase.auth.getUser(),
       ]);
 
-      if (inviteRes.error || !inviteRes.data) {
-        setError('Convite não encontrado ou inválido.');
+      if (inviteRpcRes.error || !inviteRpcRes.data?.ok || !inviteRpcRes.data?.invite) {
+        setError(inviteRpcRes.data?.error || 'Convite não encontrado ou inválido.');
         setLoading(false);
         return;
       }
 
-      setInvite(inviteRes.data);
+      const inviteData = inviteRpcRes.data.invite;
+      setInvite(inviteData);
 
-      if (inviteRes.data.category_ids.length > 0) {
+      if (inviteData.category_ids && inviteData.category_ids.length > 0) {
         const { data: catsData } = await supabase
           .from('categories')
           .select('id, name')
-          .in('id', inviteRes.data.category_ids);
+          .in('id', inviteData.category_ids);
         setCategories(catsData ?? []);
       }
 

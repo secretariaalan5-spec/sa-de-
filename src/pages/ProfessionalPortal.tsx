@@ -49,10 +49,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import PortalTermsDialog from '@/components/portal/PortalTermsDialog';
+import PortalOnboardingTour from '@/components/portal/PortalOnboardingTour';
 import { compressAvatarImage } from '@/lib/imageCompressor';
 import logoSaude from '@/assets/logo-saude.png';
 import logoSaudeEmblem from '@/assets/logo-saude-emblem.png';
 import camocimBg from '@/assets/camocim-bg.jpg';
+import portalBg from '@/assets/portal-bg.png';
 import { toast } from 'sonner';
 
 interface DashboardData {
@@ -170,11 +172,23 @@ export default function ProfessionalPortal() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
-  // Estados de Navegação Estilo App Mobile (Extrato sendo a primeira aba, Escalas, Folgas, Canceladas, Transferências)
-  const [activeTab, setActiveTab] = useState<'extrato' | 'schedules' | 'leaves' | 'cancelled' | 'transfers'>('extrato');
+  // Estados de Navegação Estilo App Mobile (3 Abas Essenciais: Escalas, Folgas, Extrato)
+  const [activeTab, setActiveTab] = useState<'schedules' | 'leaves' | 'extrato'>('schedules');
   const [extratoFilter, setExtratoFilter] = useState<'all' | 'shifts' | 'leaves' | 'credits' | 'transfers'>('all');
-  const [leaveFilter, setLeaveFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [leaveFilter, setLeaveFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'cancelled'>('all');
   const [notifOpen, setNotifOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+
+  // Tour guiado automático no primeiro acesso após carregar dados e aceitar termos
+  useEffect(() => {
+    if (data && !dataLoading && !termsOpen) {
+      const tourCompleted = localStorage.getItem('saude_portal_tour_completed');
+      if (!tourCompleted) {
+        const timer = setTimeout(() => setTourOpen(true), 750);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [data, dataLoading, termsOpen]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pinInputRef = useRef<HTMLInputElement>(null);
@@ -201,9 +215,9 @@ export default function ProfessionalPortal() {
     setDeferredPrompt(null);
   };
 
-  // Busca os dados do painel com o token de sessão
-  const loadDashboard = useCallback(async (token: string) => {
-    setDataLoading(true);
+  // Busca os dados do painel com o token de sessão (com suporte a reload silencioso em segundo plano)
+  const loadDashboard = useCallback(async (token: string, silent = false) => {
+    if (!silent) setDataLoading(true);
     try {
       const { data: res, error } = await supabase.rpc('portal_get_dashboard_data', {
         p_token: token,
@@ -224,9 +238,9 @@ export default function ProfessionalPortal() {
         setTermsOpen(true);
       }
     } catch (err: any) {
-      toast.error('Erro ao carregar seus dados: ' + (err.message || ''));
+      if (!silent) toast.error('Erro ao carregar seus dados: ' + (err.message || ''));
     } finally {
-      setDataLoading(false);
+      if (!silent) setDataLoading(false);
     }
   }, []);
 
@@ -248,28 +262,28 @@ export default function ProfessionalPortal() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests', filter: `employee_id=eq.${empId}` },
         () => {
-          if (sessionToken) loadDashboard(sessionToken);
+          if (sessionToken) loadDashboard(sessionToken, true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'schedules', filter: `employee_id=eq.${empId}` },
         () => {
-          if (sessionToken) loadDashboard(sessionToken);
+          if (sessionToken) loadDashboard(sessionToken, true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_credits', filter: `employee_id=eq.${empId}` },
         () => {
-          if (sessionToken) loadDashboard(sessionToken);
+          if (sessionToken) loadDashboard(sessionToken, true);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
         () => {
-          if (sessionToken) loadDashboard(sessionToken);
+          if (sessionToken) loadDashboard(sessionToken, true);
         }
       )
       .subscribe();
@@ -451,12 +465,12 @@ export default function ProfessionalPortal() {
 
     return (
       <div className="relative min-h-screen w-full flex flex-col justify-between p-4 sm:p-6 text-white font-sans antialiased overflow-hidden select-none">
-        {/* Foto de Fundo Oficial (Camocim) com Tratamento Suave e Blur */}
+        {/* Foto de Fundo Oficial com Tratamento Suave e Blur */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105 filter blur-[3px]"
           style={{ backgroundImage: `url(${camocimBg})` }}
         />
-        {/* Camada de Gradiente Azul Institucional Idêntica à Referência */}
+        {/* Camada de Gradiente Azul Institucional */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0b3b82]/95 via-[#08295e]/92 to-[#041533]/98 backdrop-blur-[2px]" />
         
         {/* Brilhos / Glows Sutis de Fundo */}
@@ -483,11 +497,8 @@ export default function ProfessionalPortal() {
               <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-sky-200/90">
                 PORTAL DO SERVIDOR
               </p>
-              {/* Linha divisora ciano estilizada idêntica à referência */}
-              <div className="w-12 h-0.5 bg-sky-400/90 rounded-full mx-auto my-2" />
-              <p className="text-xs sm:text-[13px] text-sky-100/90 font-medium leading-relaxed max-w-[260px] mx-auto drop-shadow-xs">
-                Juntos por uma saúde melhor em Camocim.
-              </p>
+              {/* Linha divisora ciano estilizada */}
+              <div className="w-12 h-0.5 bg-sky-400/90 rounded-full mx-auto mt-2" />
             </div>
           </div>
 
@@ -581,13 +592,25 @@ export default function ProfessionalPortal() {
                 </span>
               </div>
             </div>
+
+
           </div>
         </div>
 
         {/* Rodapé da Página */}
         <div className="relative z-10 text-center text-[11px] text-sky-200/60 pb-2 font-medium tracking-wide">
-          Prefeitura Municipal de Camocim • Secretaria de Saúde
+          Secretaria de Saúde
         </div>
+      </div>
+    );
+  }
+
+  // Se tem token salvo mas os dados ainda estão carregando da API
+  if (dataLoading || !data) {
+    return (
+      <div className="min-h-screen bg-[#0b295e] flex flex-col items-center justify-center p-4 text-white">
+        <Loader2 className="w-10 h-10 animate-spin text-sky-400 mb-3" />
+        <p className="text-sm font-semibold text-sky-200">Carregando seus dados com segurança...</p>
       </div>
     );
   }
@@ -595,11 +618,11 @@ export default function ProfessionalPortal() {
   // ─────────────────────────────────────────────────────────────────────────────
   // 2. PAINEL DO PROFISSIONAL (Autenticado)
   // ─────────────────────────────────────────────────────────────────────────────
-  const profile = data?.profile;
-  const summary = data?.summary || { shifts: 0, manual: 0, used: 0, balance: 0 };
-  const schedules = data?.schedules || [];
-  const leaves = data?.leaves || [];
-  const transfers = data?.transfers || [];
+  const profile = data.profile;
+  const summary = data.summary || { shifts: 0, manual: 0, used: 0, balance: 0 };
+  const schedules = data.schedules || [];
+  const leaves = data.leaves || [];
+  const transfers = data.transfers || [];
   const credits = data?.credits || [];
   const notifications = data?.notifications || [];
 
@@ -759,15 +782,29 @@ export default function ProfessionalPortal() {
   extratoTimeline.sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-foreground selection:bg-primary/20">
+    <div className="min-h-screen bg-[#dcebf7] dark:bg-slate-950 flex justify-center items-start sm:py-6 sm:px-4 font-sans antialiased text-foreground selection:bg-primary/20">
       {/* Moldura de Aplicativo Mobile (sem esticar horizontalmente no monitor) */}
-      <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:max-h-[94vh] bg-slate-50 dark:bg-slate-900 sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden relative">
+      <div className="w-full max-w-md min-h-screen sm:min-h-0 sm:max-h-[94vh] bg-[#f0f6fc] dark:bg-slate-900 sm:rounded-3xl shadow-2xl border-0 sm:border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden relative">
+        {/* Imagem de Fundo Oficial do Portal (Ondas Fluidas & Pulso Médico) */}
+        <div
+          className="absolute inset-0 bg-cover bg-top bg-no-repeat pointer-events-none z-0"
+          style={{ backgroundImage: `url(${portalBg})` }}
+        />
+        {/* Suave camada de luz para contraste e harmonia com os cartões */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/40 dark:from-slate-950/40 dark:to-slate-950/80 pointer-events-none z-0" />
+
         {/* Modal de Aceite de Termos (LGPD) */}
         <PortalTermsDialog
           open={termsOpen}
           employeeName={profile?.name || ''}
           onAccept={handleAcceptTerms}
           loading={termsLoading}
+        />
+
+        {/* Tour Guiado Interativo de Instruções */}
+        <PortalOnboardingTour
+          open={tourOpen}
+          onClose={() => setTourOpen(false)}
         />
 
         {/* Input de arquivo invisível para a foto */}
@@ -779,145 +816,140 @@ export default function ProfessionalPortal() {
           className="hidden"
         />
 
-        {/* Header Superior PWA Estilo Aplicativo */}
-        <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-2xs px-4 py-3 shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-blue-900 flex items-center justify-center p-1.5 shadow-xs shrink-0">
-                <img src={logoSaude} alt="Brasão / Logo" className="w-full h-full object-contain" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight truncate">
-                  Portal do Servidor
-                </h1>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                  {profile?.unit_name || 'SECRETARIA DE SAÚDE'}
-                </p>
-              </div>
+        {/* Header Superior PWA Estilo Aplicativo Nativo */}
+        <header className="px-5 pt-6 pb-2 shrink-0 relative z-20 flex items-start justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-none font-sans drop-shadow-xs">
+              Saúde+
+            </h1>
+            <p className="text-[10px] sm:text-[11px] font-bold text-sky-200/90 tracking-widest uppercase mt-1">
+              PORTAL DO SERVIDOR
+            </p>
+            <div className="flex items-center gap-1 text-[11px] font-medium text-sky-200/80 mt-1 uppercase tracking-tight">
+              <MapPin size={11} className="text-sky-300 shrink-0" />
+              <span className="truncate">{profile?.unit_name || 'UNIDADE DE SAÚDE'}</span>
             </div>
+          </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              {isInstallable && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleInstallPWA}
-                  className="h-8 gap-1 text-[11px] font-bold bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-emerald-500/30 rounded-lg px-2"
-                >
-                  <Download size={13} />
-                  <span className="hidden xs:inline">Instalar</span>
-                </Button>
-              )}
+          <div className="flex items-center gap-2 pt-1 shrink-0">
+            {isInstallable && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleInstallPWA}
+                className="h-8 gap-1 text-[11px] font-bold text-white/90 hover:text-white hover:bg-white/10 rounded-full px-2.5"
+              >
+                <Download size={13} />
+                <span className="hidden xs:inline">Instalar</span>
+              </Button>
+            )}
 
-              {/* Popover de Notificações Exclusivas do Profissional */}
+            {/* Popover de Notificações Exclusivas do Profissional */}
+            <div id="tour-notifications" className="shrink-0 flex items-center">
               <Popover open={notifOpen} onOpenChange={setNotifOpen}>
                 <PopoverTrigger asChild>
                   <button
                     title="Suas Notificações"
-                    className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="relative p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
                   >
-                    <Bell size={18} />
+                    <Bell size={20} />
                     {unreadNotifsCount > 0 && (
-                      <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs animate-pulse">
-                        {unreadNotifsCount}
-                      </span>
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#0f2444]" />
                     )}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
-                  align="end"
-                  className="w-80 sm:w-88 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                >
-                  <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
-                      <Bell size={14} className="text-primary" />
-                      <span>Suas Notificações</span>
-                      {unreadNotifsCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
-                          {unreadNotifsCount} nova(s)
-                        </span>
-                      )}
-                    </div>
+                align="end"
+                className="w-80 sm:w-88 p-0 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+              >
+                <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-white">
+                    <Bell size={14} className="text-primary" />
+                    <span>Suas Notificações</span>
                     {unreadNotifsCount > 0 && (
-                      <button
-                        onClick={handleMarkAllNotifsRead}
-                        className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 font-extrabold text-[10px]">
+                        {unreadNotifsCount} nova(s)
+                      </span>
+                    )}
+                  </div>
+                  {unreadNotifsCount > 0 && (
+                    <button
+                      onClick={handleMarkAllNotifsRead}
+                      className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck size={12} />
+                      <span>Marcar lidas</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      Nenhuma notificação direcionada a você no momento.
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
+                        className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
+                          n.is_read
+                            ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                            : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
+                        }`}
                       >
-                        <CheckCheck size={12} />
-                        <span>Marcar lidas</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 p-1">
-                    {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-slate-400">
-                        Nenhuma notificação direcionada a você no momento.
-                      </div>
-                    ) : (
-                      notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          onClick={() => !n.is_read && handleMarkNotifRead(n.id)}
-                          className={`p-3 rounded-xl transition-colors cursor-pointer space-y-1 ${
-                            n.is_read
-                              ? 'opacity-70 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                              : 'bg-primary/5 hover:bg-primary/10 border-l-2 border-primary'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                              {n.title}
-                            </span>
-                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                              {fmtDate(n.created_at)}
-                            </span>
-                          </div>
-                          <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
-                            {n.message}
-                          </p>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                            {n.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                            {fmtDate(n.created_at)}
+                          </span>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                        <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug">
+                          {n.message}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-              {/* Avatar com alteração de foto */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer relative"
-                title="Clique para alterar foto"
-              >
-                <Avatar className="w-8 h-8 rounded-full border border-slate-200 shadow-2xs hover:ring-2 hover:ring-primary/40 transition-all">
-                  <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
-                  <AvatarFallback className="bg-blue-100 text-blue-900 font-bold text-xs">
-                    {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              {/* Botão de Sair */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                title="Sair do Portal"
-                className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
-              >
-                <LogOut size={16} />
-              </Button>
+            {/* Avatar Header com foto e anel branco */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="cursor-pointer"
+              title="Clique para alterar foto"
+            >
+              <Avatar className="w-8 h-8 rounded-full border-2 border-white/80 shadow-xs hover:ring-2 hover:ring-white transition-all">
+                <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
+                <AvatarFallback className="bg-sky-200 text-sky-950 font-bold text-xs">
+                  {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
+                </AvatarFallback>
+              </Avatar>
             </div>
+
+            {/* Botão de Sair */}
+            <button
+              onClick={handleLogout}
+              title="Sair do Portal"
+              className="p-2 rounded-full text-white/90 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <LogOut size={19} />
+            </button>
           </div>
         </header>
 
         {/* Conteúdo Principal com Scroll Interno (App-Like) */}
-        <main className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+        <main className="flex-1 overflow-y-auto px-4 pb-6 pt-2 space-y-3.5 no-scrollbar relative z-10">
           {/* Card do Perfil do Servidor */}
-          <div className="rounded-2xl bg-gradient-to-r from-[#173059] via-[#1b3d75] to-[#143261] text-white p-4 shadow-md relative overflow-hidden flex items-center gap-3.5">
+          <div id="tour-profile-card" className="rounded-[24px] bg-[#0c1f38] text-white p-4 shadow-lg border border-sky-400/20 relative overflow-hidden flex items-center gap-3.5">
             <div className="relative shrink-0">
-              <Avatar className="w-16 h-16 rounded-full border-2 border-white/30 bg-blue-100 shadow-inner">
-                <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} />
+              <Avatar className="!w-16 !h-16 !min-w-[64px] !min-h-[64px] !max-w-[64px] !max-h-[64px] rounded-full border-2 border-white/40 bg-blue-100 shadow-md">
+                <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.name} className="object-cover w-full h-full rounded-full" />
                 <AvatarFallback className="bg-[#e2edff] text-[#1a365d] font-black text-xl rounded-full">
                   {profile?.name ? profile.name.slice(0, 2).toUpperCase() : 'PS'}
                 </AvatarFallback>
@@ -927,138 +959,110 @@ export default function ProfessionalPortal() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingAvatar}
                 title="Alterar foto"
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#3b82f6] text-white flex items-center justify-center shadow-md hover:bg-blue-600 transition-all active:scale-95 border-2 border-white"
+                className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white flex items-center justify-center shadow-md hover:bg-blue-600 transition-all active:scale-95 border-2 border-[#0c1f38]"
               >
-                {uploadingAvatar ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
+                {uploadingAvatar ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
               </button>
             </div>
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm font-extrabold tracking-tight uppercase truncate leading-tight text-white">
+                <h2 className="text-base font-black tracking-wide uppercase truncate leading-tight text-white">
                   {profile?.name}
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#34d399]/20 text-[#34d399] border border-[#34d399]/40">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#064e3b]/90 text-[#34d399] border border-[#059669]/60">
                   Ativo
                 </span>
               </div>
-              <p className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider truncate">
+              <p className="text-xs text-slate-300 uppercase tracking-wider truncate font-medium">
                 {profile?.category_name || 'Servidor(a)'}
               </p>
-              <div className="flex items-center gap-1 text-[11px] text-slate-300 font-medium">
-                <MapPin size={12} className="text-slate-300 shrink-0" />
-                <span className="truncate uppercase">{profile?.unit_name || 'Lotação'}</span>
+              <div className="flex items-center gap-1 text-xs text-slate-400 font-normal">
+                <MapPin size={12} className="text-slate-400 shrink-0" />
+                <span className="truncate uppercase">{profile?.unit_name || 'Unidade de Saúde'}</span>
               </div>
             </div>
           </div>
 
           {/* Card Saldo Disponível de Folgas */}
-          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs space-y-3">
+          <div id="tour-balance-card" className="rounded-[24px] bg-white p-4 shadow-sm border border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100 font-bold text-sm">
-                <CalendarDays size={16} className="text-slate-500" />
+              <div className="flex items-center gap-2 text-slate-900 font-extrabold text-[14px]">
+                <CalendarDays size={18} className="text-slate-800" />
                 <span>Saldo disponível de folgas</span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#2e7d32] text-white">
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-[#15803d] text-white shadow-xs tracking-tight">
                 {summary.balance > 0 ? `+${fmtCredit(summary.balance)} dias` : `${fmtCredit(summary.balance)} dias`}
               </span>
             </div>
 
-            {/* As 3 Caixas Coloridas Suaves */}
-            <div className="grid grid-cols-3 gap-2 text-center pt-1">
-              {/* Box 1: Plantões (Azul Claro) */}
-              <div className="p-3 rounded-2xl bg-[#dff1fd] border border-[#bce2fb] dark:bg-blue-950/40 dark:border-blue-900/60 flex flex-col justify-center">
-                <div className="text-lg font-black text-[#0284c7] font-mono leading-none">
-                  +{fmtCredit(summary.shifts)}
+            {/* As 2 Caixas Principais: Total Acumulado vs Folgas Tiradas */}
+            <div className="grid grid-cols-2 gap-2.5 text-center pt-0.5">
+              {/* Box 1: Total Acumulado (Azul Suave) */}
+              <div className="p-3 rounded-2xl bg-[#dff0fc] flex flex-col justify-center items-center">
+                <div className="text-xl font-black text-[#0284c7] font-sans leading-none">
+                  +{fmtCredit(Number(summary.shifts || 0) + (summary.manual > 0 ? Number(summary.manual) : 0))}
                 </div>
-                <div className="text-[10px] font-bold text-[#0369a1] uppercase tracking-wider mt-1.5">
-                  Plantões
-                </div>
-              </div>
-
-              {/* Box 2: Ajustes (Bege/Amarelo Claro) */}
-              <div className="p-3 rounded-2xl bg-[#fef5d8] border border-[#fbe5a7] dark:bg-amber-950/40 dark:border-amber-900/60 flex flex-col justify-center">
-                <div className="text-lg font-black text-[#b45309] font-mono leading-none">
-                  {summary.manual > 0 ? `+${fmtCredit(summary.manual)}` : fmtCredit(summary.manual)}
-                </div>
-                <div className="text-[10px] font-bold text-[#92400e] uppercase tracking-wider mt-1.5">
-                  Ajustes
+                <div className="text-[10.5px] font-bold text-[#0284c7] uppercase tracking-wider mt-1.5 leading-tight">
+                  Total Acumulado
                 </div>
               </div>
 
-              {/* Box 3: Usufruídas (Rosa/Vermelho Claro) */}
-              <div className="p-3 rounded-2xl bg-[#fee4e4] border border-[#fccfcf] dark:bg-rose-950/40 dark:border-rose-900/60 flex flex-col justify-center">
-                <div className="text-lg font-black text-[#e11d48] font-mono leading-none">
+              {/* Box 2: Folgas Utilizadas (Rosa/Vermelho Pastel) */}
+              <div className="p-3 rounded-2xl bg-[#fee2e2] flex flex-col justify-center items-center">
+                <div className="text-xl font-black text-[#be123c] font-sans leading-none">
                   -{fmtCredit(summary.used)}
                 </div>
-                <div className="text-[10px] font-bold text-[#be123c] uppercase tracking-wider mt-1.5">
-                  Usufruídas
+                <div className="text-[10.5px] font-bold text-[#be123c] uppercase tracking-wider mt-1.5 leading-tight">
+                  Folgas Utilizadas
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Abas Mobile: Extrato (1ª), Escalas (2ª), Folgas (3ª), Canceladas (4ª), Transf (5ª) */}
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-            <TabsList className="w-full grid grid-cols-5 h-12 rounded-2xl bg-[#eef3f8] dark:bg-slate-800 p-1 border border-slate-200/60 dark:border-slate-700/60">
-              <TabsTrigger
-                value="extrato"
-                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-              >
-                <History size={15} />
-                <span className="text-[10px] leading-none">Extrato</span>
-              </TabsTrigger>
-
+          {/* 3 Abas Mobile Simplificadas: Escalas, Folgas, Extrato */}
+          <div id="tour-tabs-bar" className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+            <TabsList className="w-full grid grid-cols-3 h-13 rounded-[22px] bg-[#dce7f2]/85 backdrop-blur-md p-1 border border-white/60 shadow-xs">
               <TabsTrigger
                 value="schedules"
-                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
+                className="text-xs font-semibold rounded-[18px] data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-sm transition-all text-slate-600 flex items-center justify-center gap-1.5 py-1.5 h-full"
               >
-                <CalendarDays size={15} />
-                <span className="text-[10px] leading-none">Escalas</span>
+                <CalendarDays size={16} />
+                <span className="text-xs font-bold leading-none">Escalas</span>
               </TabsTrigger>
 
               <TabsTrigger
                 value="leaves"
-                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
+                className="text-xs font-semibold rounded-[18px] data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-sm transition-all text-slate-600 flex items-center justify-center gap-1.5 py-1.5 h-full relative"
               >
-                <CalendarOff size={15} />
-                <span className="text-[10px] leading-none">Folgas</span>
+                <CalendarOff size={16} />
+                <span className="text-xs font-bold leading-none">Folgas</span>
                 {pendingLeaves.length > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1 right-1" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-2 right-2 ring-2 ring-white" />
                 )}
               </TabsTrigger>
 
               <TabsTrigger
-                value="cancelled"
-                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full relative"
+                value="extrato"
+                className="text-xs font-semibold rounded-[18px] data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-sm transition-all text-slate-600 flex items-center justify-center gap-1.5 py-1.5 h-full"
               >
-                <XCircle size={15} />
-                <span className="text-[10px] leading-none">Canceladas</span>
-                {cancelledLeaves.length > 0 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 absolute top-1 right-1" />
-                )}
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="transfers"
-                className="text-xs font-bold gap-1 rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#0284c7] data-[state=active]:shadow-xs transition-all text-slate-500 flex flex-col py-1 h-full"
-              >
-                <ArrowLeftRight size={15} />
-                <span className="text-[10px] leading-none">Transf.</span>
+                <History size={16} />
+                <span className="text-xs font-bold leading-none">Extrato</span>
               </TabsTrigger>
             </TabsList>
 
             {/* ABA 1: EXTRATO COMPLETO EM ORDEM CRONOLÓGICA */}
-            <TabsContent value="extrato" className="mt-3 space-y-3">
+            <TabsContent value="extrato" className="mt-3.5 space-y-3">
               {/* Filtros Rápidos do Extrato */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 <button
                   type="button"
                   onClick={() => setExtratoFilter('all')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     extratoFilter === 'all'
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-black shadow-xs'
-                      : 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                      ? 'bg-[#102446] text-white shadow-xs'
+                      : 'bg-white/80 text-slate-600 hover:bg-white border border-slate-200/60'
                   }`}
                 >
                   Tudo ({extratoTimeline.length})
@@ -1066,10 +1070,10 @@ export default function ProfessionalPortal() {
                 <button
                   type="button"
                   onClick={() => setExtratoFilter('shifts')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     extratoFilter === 'shifts'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20'
+                      ? 'bg-[#0284c7] text-white shadow-xs'
+                      : 'bg-[#dff0fc] text-[#0284c7] hover:bg-[#d0eafc]'
                   }`}
                 >
                   Plantões ({extratoTimeline.filter((i) => i.category === 'shifts').length})
@@ -1077,10 +1081,10 @@ export default function ProfessionalPortal() {
                 <button
                   type="button"
                   onClick={() => setExtratoFilter('leaves')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     extratoFilter === 'leaves'
-                      ? 'bg-amber-600 text-white shadow-xs'
-                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                      ? 'bg-[#b45309] text-white shadow-xs'
+                      : 'bg-[#fef4d4] text-[#b45309] hover:bg-[#fdebb8]'
                   }`}
                 >
                   Folgas ({extratoTimeline.filter((i) => i.category === 'leaves').length})
@@ -1088,10 +1092,10 @@ export default function ProfessionalPortal() {
                 <button
                   type="button"
                   onClick={() => setExtratoFilter('credits')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     extratoFilter === 'credits'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                      ? 'bg-[#15803d] text-white shadow-xs'
+                      : 'bg-[#dcfce7] text-[#15803d] hover:bg-[#bbf7d0]'
                   }`}
                 >
                   Ajustes ({extratoTimeline.filter((i) => i.category === 'credits').length})
@@ -1099,10 +1103,10 @@ export default function ProfessionalPortal() {
                 <button
                   type="button"
                   onClick={() => setExtratoFilter('transfers')}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     extratoFilter === 'transfers'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20'
+                      ? 'bg-[#6b21a8] text-white shadow-xs'
+                      : 'bg-[#ede9fe] text-[#6b21a8] hover:bg-[#ddd6fe]'
                   }`}
                 >
                   Transf. ({extratoTimeline.filter((i) => i.category === 'transfers').length})
@@ -1121,9 +1125,9 @@ export default function ProfessionalPortal() {
 
                 if (filtered.length === 0) {
                   return (
-                    <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                    <div className="p-8 text-center text-muted-foreground bg-white rounded-[24px] border border-slate-100 shadow-sm">
                       <History size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      <p className="text-xs font-semibold text-slate-700">
                         Nenhum evento registrado
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
@@ -1138,46 +1142,58 @@ export default function ProfessionalPortal() {
                     {filtered.map((item) => (
                       <div
                         key={item.id}
-                        className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2 transition-all hover:border-slate-300"
+                        className="p-4 rounded-[24px] border border-slate-100 bg-white shadow-sm space-y-2"
                       >
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 dark:text-white">
+                          <div className="flex items-center gap-1.5 text-[13px] font-extrabold text-slate-900">
                             <span>{fmtDate(item.dateStr)}</span>
-                            <span className="text-[11px] font-normal text-muted-foreground">
+                            <span className="text-xs font-normal text-slate-400">
                               ({weekday(item.dateStr)})
                             </span>
                           </div>
 
                           <div className="flex items-center gap-1.5">
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] font-bold ${
-                                item.badgeVariant === 'credit_add'
-                                  ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:text-emerald-300'
-                                  : item.badgeVariant === 'leave_approved'
-                                  ? 'bg-emerald-600 text-white border-transparent'
-                                  : item.badgeVariant === 'leave_pending'
-                                  ? 'bg-amber-500 text-white border-transparent'
-                                  : item.badgeVariant === 'leave_cancelled'
-                                  ? 'bg-slate-600 text-white border-transparent'
-                                  : item.badgeVariant === 'leave_rejected'
-                                  ? 'bg-rose-600 text-white border-transparent'
-                                  : item.badgeVariant === 'credit_sub'
-                                  ? 'bg-rose-500/10 text-rose-700 border-rose-300 dark:text-rose-300'
-                                  : item.badgeVariant === 'transfer'
-                                  ? 'bg-indigo-500/10 text-indigo-700 border-indigo-300 dark:text-indigo-300'
-                                  : 'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              {item.badgeLabel}
-                            </Badge>
+                            {item.badgeVariant === 'leave_rejected' ? (
+                              <span className="bg-[#b91c1c] text-white font-bold text-[11px] rounded-full px-3 py-0.5 shadow-2xs">
+                                {item.badgeLabel}
+                              </span>
+                            ) : item.badgeVariant === 'leave_approved' ? (
+                              <span className="bg-[#15803d] text-white font-bold text-[11px] rounded-full px-3 py-0.5 shadow-2xs">
+                                {item.badgeLabel}
+                              </span>
+                            ) : item.badgeVariant === 'leave_pending' ? (
+                              <span className="bg-[#d97706] text-white font-bold text-[11px] rounded-full px-3 py-0.5 shadow-2xs">
+                                {item.badgeLabel}
+                              </span>
+                            ) : item.badgeVariant === 'leave_cancelled' ? (
+                              <span className="bg-slate-600 text-white font-bold text-[11px] rounded-full px-3 py-0.5 shadow-2xs">
+                                {item.badgeLabel}
+                              </span>
+                            ) : item.badgeVariant === 'credit_add' ? (
+                              <span className="bg-[#dcfce7] text-[#15803d] border border-[#86efac] font-bold text-[10.5px] rounded-full px-2.5 py-0.5">
+                                {item.badgeLabel}
+                              </span>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold rounded-full px-2.5 py-0.5 ${
+                                  item.badgeVariant === 'credit_sub'
+                                    ? 'bg-rose-500/10 text-rose-700 border-rose-300'
+                                    : item.badgeVariant === 'transfer'
+                                    ? 'bg-indigo-500/10 text-indigo-700 border-indigo-300'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {item.badgeLabel}
+                              </Badge>
+                            )}
 
                             {item.amountBadge && (
                               <span
-                                className={`text-[11px] font-black font-mono px-2 py-0.5 rounded-lg ${
+                                className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full ${
                                   item.amountBadge.positive
-                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                                    ? 'bg-[#dcfce7] text-[#15803d]'
+                                    : 'bg-[#fee2e2] text-[#be123c]'
                                 }`}
                               >
                                 {item.amountBadge.text}
@@ -1187,16 +1203,16 @@ export default function ProfessionalPortal() {
                         </div>
 
                         <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-snug">
+                          <h4 className="text-[13.5px] font-extrabold text-slate-900 leading-snug">
                             {item.title}
                           </h4>
-                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                          <p className="text-xs text-slate-500 font-medium">
                             {item.description}
                           </p>
                         </div>
 
                         {item.detail && (
-                          <div className="text-[11.5px] bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 leading-relaxed">
+                          <div className="text-xs bg-[#f1f5f9] p-2.5 rounded-xl border border-slate-200/60 text-slate-700 leading-relaxed font-normal">
                             {item.detail}
                           </div>
                         )}
@@ -1208,11 +1224,11 @@ export default function ProfessionalPortal() {
             </TabsContent>
 
             {/* ABA 2: ESCALAS E PLANTÕES */}
-            <TabsContent value="schedules" className="mt-3 space-y-2">
+            <TabsContent value="schedules" className="mt-3.5 space-y-2.5">
               {schedules.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                <div className="p-8 text-center text-muted-foreground bg-white rounded-[24px] border border-slate-100 shadow-sm">
                   <CalendarDays size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-xs font-medium">Nenhuma escala registrada no sistema.</p>
+                  <p className="text-xs font-semibold text-slate-700">Nenhuma escala registrada no sistema.</p>
                 </div>
               ) : (
                 schedules.map((s) => {
@@ -1220,38 +1236,33 @@ export default function ProfessionalPortal() {
                   return (
                     <div
                       key={s.id}
-                      className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
+                      className="p-4 rounded-[24px] border border-slate-100 bg-white shadow-sm space-y-2.5"
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 font-bold text-sm text-foreground">
+                        <div className="flex items-center gap-1.5 font-extrabold text-[13px] text-slate-900">
                           <span>{fmtDate(s.date)}</span>
-                          <span className="text-xs text-muted-foreground font-normal">({weekday(s.date)})</span>
+                          <span className="text-xs text-slate-400 font-normal">({weekday(s.date)})</span>
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[10px]">
+                          <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
                             {s.shift_type === 'half' ? 'Meio Turno' : 'Integral'}
-                          </Badge>
-                          <Badge
-                            className={
+                          </span>
+                          <span
+                            className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full ${
                               isExtra
-                                ? 'bg-primary text-white text-[10px] font-bold'
-                                : 'bg-muted text-muted-foreground text-[10px]'
-                            }
+                                ? 'bg-[#dcfce7] text-[#15803d]'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
                           >
                             {isExtra ? `Extra (+${fmtCredit(s.credit_amount ?? 1)})` : 'Normal'}
-                          </Badge>
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Building2 size={13} className="text-primary shrink-0" />
-                        <span className="truncate">{s.unit_name}</span>
-                      </div>
-
                       {s.observations && (
-                        <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-border/60 text-foreground">
-                          <strong className="text-foreground">Atividade: </strong>
+                        <div className="text-xs bg-[#f1f5f9] p-2.5 rounded-xl border border-slate-200/60 text-slate-700 leading-relaxed font-normal">
+                          <strong className="text-slate-900 font-bold">Atividade: </strong>
                           <span>{s.observations}</span>
                         </div>
                       )}
@@ -1261,28 +1272,28 @@ export default function ProfessionalPortal() {
               )}
             </TabsContent>
 
-            {/* ABA 3: PEDIDOS DE FOLGA */}
-            <TabsContent value="leaves" className="mt-3 space-y-3">
+            {/* ABA 2: PEDIDOS DE FOLGA (Com todas as situações: Em Análise, Aprovadas, Indeferidas e Canceladas) */}
+            <TabsContent value="leaves" className="mt-3.5 space-y-3">
               {/* Filtros Rápidos de Situação da Folga */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 <button
                   type="button"
                   onClick={() => setLeaveFilter('all')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     leaveFilter === 'all'
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                      ? 'bg-[#102446] text-white shadow-xs'
+                      : 'bg-white/80 text-slate-600 hover:bg-white border border-slate-200/60'
                   }`}
                 >
-                  Todas ({leaves.filter((l) => l.status !== 'cancelled').length})
+                  Todas ({leaves.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setLeaveFilter('pending')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     leaveFilter === 'pending'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                      ? 'bg-[#d97706] text-white shadow-xs'
+                      : 'bg-[#fef4d4] text-[#b45309] hover:bg-[#fdebb8]'
                   }`}
                 >
                   ⏳ Em Análise ({pendingLeaves.length})
@@ -1290,21 +1301,32 @@ export default function ProfessionalPortal() {
                 <button
                   type="button"
                   onClick={() => setLeaveFilter('approved')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     leaveFilter === 'approved'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                      ? 'bg-[#15803d] text-white shadow-xs'
+                      : 'bg-[#dcfce7] text-[#15803d] hover:bg-[#bbf7d0]'
                   }`}
                 >
                   ✓ Aprovadas ({leaves.filter((l) => l.status === 'approved').length})
                 </button>
                 <button
                   type="button"
+                  onClick={() => setLeaveFilter('cancelled')}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
+                    leaveFilter === 'cancelled'
+                      ? 'bg-[#475569] text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  ↩ Canceladas ({cancelledLeaves.length})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setLeaveFilter('rejected')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all ${
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 transition-all ${
                     leaveFilter === 'rejected'
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20'
+                      ? 'bg-[#b91c1c] text-white shadow-xs'
+                      : 'bg-[#fee2e2] text-[#be123c] hover:bg-[#fecaca]'
                   }`}
                 >
                   ✕ Indeferidas ({leaves.filter((l) => l.status === 'rejected').length})
@@ -1313,74 +1335,95 @@ export default function ProfessionalPortal() {
 
               {/* Listagem de Folgas */}
               {(() => {
-                const activeLeavesOnly = leaves.filter((l) => {
+                const activeLeavesFiltered = leaves.filter((l) => {
                   if (leaveFilter === 'pending') return l.status === 'pending';
                   if (leaveFilter === 'approved') return l.status === 'approved';
                   if (leaveFilter === 'rejected') return l.status === 'rejected';
-                  return l.status !== 'cancelled';
+                  if (leaveFilter === 'cancelled') return l.status === 'cancelled';
+                  return true;
                 });
 
-                if (activeLeavesOnly.length === 0) {
+                if (activeLeavesFiltered.length === 0) {
                   return (
-                    <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
+                    <div className="p-8 text-center text-muted-foreground bg-white rounded-[24px] border border-slate-100 shadow-sm">
                       <CalendarOff size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-xs font-medium">Nenhum pedido de folga neste filtro.</p>
+                      <p className="text-xs font-semibold text-slate-700">Nenhum pedido de folga neste filtro.</p>
                     </div>
                   );
                 }
 
                 return (
-                  <div className="space-y-2">
-                    {activeLeavesOnly.map((l) => {
+                  <div className="space-y-2.5">
+                    {activeLeavesFiltered.map((l) => {
                       const isPending = l.status === 'pending';
                       const isApproved = l.status === 'approved';
+                      const isCancelled = l.status === 'cancelled';
 
                       return (
                         <div
                           key={l.id}
-                          className={`p-3.5 rounded-2xl border ${
-                            isPending
-                              ? 'border-amber-400 bg-amber-500/5 dark:bg-amber-950/20 shadow-xs'
-                              : 'border-border bg-white dark:bg-slate-900 shadow-2xs'
-                          } space-y-2`}
+                          className="p-4 rounded-[24px] border border-slate-100 bg-white shadow-sm space-y-2.5"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-sm text-foreground">
-                              {l.days_requested} dia(s) solicitado(s)
+                            <span className="font-extrabold text-[13.5px] text-slate-900">
+                              {l.days_requested} dia(s) {isCancelled ? 'cancelado(s)' : 'solicitado(s)'}
                             </span>
-                            <Badge
-                              className={
+                            <span
+                              className={`text-[10.5px] font-bold px-3 py-0.5 rounded-full ${
                                 isPending
-                                  ? 'bg-amber-500 text-white text-[10px] font-bold flex items-center gap-1'
+                                  ? 'bg-[#d97706] text-white'
                                   : isApproved
-                                  ? 'bg-emerald-600 text-white text-[10px] font-bold'
-                                  : 'bg-rose-600 text-white text-[10px] font-bold'
-                              }
+                                  ? 'bg-[#15803d] text-white'
+                                  : isCancelled
+                                  ? 'bg-[#475569] text-white'
+                                  : 'bg-[#b91c1c] text-white'
+                              }`}
                             >
-                              {isPending && <Clock size={11} />}
-                              {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : 'Indeferida'}
-                            </Badge>
+                              {isPending ? 'Em Análise' : isApproved ? 'Aprovada' : isCancelled ? 'Cancelada' : 'Indeferida'}
+                            </span>
                           </div>
 
-                          <div className="text-xs text-muted-foreground">
-                            <strong>Datas da folga: </strong>
-                            <span className="text-foreground font-medium">
+                          {isCancelled && (
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
+                              <CheckCircle2 size={13} className="shrink-0" />
+                              <span>Créditos estornados: <strong>+{l.days_requested} dia(s)</strong> no seu saldo</span>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-slate-500 font-medium">
+                            <strong className="text-slate-800">Datas da folga: </strong>
+                            <span>
                               {(l.leave_dates || []).map((d) => fmtDate(d)).join(', ')}
                             </span>
                           </div>
 
-                          <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-0.5">
-                            <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
-                              Motivo / Justificativa declarada:
-                            </span>
-                            <span className="text-foreground leading-relaxed">
-                              {l.observations?.trim() || 'Motivo não especificado no pedido.'}
-                            </span>
-                          </div>
+                          {isCancelled && l.cancellation_reason && (
+                            <div className="text-xs bg-rose-50/70 p-2.5 rounded-xl border border-rose-200/60 text-rose-900 space-y-0.5">
+                              <span className="font-bold text-[10.5px] uppercase tracking-wider block text-rose-700">
+                                Motivo do cancelamento:
+                              </span>
+                              <p className="text-xs leading-relaxed font-normal">{l.cancellation_reason}</p>
+                            </div>
+                          )}
 
-                          <div className="text-[10.5px] text-muted-foreground pt-0.5 flex items-center justify-between">
+                          {l.observations && (
+                            <div className="text-xs bg-[#f1f5f9] p-2.5 rounded-xl border border-slate-200/60 text-slate-700 leading-relaxed font-normal space-y-0.5">
+                              <span className="font-bold text-[10.5px] text-slate-400 block uppercase tracking-wider">
+                                {isCancelled ? 'Motivo original solicitado:' : 'Motivo / Justificativa declarada:'}
+                              </span>
+                              <span>
+                                {l.observations?.trim() || 'Motivo não especificado no pedido.'}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="text-[10.5px] text-slate-400 pt-0.5 flex items-center justify-between">
                             <span>Solicitado em {fmtDate(l.created_at)}</span>
-                            {l.decided_at && <span>Decisão em {fmtDate(l.decided_at)}</span>}
+                            {isCancelled && l.cancelled_at ? (
+                              <span>Cancelado em {fmtDate(l.cancelled_at)}</span>
+                            ) : l.decided_at ? (
+                              <span>Decisão em {fmtDate(l.decided_at)}</span>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -1389,136 +1432,8 @@ export default function ProfessionalPortal() {
                 );
               })()}
             </TabsContent>
-
-            {/* ABA 4: FOLGAS CANCELADAS */}
-            <TabsContent value="cancelled" className="mt-3 space-y-3">
-              <div className="rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 p-3 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
-                  <XCircle size={16} />
-                </div>
-                <div className="min-w-0 text-xs">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-200">
-                    Folgas Canceladas & Estornos
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                    Quando uma folga é cancelada pela coordenação, os dias voltam automaticamente para o seu saldo disponível.
-                  </p>
-                </div>
-              </div>
-
-              {cancelledLeaves.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
-                  <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    Nenhuma folga cancelada
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Todas as suas solicitações estão válidas ou foram gozadas normalmente.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {cancelledLeaves.map((l) => (
-                    <div
-                      key={l.id}
-                      className="p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-sm text-slate-900 dark:text-white">
-                            {l.days_requested} dia(s) cancelado(s)
-                          </span>
-                        </div>
-                        <Badge className="bg-slate-600 hover:bg-slate-600 text-white text-[10px] font-bold">
-                          Cancelada
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
-                        <CheckCircle2 size={13} className="shrink-0" />
-                        <span>Créditos estornados: <strong>+{l.days_requested} dia(s)</strong> no seu saldo</span>
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        <strong>Datas da folga: </strong>
-                        <span className="text-foreground font-medium">
-                          {(l.leave_dates || []).map((d) => fmtDate(d)).join(', ')}
-                        </span>
-                      </div>
-
-                      {l.cancellation_reason && (
-                        <div className="text-xs bg-rose-50/60 dark:bg-rose-950/20 p-2.5 rounded-xl border border-rose-200/60 dark:border-rose-900/40 text-rose-900 dark:text-rose-200 space-y-0.5">
-                          <span className="font-bold text-[10.5px] uppercase tracking-wider block text-rose-700 dark:text-rose-300">
-                            Motivo do cancelamento:
-                          </span>
-                          <p className="text-xs leading-relaxed">{l.cancellation_reason}</p>
-                        </div>
-                      )}
-
-                      {l.observations && (
-                        <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-0.5">
-                          <span className="font-semibold text-muted-foreground block text-[10.5px] uppercase tracking-wider">
-                            Motivo original solicitado:
-                          </span>
-                          <p className="text-xs leading-relaxed">{l.observations}</p>
-                        </div>
-                      )}
-
-                      <div className="text-[10.5px] text-muted-foreground pt-0.5 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 mt-1">
-                        <span>Solicitado em: {fmtDate(l.created_at)}</span>
-                        {l.cancelled_at && <span>Cancelado em: {fmtDate(l.cancelled_at)}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* ABA 5: TRANSFERÊNCIAS ENTRE UNIDADES */}
-            <TabsContent value="transfers" className="mt-3 space-y-2">
-              {transfers.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground bg-white dark:bg-slate-900 rounded-2xl border border-border">
-                  <ArrowLeftRight size={28} className="mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-xs font-medium">Nenhuma transferência de unidade registrada.</p>
-                  <p className="text-[11px] text-muted-foreground/70 mt-1">
-                    Seu histórico de lotação permanece na unidade atual.
-                  </p>
-                </div>
-              ) : (
-                transfers.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-3.5 rounded-2xl border border-border bg-white dark:bg-slate-900 shadow-2xs space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-sm text-foreground">
-                          {fmtDate(t.transferred_at)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({weekday(t.transferred_at)})
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] font-semibold border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40">
-                        Transferência Oficial
-                      </Badge>
-                    </div>
-
-                    <div className="text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-border/60 text-foreground space-y-1">
-                      <span className="font-semibold text-muted-foreground block text-[11px] uppercase tracking-wider">
-                        Movimentação de Unidade:
-                      </span>
-                      <div className="flex items-center gap-2 font-medium">
-                        <span className="text-slate-600 dark:text-slate-300">{t.from_unit_name}</span>
-                        <ArrowRight size={13} className="text-primary shrink-0" />
-                        <strong className="text-primary font-bold">{t.to_unit_name}</strong>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </TabsContent>
           </Tabs>
+        </div>
         </main>
       </div>
     </div>

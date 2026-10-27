@@ -52,15 +52,21 @@ export default function Register() {
     }
 
     supabase
-      .from('invites')
-      .select('*')
-      .eq('token', token)
-      .eq('used', false)
-      .maybeSingle()
-      .then(({ data }) => {
-        setInvite(data);
-        setLoading(false);
-      });
+      .rpc('get_invite_details', { p_token: token })
+      .then(
+        ({ data, error }) => {
+          if (!error && data?.ok && data?.invite) {
+            setInvite(data.invite);
+          } else {
+            setInvite(null);
+          }
+          setLoading(false);
+        },
+        () => {
+          setInvite(null);
+          setLoading(false);
+        }
+      );
   }, [token]);
 
   const handleGoogleRegister = async () => {

@@ -313,8 +313,8 @@ export default function Employees() {
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-2 gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <Avatar className="w-10 h-10 rounded-full border border-black/10 shadow-xs shrink-0 bg-white">
-                    <AvatarImage src={emp.avatar_url || undefined} alt={emp.name} className="object-cover" />
+                  <Avatar className="!w-12 !h-12 !min-w-[48px] !min-h-[48px] !max-w-[48px] !max-h-[48px] rounded-full border border-black/15 shadow-sm shrink-0 bg-white">
+                    <AvatarImage src={emp.avatar_url || undefined} alt={emp.name} className="object-cover w-full h-full rounded-full" />
                     <AvatarFallback className="font-bold text-xs bg-primary/10 text-primary">
                       {emp.name ? emp.name.slice(0, 2).toUpperCase() : 'PS'}
                     </AvatarFallback>

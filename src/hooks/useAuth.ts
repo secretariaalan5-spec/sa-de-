@@ -5,6 +5,18 @@ import { Session } from '@supabase/supabase-js';
 export type UserRole = 'admin' | 'category_chief' | 'unit_manager' | 'rh' | 'professional';
 export type PendingStatus = 'pending' | 'approved' | 'rejected' | null;
 
+/** Menor número = maior privilégio. Usado quando o usuário tem vários papéis. */
+export const ROLE_PRIORITY: Record<UserRole, number> = {
+  admin: 0,
+  rh: 1,
+  category_chief: 2,
+  unit_manager: 3,
+  professional: 4,
+};
+
+/** Papéis que devem usar o sistema administrativo (e nunca o Portal por código). */
+export const MANAGEMENT_ROLES: UserRole[] = ['admin', 'rh', 'category_chief', 'unit_manager'];
+
 export interface UserRoleInfo {
   role: UserRole;
   category_id: string | null;
@@ -36,12 +48,20 @@ export function useAuth() {
       }
 
       if (data && data.length > 0) {
-        const first = data[0];
-        const categoryIds = data
+        // Se o usuário tiver mais de um papel, o de MAIOR privilégio vence.
+        // (Antes usava data[0], que vem em ordem indefinida do banco e podia
+        // fazer um chefe ser tratado como 'professional'.)
+        const sorted = [...data].sort(
+          (a: any, b: any) =>
+            (ROLE_PRIORITY[a.role as UserRole] ?? 99) - (ROLE_PRIORITY[b.role as UserRole] ?? 99),
+        );
+        const first = sorted[0];
+        const sameRole = sorted.filter((r: any) => r.role === first.role);
+        const categoryIds = sameRole
           .map((r: any) => r.category_id)
           .filter(Boolean) as string[];
         const teamId =
-          data.find((r: any) => r.team_id)?.team_id ?? first.team_id;
+          sameRole.find((r: any) => r.team_id)?.team_id ?? first.team_id;
         setRoleInfo({
           role: first.role as UserRole,
           category_id: first.category_id,
