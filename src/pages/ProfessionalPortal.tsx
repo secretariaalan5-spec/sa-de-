@@ -173,6 +173,9 @@ const clearSaved = (key: string) => {
 };
 
 export default function ProfessionalPortal() {
+  const wasReturningRef = useRef<boolean>(
+    !!readSaved('saude_portal_token') || !!readSaved('saude_portal_saved_code')
+  );
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
     return readSaved('saude_portal_token');
   });
@@ -223,6 +226,11 @@ export default function ProfessionalPortal() {
     if (data && !dataLoading && !termsOpen) {
       const tourCompleted = readSaved('saude_portal_tour_completed');
       if (!tourCompleted) {
+        if (wasReturningRef.current) {
+          // Já tinha login salvo neste aparelho: nunca mostrar o tour
+          writeSaved('saude_portal_tour_completed', 'true');
+          return;
+        }
         const timer = setTimeout(() => {
           writeSaved('saude_portal_tour_completed', 'true');
           setTourOpen(true);
