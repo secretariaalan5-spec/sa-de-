@@ -2,7 +2,7 @@
  * Login — Google OAuth only.
  * Premium login screen with animated particle background.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -12,6 +12,19 @@ import AuthBackground from '@/components/AuthBackground';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+
+  // Se o profissional salvou o código/sessão no aparelho e o atalho abriu o /login por engano,
+  // redireciona instantaneamente para /portal
+  useEffect(() => {
+    try {
+      const hasPortalToken = localStorage.getItem('saude_portal_token');
+      const hasPortalCode = localStorage.getItem('saude_portal_saved_code');
+      // Se não for admin logado e tiver dados do portal, vai para o portal
+      if (hasPortalToken || (hasPortalCode && hasPortalCode.length === 3)) {
+        window.location.replace('/portal');
+      }
+    } catch {}
+  }, []);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -75,10 +88,16 @@ export default function Login() {
           </div>
 
           {/* Institutional Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-2">
+          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
             <p className="text-xs text-slate-500 font-medium text-center">
               Acesso exclusivo para administradores, chefes de categoria e gerentes de unidade.
             </p>
+            <a
+              href="/portal"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 bg-sky-50 px-3.5 py-1.5 rounded-full border border-sky-100 transition-colors"
+            >
+              Sou profissional / servidor: Acessar Portal
+            </a>
           </div>
         </div>
 
