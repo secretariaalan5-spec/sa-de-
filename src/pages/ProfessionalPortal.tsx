@@ -355,44 +355,48 @@ export default function ProfessionalPortal() {
     }
   }, [sessionToken, loadDashboard]);
 
-  // Realtime: escuta atualizações para manter escalas, folgas e notificações sempre sincronizadas
+  // Realtime com debounce e proteção contra sobrecarga: evita rajadas de requisições quando houver alterações em lote
   useEffect(() => {
     if (!data?.profile?.id) return;
     const empId = data.profile.id;
+    let debounceTimer: any = null;
+
+    const triggerSilentReload = () => {
+      // Se o usuário estiver com a aba em segundo plano ou minimizada, não dispara reload de rede imediato
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (sessionToken) loadDashboard(sessionToken, true);
+      }, 800); // 800ms debounce suaviza picos se o banco sofrer múltiplos updates simultâneos
+    };
 
     const channel = supabase
       .channel(`portal-employee-${empId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests', filter: `employee_id=eq.${empId}` },
-        () => {
-          if (sessionToken) loadDashboard(sessionToken, true);
-        }
+        triggerSilentReload
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'schedules', filter: `employee_id=eq.${empId}` },
-        () => {
-          if (sessionToken) loadDashboard(sessionToken, true);
-        }
+        triggerSilentReload
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_credits', filter: `employee_id=eq.${empId}` },
-        () => {
-          if (sessionToken) loadDashboard(sessionToken, true);
-        }
+        triggerSilentReload
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
-        () => {
-          if (sessionToken) loadDashboard(sessionToken, true);
-        }
+        triggerSilentReload
       )
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [data?.profile?.id, sessionToken, loadDashboard]);
