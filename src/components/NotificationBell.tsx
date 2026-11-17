@@ -92,7 +92,7 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
-  const { showLocalPush } = usePushNotifications();
+  const { showLocalPush, registerPush, permission } = usePushNotifications();
 
   // Admin / Chief Send Notification State
   const [sendOpen, setSendOpen] = useState(false);
@@ -308,6 +308,25 @@ export function NotificationBell({
             )}
           </div>
         </div>
+
+        {/* ── Banner Push se não ativado neste dispositivo ── */}
+        {permission !== 'granted' && (
+          <div className="bg-primary/10 border-b border-primary/20 px-3 py-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Bell className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
+              <span className="text-[11px] font-medium leading-tight text-foreground">
+                Receber avisos com app fechado
+              </span>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => registerPush(true)}
+              className="h-6 px-2.5 text-[10px] font-semibold shrink-0 rounded-md"
+            >
+              Ativar
+            </Button>
+          </div>
+        )}
 
         <ScrollArea className="h-[400px] bg-card">
           {notifications.length === 0 ? (

@@ -4,29 +4,30 @@ import "./index.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// Register PWA Service Worker (only in production, not in dev/preview)
+// Register PWA Service Worker (ativo em produção e desenvolvimento para push notifications)
 if ('serviceWorker' in navigator) {
-  if (import.meta.env.PROD) {
-    const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
-    const isPreview = window.location.hostname.includes('id-preview--') || window.location.hostname.includes('lovableproject.com');
+  const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
+  const isPreview = window.location.hostname.includes('id-preview--') || window.location.hostname.includes('lovableproject.com');
 
-    if (!isInIframe && !isPreview) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
+  if (!isInIframe && !isPreview) {
+    const registerSW = () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => {
           reg.update().catch(() => {});
-        }).catch(() => {});
-      });
+        })
+        .catch(err => {
+          console.warn('[SW] Registration failed:', err);
+        });
+    };
 
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Se um novo service worker assumiu, atualiza automaticamente em background
-      });
+    if (document.readyState === 'complete') {
+      registerSW();
+    } else {
+      window.addEventListener('load', registerSW);
     }
-  } else {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(r => r.unregister());
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Novo service worker assumiu
     });
-    if ('caches' in window) {
-      caches.keys().then(names => names.forEach(name => caches.delete(name)));
-    }
   }
 }

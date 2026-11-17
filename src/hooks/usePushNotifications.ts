@@ -1,6 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const VAPID_PUBLIC_KEY = 'BBGLZRD35eG-gEMum5k69VTv0lQEo9euZUbvsHHyCzxpBbkrE-mYvCxCypoS2uynz7ZjHq7Xf-yhzM34p8RJCIM';
 
@@ -14,45 +15,72 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export function usePushNotifications() {
   const { user } = useAuthContext();
   const swRegistration = useRef<ServiceWorkerRegistration | null>(null);
-  const subscribed = useRef(false);
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Register SW and subscribe to push
-  const registerPush = useCallback(async () => {
-    if (!user || subscribed.current) return;
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  // Inscreve no Web Push e salva na tabela push_subscriptions
+  const registerPush = useCallback(async (userTriggered = false) => {
+    if (!user) return false;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      if (userTriggered) {
+        toast.error('Seu navegador não suporta notificações Push.');
+      }
+      return false;
+    }
 
     try {
-      // Wait for SW registration
-      const registration = await navigator.serviceWorker.ready;
+      setLoading(true);
+
+      // Garante registro do Service Worker
+      let registration = await navigator.serviceWorker.getRegistration('/');
+      if (!registration) {
+        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      }
       swRegistration.current = registration;
 
-      // Check if already subscribed
+      // Pede permissão se foi acionado pelo usuário ou se ainda é default
+      let currentPerm = Notification.permission;
+      if (userTriggered || currentPerm === 'default') {
+        currentPerm = await Notification.requestPermission();
+        setPermission(currentPerm);
+      }
+
+      if (currentPerm !== 'granted') {
+        if (userTriggered) {
+          toast.warning('Permissão de notificações não foi concedida no navegador.');
+        }
+        return false;
+      }
+
+      // Obtém ou cria a assinatura de push
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
-        // Request notification permission
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return;
-
-        // Subscribe to push
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
         });
       }
 
-      // Extract keys
       const rawKey = subscription.getKey('p256dh');
       const rawAuth = subscription.getKey('auth');
-      if (!rawKey || !rawAuth) return;
+      if (!rawKey || !rawAuth) {
+        throw new Error('Chaves de criptografia não disponíveis');
+      }
 
       const p256dh = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       const authKey = btoa(String.fromCharCode(...new Uint8Array(rawAuth)))
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-      // Save to Supabase (upsert to avoid duplicates)
-      await supabase.from('push_subscriptions').upsert({
+      // Salva no banco de dados na tabela push_subscriptions
+      const { error: upsertErr } = await supabase.from('push_subscriptions').upsert({
         user_id: user.id,
         endpoint: subscription.endpoint,
         p256dh,
@@ -61,19 +89,43 @@ export function usePushNotifications() {
         onConflict: 'user_id,endpoint',
       });
 
-      subscribed.current = true;
-      console.log('[Push] Subscription saved successfully');
-    } catch (err) {
-      console.warn('[Push] Failed to register:', err);
+      if (upsertErr) {
+        console.error('[Push] Erro ao salvar subscrição no banco:', upsertErr);
+        throw upsertErr;
+      }
+
+      setIsSubscribed(true);
+      if (userTriggered) {
+        toast.success('Notificações no aparelho ativadas com sucesso! Você receberá alertas mesmo com o app fechado.');
+      }
+      return true;
+    } catch (err: any) {
+      console.warn('[Push] Falha ao registrar push:', err);
+      if (userTriggered) {
+        toast.error('Erro ao ativar notificações: ' + (err.message || 'Erro desconhecido'));
+      }
+      return false;
+    } finally {
+      setLoading(false);
     }
   }, [user]);
+
+  // Se a permissão já estiver concedida, sincroniza a assinatura automaticamente em segundo plano
+  useEffect(() => {
+    if (user && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      registerPush(false);
+    }
+  }, [user, registerPush]);
 
   // Send a local notification via Service Worker
   const showLocalPush = useCallback(async (title: string, body: string, url?: string) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     try {
-      const reg = await navigator.serviceWorker.ready;
+      let reg = swRegistration.current || await navigator.serviceWorker.getRegistration('/');
+      if (!reg) {
+        reg = await navigator.serviceWorker.ready;
+      }
       await reg.showNotification(title || 'Saúde+', {
         body: body || 'Nova notificação',
         icon: '/icon-192.png',
@@ -89,9 +141,5 @@ export function usePushNotifications() {
     }
   }, []);
 
-  useEffect(() => {
-    registerPush();
-  }, [registerPush]);
-
-  return { showLocalPush, swRegistration };
+  return { showLocalPush, registerPush, permission, isSubscribed, loading, swRegistration };
 }
