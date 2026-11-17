@@ -59,8 +59,15 @@ export default function LeaveRequests() {
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
 
-  const getBalance = (employeeId: string) =>
-    credits.filter(c => c.employee_id === employeeId).reduce((s, c) => s + c.amount, 0);
+  const getBalance = (employeeId: string) => {
+    const totalCredits = credits
+      .filter(c => c.employee_id === employeeId)
+      .reduce((s, c) => s + c.amount, 0);
+    const pendingDays = requests
+      .filter(r => r.employee_id === employeeId && r.status === 'pending')
+      .reduce((s, r) => s + (r.days_requested ?? 0), 0);
+    return totalCredits - pendingDays;
+  };
 
   const load = async () => {
     const teamId = roleInfo?.team_id;
