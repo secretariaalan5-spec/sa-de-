@@ -199,7 +199,7 @@ self.addEventListener('push', (event) => {
             vibrate: [200, 100, 200],
             tag: 'saude-plus-' + Date.now(),
             renotify: true,
-            requireInteraction: false,
+            requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
             silent: false,
         })
     );
@@ -232,6 +232,7 @@ self.addEventListener('message', (event) => {
             vibrate: [200, 100, 200],
             tag: 'saude-local-' + Date.now(),
             renotify: true,
+            requireInteraction: true, // Fica fixa até clicar ou fechar
         });
     }
 });

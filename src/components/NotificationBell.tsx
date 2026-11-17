@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
-import { Bell, Calendar, FileCheck, FileX, Star, Trash2, Megaphone, Send, Loader2, ClipboardList, ArrowLeftRight, UserPlus, UserCheck } from 'lucide-react';
+import { Bell, Calendar, FileCheck, FileX, Star, Trash2, Megaphone, Send, Loader2, ClipboardList, ArrowLeftRight, UserPlus, UserCheck, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -129,12 +129,47 @@ export function NotificationBell({
           n.message || 'Você tem um novo aviso.',
           n.link || '/'
         );
-        toast.info(n.title || 'Nova notificação', {
-          description: n.message,
-          action: n.link ? {
-            label: 'Ver',
-            onClick: () => navigate(n.link),
-          } : undefined,
+        toast.custom((t) => (
+          <div className="w-[340px] bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-4 relative font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px]">
+                  S+
+                </div>
+                <span className="text-xs font-semibold text-slate-300">Saúde+</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => toast.dismiss(t)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                title="Fechar notificação"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="mt-2.5">
+              <h4 className="font-bold text-sm text-white leading-snug">
+                {n.title || 'Nova Notificação'}
+              </h4>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed break-words">
+                {n.message}
+              </p>
+            </div>
+            {n.link && (
+              <button
+                type="button"
+                onClick={() => {
+                  toast.dismiss(t);
+                  navigate(n.link);
+                }}
+                className="w-full mt-3 py-2 px-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-medium text-xs rounded-xl border border-slate-700 transition-colors text-center"
+              >
+                Ver detalhes
+              </button>
+            )}
+          </div>
+        ), {
+          duration: Infinity, // Não fecha sozinho: só sai se clicar no X ou na ação
         });
       }
     }

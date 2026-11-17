@@ -82,6 +82,7 @@ export function usePushNotifications() {
         vibrate: [200, 100, 200],
         tag: 'saude-local-' + Date.now(),
         renotify: true,
+        requireInteraction: true, // Notificação persistente até o usuário fechar
       });
     } catch (e) {
       console.error('[Push] Error showing local notification:', e);
