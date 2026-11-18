@@ -219,6 +219,20 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     localStorage.removeItem('pending_invite_token');
+    // Desvincula este aparelho da conta que está saindo (push não vai mais para ela aqui)
+    try {
+      const { data: { session: current } } = await supabase.auth.getSession();
+      const uid = current?.user?.id;
+      if (uid && 'serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration('/');
+        const sub = await reg?.pushManager.getSubscription();
+        if (sub) {
+          await supabase.from('push_subscriptions').delete()
+            .eq('user_id', uid)
+            .eq('endpoint', sub.endpoint);
+        }
+      }
+    } catch { /* ignore */ }
     await supabase.auth.signOut();
     setSession(null);
     setRoleInfo(null);

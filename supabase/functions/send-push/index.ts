@@ -107,11 +107,13 @@ Deno.serve(async (req: Request) => {
         sent++;
         console.log('Push sent to', sub.endpoint.slice(0, 60));
       } catch (err: any) {
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        // 404/410 = token expirado/cancelado; 403 = token criado com outra chave VAPID (ex.: OneSignal antigo)
+        // Todos são permanentes: removemos para não poluir e para o app recriar na próxima abertura.
+        if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 403) {
           expired.push(sub.id);
-          console.log('Subscription expired:', sub.endpoint.slice(0, 60));
+          console.log('Subscription invalid', err.statusCode, sub.endpoint.slice(0, 60));
         } else {
-          console.error('Push error:', err.statusCode, err.message);
+          console.error('Push error:', err.statusCode, err.message, sub.endpoint.slice(0, 60));
         }
       }
     }

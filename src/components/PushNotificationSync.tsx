@@ -32,6 +32,23 @@ export function PushNotificationSync() {
     }
   }, [user, registerPush]);
 
+  // Navegadores (principalmente iPhone/Safari) exigem um gesto do usuário para pedir permissão.
+  // No primeiro clique/toque em qualquer lugar do sistema, pedimos e já registramos o aparelho.
+  useEffect(() => {
+    if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+
+    const onFirstInteraction = () => {
+      window.removeEventListener('pointerdown', onFirstInteraction);
+      if (Notification.permission === 'default') {
+        setShowPrompt(false);
+        registerPush(false);
+      }
+    };
+    window.addEventListener('pointerdown', onFirstInteraction, { once: true });
+    return () => window.removeEventListener('pointerdown', onFirstInteraction);
+  }, [user, registerPush]);
+
   const handleEnable = async () => {
     setShowPrompt(false);
     await registerPush(true, false);

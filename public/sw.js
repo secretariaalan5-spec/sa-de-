@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -192,18 +192,76 @@ self.addEventListener('push', (event) => {
     }
 
     event.waitUntil(
-        self.registration.showNotification(data.title, {
-            body: data.body,
-            icon: '/icon-192.png',
-            badge: '/icon-192.png',
-            data: { url: data.url },
-            vibrate: [200, 100, 200],
-            tag: data.tag || 'saude-alert-latest',
-            renotify: true,
-            requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
-            silent: false,
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+            // Se o sistema estiver aberto e visível na tela, o aviso já aparece dentro do app
+            // (toast). Não mostramos a notificação do Windows/Chrome para não duplicar.
+            const visibleClient = clients.find(
+                (c) => c.url.startsWith(self.location.origin) && c.visibilityState === 'visible'
+            );
+            if (visibleClient) {
+                return;
+            }
+            // App fechado, minimizado ou em outra aba → notificação nativa do sistema
+            return self.registration.showNotification(data.title, {
+                body: data.body,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                data: { url: data.url },
+                vibrate: [200, 100, 200],
+                tag: data.tag || 'saude-alert-latest',
+                renotify: true,
+                requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
+                silent: false,
+            });
         })
     );
+});
+
+// O navegador pode trocar o token de push a qualquer momento (expiração/rotação do FCM).
+// Sem isso, o app parava de receber notificações com o sistema fechado até ser reaberto.
+const SUPABASE_URL = 'https://qxpqzbswtdfatdrtqhrw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4cHF6YnN3dGRmYXRkcnRxaHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzYwMjgsImV4cCI6MjA4NTk1MjAyOH0.BYsaBZE_3_doVSbO8D2rF4USqbZ-9_vr4dR-ILjyVlk';
+const VAPID_PUBLIC_KEY = 'BBGLZRD35eG-gEMum5k69VTv0lQEo9euZUbvsHHyCzxpBbkrE-mYvCxCypoS2uynz7ZjHq7Xf-yhzM34p8RJCIM';
+
+function b64UrlToUint8(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+function bufToB64Url(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+    event.waitUntil((async () => {
+        try {
+            const oldEndpoint = event.oldSubscription && event.oldSubscription.endpoint;
+            const newSub = event.newSubscription || await self.registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: b64UrlToUint8(VAPID_PUBLIC_KEY),
+            });
+            if (!oldEndpoint || !newSub) return;
+            await fetch(`${SUPABASE_URL}/rest/v1/rpc/rotate_push_subscription`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    apikey: SUPABASE_ANON_KEY,
+                    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify({
+                    p_old_endpoint: oldEndpoint,
+                    p_new_endpoint: newSub.endpoint,
+                    p_p256dh: bufToB64Url(newSub.getKey('p256dh')),
+                    p_auth_key: bufToB64Url(newSub.getKey('auth')),
+                }),
+            });
+        } catch (e) {
+            // Será sincronizado na próxima abertura do app
+        }
+    })());
 });
 
 self.addEventListener('notificationclick', (event) => {

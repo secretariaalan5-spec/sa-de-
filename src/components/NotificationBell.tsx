@@ -95,7 +95,7 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
-  const { showLocalPush, registerPush, permission, loading: pushLoading } = usePushNotifications();
+  const { registerPush, permission, loading: pushLoading } = usePushNotifications();
 
   // Admin / Chief Send Notification State
   const [sendOpen, setSendOpen] = useState(false);
@@ -137,17 +137,11 @@ export function NotificationBell({
         // Calcula total de notificações não lidas para exibir no card
         const currentUnreadCount = notifications.filter(item => !item.is_read && item.id !== n.id).length + 1;
 
-        // Se a página estiver minimizada ou em segundo plano, aciona o push do sistema operacional
+        // A notificação nativa (Windows/Android/iPhone) é enviada SOMENTE pelo servidor (Web Push)
+        // e exibida pelo Service Worker quando o app está fechado, minimizado ou em outra aba.
+        // Aqui mostramos apenas o toast in-app, evitando os 2 estilos duplicados.
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-          const pushTitle = currentUnreadCount > 1
-            ? `${n.title || 'Saúde+'} (${currentUnreadCount} pendentes)`
-            : (n.title || 'Saúde+ Escalas');
-
-          showLocalPush(
-            pushTitle,
-            n.message || 'Você tem um novo aviso.',
-            n.link || '/'
-          );
+          return;
         }
 
         // Toast in-app padronizado e unificado (com botão X de fechar, ação direta e quantidade de avisos)
@@ -209,10 +203,12 @@ export function NotificationBell({
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
+    // Pede permissão E já cadastra o aparelho no servidor (antes só pedia a permissão,
+    // e o aparelho nunca era registrado para receber push com o app fechado)
     if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+      registerPush(false);
     }
-  }, []);
+  }, [registerPush]);
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
@@ -299,8 +295,8 @@ export function NotificationBell({
   return (
     <Popover open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen);
-      if (isOpen && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
+      if (isOpen && typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied') {
+        registerPush(false);
       }
     }}>
       <PopoverTrigger asChild>
