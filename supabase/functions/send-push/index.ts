@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       badge: '/icon-192.png',
       data: { url, unreadCount: countNumber },
       vibrate: [200, 100, 200],
-      tag: record.tag || 'saude-alert-latest',
+      tag: record.tag || `saude-alert-${Date.now()}`,
       renotify: true,
       requireInteraction: true, // Notificação persistente no Windows / Android até o usuário clicar ou fechar no X
     });
