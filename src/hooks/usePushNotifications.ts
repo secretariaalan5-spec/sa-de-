@@ -25,7 +25,7 @@ export function usePushNotifications() {
   const [loading, setLoading] = useState(false);
 
   // Inscreve no Web Push e salva na tabela push_subscriptions
-  const registerPush = useCallback(async (userTriggered = false) => {
+  const registerPush = useCallback(async (userTriggered = false, forceRenew = false) => {
     if (!user) return false;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       if (userTriggered) {
@@ -58,8 +58,16 @@ export function usePushNotifications() {
         return false;
       }
 
-      // Obtém ou cria a assinatura de push
+      // Obtém assinatura de push existente
       let subscription = await registration.pushManager.getSubscription();
+
+      // Se forçar renovação ou se não houver assinatura, recria
+      if (forceRenew && subscription) {
+        try {
+          await subscription.unsubscribe();
+        } catch { /* ignore */ }
+        subscription = null;
+      }
 
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
@@ -117,6 +125,41 @@ export function usePushNotifications() {
     }
   }, [user, registerPush]);
 
+  // Dispara uma notificação de teste real pelo servidor Web Push (para testar no Windows/celular)
+  const testPushNotification = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      // Garante que o push está registrado e renovado neste navegador
+      await registerPush(false, true);
+
+      // Invoca a Edge Function de envio de push
+      const { data, error } = await supabase.functions.invoke('send-push', {
+        body: {
+          user_id: user.id,
+          title: '🔔 Notificação de Teste - Saúde+',
+          message: 'Seu computador está configurado para receber notificações do Saúde+ no Windows!',
+          url: '/folgas',
+        },
+      });
+
+      if (error) {
+        toast.error('Erro ao enviar teste: ' + error.message);
+        return;
+      }
+
+      if (data?.sent && data.sent > 0) {
+        toast.success('Notificação nativa enviada ao Windows! Verifique o canto inferior direito da tela.');
+      } else {
+        toast.warning('Disparo enviado, mas nenhum dispositivo ativo confirmou a entrega.');
+      }
+    } catch (err: any) {
+      toast.error('Falha no teste: ' + (err.message || ''));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, registerPush]);
+
   // Send a local notification via Service Worker
   const showLocalPush = useCallback(async (title: string, body: string, url?: string) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -141,5 +184,5 @@ export function usePushNotifications() {
     }
   }, []);
 
-  return { showLocalPush, registerPush, permission, isSubscribed, loading, swRegistration };
+  return { showLocalPush, registerPush, testPushNotification, permission, isSubscribed, loading, swRegistration };
 }

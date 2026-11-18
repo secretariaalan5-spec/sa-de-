@@ -95,7 +95,7 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
 
-  const { showLocalPush, registerPush, permission } = usePushNotifications();
+  const { showLocalPush, registerPush, testPushNotification, permission, loading: pushLoading } = usePushNotifications();
 
   // Admin / Chief Send Notification State
   const [sendOpen, setSendOpen] = useState(false);
@@ -325,8 +325,8 @@ export function NotificationBell({
           </div>
         </div>
 
-        {/* ── Banner Push se não ativado neste dispositivo ── */}
-        {permission !== 'granted' && (
+        {/* ── Banner Push: Ativar ou Testar no Aparelho/PC ── */}
+        {permission !== 'granted' ? (
           <div className="bg-primary/10 border-b border-primary/20 px-3 py-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Bell className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
@@ -336,11 +336,28 @@ export function NotificationBell({
             </div>
             <Button
               size="sm"
+              disabled={pushLoading}
               onClick={() => registerPush(true)}
               className="h-6 px-2.5 text-[10px] font-semibold shrink-0 rounded-md"
             >
               Ativar
             </Button>
+          </div>
+        ) : (
+          <div className="bg-muted/40 border-b border-border/60 px-3 py-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              Avisos nativos ativos no PC
+            </span>
+            <button
+              type="button"
+              disabled={pushLoading}
+              onClick={() => testPushNotification()}
+              className="text-primary hover:underline font-semibold cursor-pointer disabled:opacity-50 text-[10px]"
+              title="Disparar notificação de teste nativa do Windows"
+            >
+              {pushLoading ? 'Testando...' : '🔔 Testar no PC'}
+            </button>
           </div>
         )}
 
