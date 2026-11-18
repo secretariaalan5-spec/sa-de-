@@ -65,14 +65,25 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Busca total de notificações não lidas para exibir a quantidade na notificação nativa
+    const { count: unreadCount } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    const countNumber = (unreadCount && unreadCount > 0) ? unreadCount : 1;
+    const countSuffix = countNumber > 1 ? ` (${countNumber} pendentes)` : '';
+    const formattedTitle = `${title}${countSuffix}`;
+
     const payload = JSON.stringify({
-      title,
+      title: formattedTitle,
       body: message,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      data: { url },
+      data: { url, unreadCount: countNumber },
       vibrate: [200, 100, 200],
-      tag: 'saude-' + Date.now(),
+      tag: record.tag || 'saude-alert-latest',
       renotify: true,
       requireInteraction: true, // Notificação persistente no Windows / Android até o usuário clicar ou fechar no X
     });
@@ -91,7 +102,7 @@ Deno.serve(async (req: Request) => {
             },
           },
           payload,
-          { TTL: 86400, urgency: 'high' }
+          { TTL: 7200, urgency: 'high' }
         );
         sent++;
         console.log('Push sent to', sub.endpoint.slice(0, 60));

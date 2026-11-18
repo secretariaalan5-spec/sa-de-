@@ -185,6 +185,7 @@ self.addEventListener('push', (event) => {
             data.title = json.title || json.headings?.en || data.title;
             data.body = json.body || json.alert || json.message || json.contents?.en || data.body;
             data.url = json.data?.url || json.url || data.url;
+            data.tag = json.tag || 'saude-alert-latest';
         } catch (e) {
             try { data.body = event.data.text(); } catch { /* ignore */ }
         }
@@ -197,7 +198,7 @@ self.addEventListener('push', (event) => {
             badge: '/icon-192.png',
             data: { url: data.url },
             vibrate: [200, 100, 200],
-            tag: 'saude-plus-' + Date.now(),
+            tag: data.tag || 'saude-alert-latest',
             renotify: true,
             requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
             silent: false,

@@ -118,10 +118,40 @@ export function usePushNotifications() {
     }
   }, [user]);
 
-  // Se a permissão já estiver concedida, sincroniza a assinatura automaticamente em segundo plano
+  // Sincronização e renovação automática e transparente para todos os usuários
   useEffect(() => {
-    if (user && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      registerPush(false);
+    if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
+
+    const PUSH_SYNC_KEY = `saude_push_v3_synced_${user.id}`;
+
+    if (Notification.permission === 'granted') {
+      const isAlreadySynced = localStorage.getItem(PUSH_SYNC_KEY);
+      // Se ainda não sincronizou a nova chave/versão neste navegador, força renovação limpa silenciosa
+      if (!isAlreadySynced) {
+        registerPush(false, true).then((success) => {
+          if (success) {
+            localStorage.setItem(PUSH_SYNC_KEY, 'true');
+          }
+        });
+      } else {
+        // Já sincronizado: valida silenciosamente em segundo plano
+        registerPush(false, false);
+      }
+    } else if (Notification.permission === 'default') {
+      // Se ainda não solicitou permissão neste computador/navegador, pede suavemente
+      const timer = setTimeout(() => {
+        Notification.requestPermission().then((perm) => {
+          setPermission(perm);
+          if (perm === 'granted') {
+            registerPush(false, true).then((success) => {
+              if (success) {
+                localStorage.setItem(PUSH_SYNC_KEY, 'true');
+              }
+            });
+          }
+        }).catch(() => {});
+      }, 1500);
+      return () => clearTimeout(timer);
     }
   }, [user, registerPush]);
 

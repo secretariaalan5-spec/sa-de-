@@ -134,24 +134,34 @@ export function NotificationBell({
           setTimeout(() => recentNotifiedIds.delete(n.id), 60000);
         }
 
+        // Calcula total de notificações não lidas para exibir no card
+        const currentUnreadCount = notifications.filter(item => !item.is_read && item.id !== n.id).length + 1;
+
         // Se a página estiver minimizada ou em segundo plano, aciona o push do sistema operacional
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+          const pushTitle = currentUnreadCount > 1
+            ? `${n.title || 'Saúde+'} (${currentUnreadCount} pendentes)`
+            : (n.title || 'Saúde+ Escalas');
+
           showLocalPush(
-            n.title || 'Saúde+ Escalas',
+            pushTitle,
             n.message || 'Você tem um novo aviso.',
             n.link || '/'
           );
         }
 
-        // Toast in-app padronizado e unificado (com botão X de fechar e ação direta)
+        // Toast in-app padronizado e unificado (com botão X de fechar, ação direta e quantidade de avisos)
         toast.custom((t) => (
           <div className="w-[340px] bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-4 relative font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+            <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px]">
                   S+
                 </div>
                 <span className="text-xs font-semibold text-slate-300">Saúde+</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white shadow-sm flex items-center gap-1">
+                  <Bell size={9} /> {currentUnreadCount} {currentUnreadCount === 1 ? 'pendente' : 'pendentes'}
+                </span>
               </div>
               <button
                 type="button"
@@ -170,18 +180,23 @@ export function NotificationBell({
                 {n.message}
               </p>
             </div>
-            {n.link && (
-              <button
-                type="button"
-                onClick={() => {
-                  toast.dismiss(t);
-                  navigate(n.link);
-                }}
-                className="w-full mt-3 py-2 px-3 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-white font-medium text-xs rounded-xl border border-slate-700 transition-colors text-center"
-              >
-                Ver detalhes
-              </button>
-            )}
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-400 font-medium">
+                {currentUnreadCount > 1 ? `${currentUnreadCount} notificações aguardando` : '1 nova notificação'}
+              </span>
+              {n.link && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.dismiss(t);
+                    navigate(n.link);
+                  }}
+                  className="py-1 px-2.5 bg-primary/20 hover:bg-primary/30 active:bg-primary/40 text-primary-foreground font-semibold text-xs rounded-lg border border-primary/30 transition-colors text-center"
+                >
+                  Ver detalhes →
+                </button>
+              )}
+            </div>
           </div>
         ), {
           id: n.id,
