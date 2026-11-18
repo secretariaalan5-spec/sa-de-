@@ -37,11 +37,12 @@ export function usePushNotifications() {
     try {
       setLoading(true);
 
-      // Garante registro do Service Worker
-      let registration = await navigator.serviceWorker.getRegistration('/');
+      // Garante registro do Service Worker e espera estar ready
+      let registration = swRegistration.current;
       if (!registration) {
         registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       }
+      registration = await navigator.serviceWorker.ready;
       swRegistration.current = registration;
 
       // Pede permissão se foi acionado pelo usuário ou se ainda é default
@@ -118,28 +119,17 @@ export function usePushNotifications() {
     }
   }, [user]);
 
-  const hasAutoRegistered = useRef(false);
+  const registeredUserIdRef = useRef<string | null>(null);
 
-  // Sincronização e renovação automática e transparente para todos os usuários
+  // Sincronização automática para qualquer usuário logado com permissão
   useEffect(() => {
     if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
-    if (hasAutoRegistered.current) return;
-    hasAutoRegistered.current = true;
+    if (registeredUserIdRef.current === user.id) return;
+    registeredUserIdRef.current = user.id;
 
     if (Notification.permission === 'granted') {
-      // Registra silenciosamente e sincroniza com o banco de dados
+      // Registra e vincula a subscription do navegador ao user.id atual
       registerPush(false, false);
-    } else if (Notification.permission === 'default') {
-      // Se ainda não solicitou permissão neste computador/navegador, pede suavemente
-      const timer = setTimeout(() => {
-        Notification.requestPermission().then((perm) => {
-          setPermission(perm);
-          if (perm === 'granted') {
-            registerPush(false, false);
-          }
-        }).catch(() => {});
-      }, 2000);
-      return () => clearTimeout(timer);
     }
   }, [user, registerPush]);
 

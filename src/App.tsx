@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
+import { PushNotificationSync } from "@/components/PushNotificationSync";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, WifiOff, RefreshCw } from "lucide-react";
 import { lazy, Suspense, Component, ErrorInfo, ReactNode } from "react";
@@ -153,6 +154,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <PushNotificationSync />
             <Routes>
               <Route path="/login"             element={<PublicRoute><Login /></PublicRoute>} />
               <Route path="/portal"            element={<AppErrorBoundary><Suspense fallback={<PageLoader />}><ProfessionalPortal /></Suspense></AppErrorBoundary>} />
