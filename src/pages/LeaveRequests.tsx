@@ -59,10 +59,16 @@ export default function LeaveRequests() {
   const canRequest = isAdmin || isManager;
   const canApprove = isAdmin || isChief;
 
-  const getBalance = (employeeId: string) => {
-    const totalCredits = credits
+  // Saldo real de créditos acumulados na base
+  const getTotalCredits = (employeeId: string) => {
+    return credits
       .filter(c => c.employee_id === employeeId)
-      .reduce((s, c) => s + c.amount, 0);
+      .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  };
+
+  // Saldo disponível para novas solicitações (descontando solicitações pendentes)
+  const getBalance = (employeeId: string) => {
+    const totalCredits = getTotalCredits(employeeId);
     const pendingDays = requests
       .filter(r => r.employee_id === employeeId && r.status === 'pending')
       .reduce((s, r) => s + (r.days_requested ?? 0), 0);
@@ -162,9 +168,9 @@ export default function LeaveRequests() {
     if (status === 'approved') {
       const req = requests.find(r => r.id === id);
       if (req) {
-        const balance = getBalance(req.employee_id);
-        if (balance < req.days_requested) {
-          toast.error(`Não é possível aprovar: saldo insuficiente (${balance} crédito(s), necessário: ${req.days_requested}).`);
+        const totalCreds = getTotalCredits(req.employee_id);
+        if (totalCreds < req.days_requested) {
+          toast.error(`Não é possível aprovar: saldo insuficiente (${totalCreds} crédito(s), necessário: ${req.days_requested}).`);
           return;
         }
       }
@@ -298,7 +304,7 @@ export default function LeaveRequests() {
                 const unit = getUnitName(emp?.unit_id ?? null);
                 const catColor = getCategoryColor(categories, cat);
                 const initials = empName.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                const empBalance = getBalance(req.employee_id);
+                const empTotalCredits = getTotalCredits(req.employee_id);
 
                 const statusStyle = req.status === 'approved'
                   ? { label: 'Aprovado', bg: 'bg-white/90 text-emerald-700' }
@@ -418,11 +424,11 @@ export default function LeaveRequests() {
                         <div className="flex items-center gap-2 shrink-0">
                           <div className={cn(
                             'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border',
-                            empBalance >= req.days_requested
+                            empTotalCredits >= req.days_requested
                               ? 'bg-black/5 dark:bg-white/10 border-transparent text-foreground'
                               : 'bg-red-500/20 border-red-500/30 text-destructive'
                           )}>
-                            <span className="opacity-70">Saldo:</span> {empBalance}
+                            <span className="opacity-70">Saldo:</span> {empTotalCredits}
                           </div>
                           <Button
                             size="sm"
@@ -435,9 +441,10 @@ export default function LeaveRequests() {
                           </Button>
                           <Button
                             size="sm"
-                            className="h-auto min-h-[44px] lg:min-h-8 px-4 text-xs font-bold bg-black text-white hover:bg-black/80 shadow-sm transition-colors"
-                            disabled={!!decidingId || empBalance < req.days_requested}
+                            className="h-auto min-h-[44px] lg:min-h-8 px-4 text-xs font-bold bg-black text-white hover:bg-black/80 shadow-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+                            disabled={!!decidingId || empTotalCredits < req.days_requested}
                             onClick={() => handleDecision(req.id, 'approved')}
+                            title={empTotalCredits < req.days_requested ? 'Saldo de créditos insuficiente' : 'Aprovar folga'}
                           >
                             {decidingId === req.id ? '...' : 'Aprovar'}
                           </Button>
