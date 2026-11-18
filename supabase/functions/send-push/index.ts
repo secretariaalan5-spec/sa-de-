@@ -102,7 +102,7 @@ Deno.serve(async (req: Request) => {
             },
           },
           payload,
-          { TTL: 7200, urgency: 'high' }
+          { TTL: 86400, urgency: 'high' }
         );
         sent++;
         console.log('Push sent to', sub.endpoint.slice(0, 60));

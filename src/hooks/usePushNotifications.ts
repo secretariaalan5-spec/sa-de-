@@ -118,75 +118,28 @@ export function usePushNotifications() {
     }
   }, [user]);
 
+  const hasAutoRegistered = useRef(false);
+
   // Sincronização e renovação automática e transparente para todos os usuários
   useEffect(() => {
     if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
-
-    const PUSH_SYNC_KEY = `saude_push_v3_synced_${user.id}`;
+    if (hasAutoRegistered.current) return;
+    hasAutoRegistered.current = true;
 
     if (Notification.permission === 'granted') {
-      const isAlreadySynced = localStorage.getItem(PUSH_SYNC_KEY);
-      // Se ainda não sincronizou a nova chave/versão neste navegador, força renovação limpa silenciosa
-      if (!isAlreadySynced) {
-        registerPush(false, true).then((success) => {
-          if (success) {
-            localStorage.setItem(PUSH_SYNC_KEY, 'true');
-          }
-        });
-      } else {
-        // Já sincronizado: valida silenciosamente em segundo plano
-        registerPush(false, false);
-      }
+      // Registra silenciosamente e sincroniza com o banco de dados
+      registerPush(false, false);
     } else if (Notification.permission === 'default') {
       // Se ainda não solicitou permissão neste computador/navegador, pede suavemente
       const timer = setTimeout(() => {
         Notification.requestPermission().then((perm) => {
           setPermission(perm);
           if (perm === 'granted') {
-            registerPush(false, true).then((success) => {
-              if (success) {
-                localStorage.setItem(PUSH_SYNC_KEY, 'true');
-              }
-            });
+            registerPush(false, false);
           }
         }).catch(() => {});
-      }, 1500);
+      }, 2000);
       return () => clearTimeout(timer);
-    }
-  }, [user, registerPush]);
-
-  // Dispara uma notificação de teste real pelo servidor Web Push (para testar no Windows/celular)
-  const testPushNotification = useCallback(async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      // Garante que o push está registrado e renovado neste navegador
-      await registerPush(false, true);
-
-      // Invoca a Edge Function de envio de push
-      const { data, error } = await supabase.functions.invoke('send-push', {
-        body: {
-          user_id: user.id,
-          title: '🔔 Notificação de Teste - Saúde+',
-          message: 'Seu computador está configurado para receber notificações do Saúde+ no Windows!',
-          url: '/folgas',
-        },
-      });
-
-      if (error) {
-        toast.error('Erro ao enviar teste: ' + error.message);
-        return;
-      }
-
-      if (data?.sent && data.sent > 0) {
-        toast.success('Notificação nativa enviada ao Windows! Verifique o canto inferior direito da tela.');
-      } else {
-        toast.warning('Disparo enviado, mas nenhum dispositivo ativo confirmou a entrega.');
-      }
-    } catch (err: any) {
-      toast.error('Falha no teste: ' + (err.message || ''));
-    } finally {
-      setLoading(false);
     }
   }, [user, registerPush]);
 
@@ -205,7 +158,7 @@ export function usePushNotifications() {
         badge: '/icon-192.png',
         data: { url: url || '/' },
         vibrate: [200, 100, 200],
-        tag: 'saude-local-' + Date.now(),
+        tag: 'saude-alert-latest',
         renotify: true,
         requireInteraction: true, // Notificação persistente até o usuário fechar
       });
@@ -214,5 +167,5 @@ export function usePushNotifications() {
     }
   }, []);
 
-  return { showLocalPush, registerPush, testPushNotification, permission, isSubscribed, loading, swRegistration };
+  return { showLocalPush, registerPush, permission, isSubscribed, loading, swRegistration };
 }
