@@ -79,6 +79,9 @@ function relativeTime(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
+// Cache global de IDs para deduplicação instantânea entre múltiplas instâncias de NotificationBell
+const recentNotifiedIds = new Set<string>();
+
 export function NotificationBell({ 
   iconClassName,
   align = "end",
@@ -124,11 +127,23 @@ export function NotificationBell({
     if (payload?.eventType === 'INSERT' && payload.new && user) {
       const n = payload.new;
       if (n.user_id === user.id && !n.is_read) {
-        showLocalPush(
-          n.title || 'Saúde+ Escalas',
-          n.message || 'Você tem um novo aviso.',
-          n.link || '/'
-        );
+        // Deduplica por ID da notificação para não disparar duas vezes (Desktop + Mobile)
+        if (n.id && recentNotifiedIds.has(n.id)) return;
+        if (n.id) {
+          recentNotifiedIds.add(n.id);
+          setTimeout(() => recentNotifiedIds.delete(n.id), 60000);
+        }
+
+        // Se a página estiver minimizada ou em segundo plano, aciona o push do sistema operacional
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+          showLocalPush(
+            n.title || 'Saúde+ Escalas',
+            n.message || 'Você tem um novo aviso.',
+            n.link || '/'
+          );
+        }
+
+        // Toast in-app padronizado e unificado (com botão X de fechar e ação direta)
         toast.custom((t) => (
           <div className="w-[340px] bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-4 relative font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
@@ -169,7 +184,8 @@ export function NotificationBell({
             )}
           </div>
         ), {
-          duration: Infinity, // Não fecha sozinho: só sai se clicar no X ou na ação
+          id: n.id,
+          duration: Infinity, // Fica fixa até o usuário clicar no X ou no botão
         });
       }
     }

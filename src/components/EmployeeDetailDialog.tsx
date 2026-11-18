@@ -18,7 +18,7 @@ import {
 import AccessCodeDialog from '@/components/AccessCodeDialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface Props {
   employeeId: string | null;
