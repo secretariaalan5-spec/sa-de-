@@ -134,68 +134,8 @@ export function NotificationBell({
           setTimeout(() => recentNotifiedIds.delete(n.id), 60000);
         }
 
-        // Calcula total de notificações não lidas para exibir no card
-        const currentUnreadCount = notifications.filter(item => !item.is_read && item.id !== n.id).length + 1;
-
-        // A notificação nativa (Windows/Android/iPhone) é enviada SOMENTE pelo servidor (Web Push)
-        // e exibida pelo Service Worker quando o app está fechado, minimizado ou em outra aba.
-        // Aqui mostramos apenas o toast in-app, evitando os 2 estilos duplicados.
-        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-          return;
-        }
-
-        // Toast in-app padronizado e unificado (com botão X de fechar, ação direta e quantidade de avisos)
-        toast.custom((t) => (
-          <div className="w-[340px] bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-4 relative font-sans animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center text-primary font-bold text-[10px]">
-                  S+
-                </div>
-                <span className="text-xs font-semibold text-slate-300">Saúde+</span>
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white shadow-sm flex items-center gap-1">
-                  <Bell size={9} /> {currentUnreadCount} {currentUnreadCount === 1 ? 'pendente' : 'pendentes'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => toast.dismiss(t)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-                title="Fechar notificação"
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <div className="mt-2.5">
-              <h4 className="font-bold text-sm text-white leading-snug">
-                {n.title || 'Nova Notificação'}
-              </h4>
-              <p className="text-xs text-slate-300 mt-1 leading-relaxed break-words">
-                {n.message}
-              </p>
-            </div>
-            <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
-              <span className="text-[10px] text-slate-400 font-medium">
-                {currentUnreadCount > 1 ? `${currentUnreadCount} notificações aguardando` : '1 nova notificação'}
-              </span>
-              {n.link && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.dismiss(t);
-                    navigate(n.link);
-                  }}
-                  className="py-1 px-2.5 bg-primary/20 hover:bg-primary/30 active:bg-primary/40 text-primary-foreground font-semibold text-xs rounded-lg border border-primary/30 transition-colors text-center"
-                >
-                  Ver detalhes →
-                </button>
-              )}
-            </div>
-          </div>
-        ), {
-          id: n.id,
-          duration: Infinity, // Fica fixa até o usuário clicar no X ou no botão
-        });
+        // Único estilo de aviso: a notificação nativa (Windows/Android/iPhone) exibida pelo
+        // Service Worker via Web Push. Aqui só atualizamos o sino (load acima), sem card extra.
       }
     }
   });

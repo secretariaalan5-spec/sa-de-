@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v12';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -191,28 +191,20 @@ self.addEventListener('push', (event) => {
         }
     }
 
+    // Mostra SEMPRE e IMEDIATAMENTE a notificação nativa (único estilo do sistema).
+    // Não pulamos quando o app está aberto: o Chrome exige uma notificação para cada push
+    // e, se não mostrarmos, ele exibe uma notificação genérica própria (o "2º estilo").
     event.waitUntil(
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-            // Se o sistema estiver aberto e visível na tela, o aviso já aparece dentro do app
-            // (toast). Não mostramos a notificação do Windows/Chrome para não duplicar.
-            const visibleClient = clients.find(
-                (c) => c.url.startsWith(self.location.origin) && c.visibilityState === 'visible'
-            );
-            if (visibleClient) {
-                return;
-            }
-            // App fechado, minimizado ou em outra aba → notificação nativa do sistema
-            return self.registration.showNotification(data.title, {
-                body: data.body,
-                icon: '/icon-192.png',
-                badge: '/icon-192.png',
-                data: { url: data.url },
-                vibrate: [200, 100, 200],
-                tag: data.tag || `saude-alert-${Date.now()}`,
-                renotify: true,
-                requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
-                silent: false,
-            });
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            data: { url: data.url },
+            vibrate: [200, 100, 200],
+            tag: data.tag || `saude-alert-${Date.now()}`,
+            renotify: true,
+            requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
+            silent: false,
         })
     );
 });
