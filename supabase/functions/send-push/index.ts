@@ -81,9 +81,9 @@ Deno.serve(async (req: Request) => {
       body: message,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      data: { url, unreadCount: countNumber },
+      data: { url, unreadCount: countNumber, sentAt: Date.now() },
       vibrate: [200, 100, 200],
-      tag: record.tag || `saude-alert-${Date.now()}`,
+      tag: 'saude-plus-latest',
       renotify: true,
       requireInteraction: true, // Notificação persistente no Windows / Android até o usuário clicar ou fechar no X
     });
@@ -102,7 +102,7 @@ Deno.serve(async (req: Request) => {
             },
           },
           payload,
-          { TTL: 86400, urgency: 'high' }
+          { TTL: 120, urgency: 'high', topic: 'saude-plus-latest' }
         );
         sent++;
         console.log('Push sent to', sub.endpoint.slice(0, 60));

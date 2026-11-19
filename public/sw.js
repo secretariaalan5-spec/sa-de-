@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v13';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -185,15 +185,14 @@ self.addEventListener('push', (event) => {
             data.title = json.title || json.headings?.en || data.title;
             data.body = json.body || json.alert || json.message || json.contents?.en || data.body;
             data.url = json.data?.url || json.url || data.url;
-            data.tag = json.tag || `saude-alert-${Date.now()}`;
+            data.tag = 'saude-plus-latest';
         } catch (e) {
             try { data.body = event.data.text(); } catch { /* ignore */ }
         }
     }
 
     // Mostra SEMPRE e IMEDIATAMENTE a notificação nativa (único estilo do sistema).
-    // Não pulamos quando o app está aberto: o Chrome exige uma notificação para cada push
-    // e, se não mostrarmos, ele exibe uma notificação genérica própria (o "2º estilo").
+    // Usa tag fixa 'saude-plus-latest' para substituir o card anterior sem empilhar vários avisos antigos.
     event.waitUntil(
         self.registration.showNotification(data.title, {
             body: data.body,
@@ -201,7 +200,7 @@ self.addEventListener('push', (event) => {
             badge: '/icon-192.png',
             data: { url: data.url },
             vibrate: [200, 100, 200],
-            tag: data.tag || `saude-alert-${Date.now()}`,
+            tag: 'saude-plus-latest',
             renotify: true,
             requireInteraction: true, // Fica fixa na tela até o usuário interagir ou fechar no X
             silent: false,
