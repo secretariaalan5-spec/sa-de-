@@ -15,6 +15,7 @@ import { useRoleDetails } from '@/hooks/useRoleDetails';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { NotificationBell } from '@/components/NotificationBell';
 import { GlobalBanner } from '@/components/GlobalBanner';
+import { DesktopAppPrompt, isWindowsDesktopBrowser } from '@/components/DesktopAppPrompt';
 import logoSaude from '@/assets/logo-saude.png';
 
 interface NavItem { to: string; label: string; icon: React.ElementType; roles: string[]; }
@@ -45,6 +46,8 @@ export function AppShell() {
   const outlet = Outlet ? <Outlet /> : null;
   const { roleDescription } = useRoleDetails(roleInfo);
   const { canInstall, install } = usePWAInstall();
+  const [desktopModalOpen, setDesktopModalOpen] = useState(false);
+  const showWindowsDesktopInstall = isWindowsDesktopBrowser();
 
   // Gesture refs
   const touchStartX = useRef(0);
@@ -161,14 +164,24 @@ export function AppShell() {
               </NavLink>
             ))}
 
-            {canInstall && (
+            {(showWindowsDesktopInstall || canInstall) && (
               <>
                 <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold px-3 pt-4 pb-1">App</p>
-                <button onClick={install}
-                  className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
-                  <Download size={18} />
-                  <span>Instalar App</span>
-                </button>
+                {showWindowsDesktopInstall ? (
+                  <button
+                    onClick={() => setDesktopModalOpen(true)}
+                    className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground transition-colors"
+                  >
+                    <Download size={18} />
+                    <span>Baixar App Windows</span>
+                  </button>
+                ) : (
+                  <button onClick={install}
+                    className="nav-item text-sm w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors">
+                    <Download size={18} />
+                    <span>Instalar App</span>
+                  </button>
+                )}
               </>
             )}
           </nav>
@@ -282,6 +295,10 @@ export function AppShell() {
         )}
 
         <GlobalBanner />
+        <DesktopAppPrompt
+          externalOpen={desktopModalOpen}
+          onExternalOpenChange={setDesktopModalOpen}
+        />
 
         <main 
           className={cn(
