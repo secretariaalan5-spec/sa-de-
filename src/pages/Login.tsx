@@ -34,30 +34,8 @@ export default function Login() {
       setSavedAccounts(getSavedComputerAccounts());
     };
     loadAccounts();
-
-    // Tenta buscar contas sincronizadas do aplicativo Desktop local (porta 47831)
-    fetch('http://127.0.0.1:47831/accounts', { mode: 'cors' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data && Array.isArray(data.accounts) && data.accounts.length > 0) {
-          const current = getSavedComputerAccounts();
-          const map = new Map<string, SavedComputerAccount>();
-          for (const acc of [...current, ...data.accounts]) {
-            if (acc && acc.email && acc.refreshToken) {
-              const ex = map.get(acc.email);
-              if (!ex || (acc.updatedAt || 0) >= (ex.updatedAt || 0)) {
-                map.set(acc.email, acc);
-              }
-            }
-          }
-          const merged = Array.from(map.values()).sort(
-            (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
-          );
-          localStorage.setItem(SAVED_ACCOUNTS_STORAGE_KEY, JSON.stringify(merged));
-          setSavedAccounts(merged);
-        }
-      })
-      .catch(() => {});
+    window.addEventListener('saude-accounts-updated', loadAccounts);
+    return () => window.removeEventListener('saude-accounts-updated', loadAccounts);
   }, []);
 
   const handleGoogleLogin = async (loginHint?: string) => {

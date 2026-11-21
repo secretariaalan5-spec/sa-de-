@@ -85,8 +85,7 @@ if (Test-Path $TaskBarPath) {{
     $s.Description = 'Saúde+ - Gestão de Escalas';
     $s.Save();
   }}
-}}
-Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -like 'Sa*de+*Gest*o*' }} | ForEach-Object {{ $_.CloseMainWindow() | Out-Null }};"#,
+}}"#,
         exe = exe_str.replace('\'', "''"),
         ico = ico_str.replace('\'', "''")
     );

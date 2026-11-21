@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUp, MousePointerClick, Loader2 } from 'lucide-react';
+import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUp, MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoSaude from '@/assets/logo-saude.png';
-import {
-  saveCurrentSessionToComputerAccounts,
-  SAVED_ACCOUNTS_STORAGE_KEY,
-} from '@/lib/saved-accounts';
+import { saveCurrentSessionToComputerAccounts } from '@/lib/saved-accounts';
 
 export const DESKTOP_INSTALLER_URL =
   import.meta.env.VITE_DESKTOP_DOWNLOAD_URL ||
@@ -29,53 +26,15 @@ export function isWindowsDesktopBrowser(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   if (isRunningInsideDesktopApp()) return false;
 
+  // Não bloqueia o servidor local de desenvolvimento (npm run dev / localhost)
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return false;
+
   const ua = navigator.userAgent || '';
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   if (isMobileDevice) return false;
 
   return /Windows/i.test(ua);
-}
-
-function getActiveAuthTokenPayload(): { key: string; value: string } | null {
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-        const v = localStorage.getItem(k);
-        if (v) return { key: k, value: v };
-      }
-    }
-  } catch {}
-  return null;
-}
-
-async function syncAccountsToLocalDesktopApp(bringToFront = false): Promise<boolean> {
-  try {
-    const accounts = saveCurrentSessionToComputerAccounts();
-    const activeToken = getActiveAuthTokenPayload();
-    const res = await fetch(
-      `http://127.0.0.1:47831/sync-auth${bringToFront ? '?show=1' : ''}`,
-      {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accounts,
-          activeToken,
-        }),
-      }
-    );
-    if (res.ok) {
-      const data = await res.json().catch(() => null);
-      if (data && Array.isArray(data.accounts)) {
-        localStorage.setItem(SAVED_ACCOUNTS_STORAGE_KEY, JSON.stringify(data.accounts));
-      }
-      return true;
-    }
-  } catch {
-    // App desktop ainda não iniciado
-  }
-  return false;
 }
 
 interface DesktopAppPromptProps {
@@ -87,7 +46,6 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   const [internalOpen, setInternalOpen] = useState(false);
   const [downloadStarted, setDownloadStarted] = useState(false);
   const [eligible, setEligible] = useState(false);
-  const [desktopAlreadyRunning, setDesktopAlreadyRunning] = useState(false);
 
   useEffect(() => {
     saveCurrentSessionToComputerAccounts();
@@ -97,51 +55,19 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
 
     if (!canShowOnThisDevice) return;
 
-    // Verifica imediatamente se o App Desktop já está aberto neste computador:
-    // Se já estiver aberto, passa a conta para ele, traz ele para a frente,
-    // fecha o PWA web antigo e bloqueia o uso simultâneo no navegador!
-    syncAccountsToLocalDesktopApp(true).then((running) => {
-      if (running) {
-        setDesktopAlreadyRunning(true);
-        setInternalOpen(true);
-        try {
-          window.close();
-        } catch {}
-      } else {
-        const dismissedInThisSession = sessionStorage.getItem(SESSION_DISMISSED_KEY) === 'true';
-        if (!dismissedInThisSession) {
-          setInternalOpen(true);
-        }
-      }
-    });
+    const dismissedInThisSession = sessionStorage.getItem(SESSION_DISMISSED_KEY) === 'true';
+    if (!dismissedInThisSession) {
+      setInternalOpen(true);
+    }
   }, []);
 
-  const isOpen = Boolean(externalOpen || internalOpen || desktopAlreadyRunning);
+  const isOpen = Boolean(externalOpen || internalOpen);
 
   const closePrompt = () => {
     setInternalOpen(false);
     onExternalOpenChange?.(false);
     setDownloadStarted(false);
   };
-
-  // Monitora continuamente para detectar assim que o App Desktop abrir e impedir uso simultâneo
-  useEffect(() => {
-    if (!eligible) return;
-
-    const checkAndSync = async () => {
-      const running = await syncAccountsToLocalDesktopApp(downloadStarted);
-      if (running) {
-        setDesktopAlreadyRunning(true);
-        setInternalOpen(true);
-        try {
-          window.close();
-        } catch {}
-      }
-    };
-
-    const interval = setInterval(checkAndSync, 1500);
-    return () => clearInterval(interval);
-  }, [eligible, downloadStarted]);
 
   if (!eligible || !isOpen) return null;
 
@@ -158,25 +84,18 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     document.body.removeChild(link);
   };
 
-  const handleBringDesktopToFront = () => {
-    syncAccountsToLocalDesktopApp(true);
-    try {
-      window.close();
-    } catch {}
-  };
-
   const handleContinueInBrowser = () => {
     sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
     closePrompt();
   };
 
   return (
-    /* Fundo 100% opaco cobrindo toda a tela: bloqueia uso simultâneo do sistema web */
+    /* Fundo 100% opaco cobrindo toda a tela: não mostra o sistema atrás e não pede permissão de rede local */
     <div className="fixed inset-0 z-[200] bg-gradient-to-br from-slate-950 via-[#0a1936] to-slate-950 flex flex-col items-center justify-center p-4 select-none overflow-hidden">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[130px] pointer-events-none" />
 
       {/* Seta Visual Posicionada Exatamente Abaixo da Caixinha Preta de Download do Navegador */}
-      {downloadStarted && !desktopAlreadyRunning && (
+      {downloadStarted && (
         <div className="fixed top-[84px] right-[135px] z-[210] flex flex-col items-center animate-bounce pointer-events-none">
           <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-white -mb-2 z-10">
             <ArrowUp className="w-6 h-6 stroke-[3]" />
@@ -199,44 +118,16 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
           </div>
 
           <h1 className="text-xl font-extrabold mt-4 tracking-tight">
-            {desktopAlreadyRunning
-              ? 'Saúde+ Desktop Já Está Aberto!'
-              : downloadStarted
-                ? 'Abra o Arquivo Baixado!'
-                : 'Saúde+ para Windows'}
+            {downloadStarted ? 'Abra o Arquivo Baixado!' : 'Saúde+ para Windows'}
           </h1>
           <p className="text-xs text-white/80 mt-1">
-            {desktopAlreadyRunning
-              ? 'Use o aplicativo fixado na sua Barra de Tarefas (abaixo)'
-              : downloadStarted
-                ? 'Dê 1 clique no arquivo baixado ali em cima para iniciar'
-                : 'Receba notificações mesmo com o sistema fechado'}
+            {downloadStarted
+              ? 'Dê 1 clique no arquivo baixado ali em cima para abrir o Saúde+ Desktop'
+              : 'Receba notificações mesmo com o sistema fechado na gaveta'}
           </p>
         </div>
 
-        {desktopAlreadyRunning ? (
-          /* Bloqueia uso simultâneo Web + Desktop quando o App Desktop já está aberto */
-          <div className="p-6 space-y-5">
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col items-center gap-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-              <p className="text-xs font-bold text-foreground">
-                Sua conta já foi sincronizada com o aplicativo Desktop!
-              </p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Para evitar notificações duplicadas, o sistema no computador funciona exclusivamente pelo aplicativo na sua Barra de Tarefas. Você já pode fechar esta janela do navegador.
-              </p>
-            </div>
-
-            <Button
-              onClick={handleBringDesktopToFront}
-              size="lg"
-              className="w-full h-13 text-sm font-extrabold gap-2.5 rounded-2xl shadow-lg shadow-primary/25"
-            >
-              <Monitor className="w-5 h-5" />
-              Ir para o Saúde+ Desktop
-            </Button>
-          </div>
-        ) : !downloadStarted ? (
+        {!downloadStarted ? (
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-3 gap-2.5">
               <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/15">
@@ -262,7 +153,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                   <Rocket className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-bold text-foreground leading-tight">
-                  Fixo na Barra
+                  Fixa na Barra
                 </span>
               </div>
             </div>
@@ -277,7 +168,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
             </Button>
           </div>
         ) : (
-          /* Enquanto baixa/instala: NÃO libera o uso web, aguarda abrir o aplicativo Desktop */
+          /* Enquanto baixa/instala: NÃO libera o uso web, orienta a abrir o aplicativo Desktop baixado */
           <div className="p-6 space-y-5">
             <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-primary/40 flex flex-col items-center gap-3">
               <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl shadow-md border border-primary/30 w-full">
@@ -293,9 +184,9 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                 <MousePointerClick className="w-6 h-6 text-primary animate-bounce shrink-0" />
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                <span>Aguardando você clicar no arquivo baixado...</span>
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Ele fixa na Barra de Tarefas e abre o Saúde+ Desktop!</span>
               </div>
             </div>
 
@@ -310,8 +201,8 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
         )}
       </div>
 
-      {/* Botão bem pequeno e discreto fora do card principal (apenas antes de iniciar o download e se o Desktop não estiver rodando) */}
-      {!downloadStarted && !desktopAlreadyRunning && (
+      {/* Botão bem pequeno e discreto fora do card principal */}
+      {!downloadStarted && (
         <button
           type="button"
           onClick={handleContinueInBrowser}

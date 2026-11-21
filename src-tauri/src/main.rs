@@ -17,6 +17,7 @@ use winrt_notification::{Duration, IconCrop, Sound, Toast};
 const APP_URL: &str = "https://saude-gules.vercel.app";
 const APP_AUMID: &str = "com.saudeplus.desktop";
 const NOTIFY_PREFIX: &str = "__SAUDE_NOTIFY__:";
+const SAVE_ACCOUNTS_PREFIX: &str = "__SAUDE_SAVE_ACCOUNTS__:";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const EMBEDDED_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
 const EMBEDDED_ICON_ICO: &[u8] = include_bytes!("../icons/icon.ico");
@@ -206,8 +207,7 @@ if (Test-Path $TaskBarPath) {{
     $s.Description = 'Saúde+ - Gestão de Escalas';
     $s.Save();
   }}
-}}
-Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -like 'Sa*de+*Gest*o*' }} | ForEach-Object {{ $_.CloseMainWindow() | Out-Null }};"#,
+}}"#,
             exe = exe_str.replace('\'', "''"),
             ico = ico_str.replace('\'', "''")
         );
@@ -300,16 +300,28 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     return null;
   }
 
-  // Sincroniza contas reconhecidas neste computador entre navegador e os 4 perfis Desktop
-  async function syncSavedComputerAccounts() {
+  // Sincroniza contas reconhecidas neste computador via canal interno Tauri (sem pedir permissão de rede no navegador!)
+  function syncSavedComputerAccounts() {
     try {
-      const auth = getAuthSession();
       let localList = [];
       try {
         localList = JSON.parse(localStorage.getItem(SAVED_ACCOUNTS_KEY) || '[]');
         if (!Array.isArray(localList)) localList = [];
       } catch (_) { localList = []; }
 
+      if (Array.isArray(window.__SAUDE_SAVED_ACCOUNTS__) && window.__SAUDE_SAVED_ACCOUNTS__.length > 0) {
+        const mergedMap = {};
+        window.__SAUDE_SAVED_ACCOUNTS__.concat(localList).forEach(function(a) {
+          if (a && a.email && a.refreshToken) {
+            if (!mergedMap[a.email] || (a.updatedAt || 0) >= (mergedMap[a.email].updatedAt || 0)) {
+              mergedMap[a.email] = a;
+            }
+          }
+        });
+        localList = Object.values(mergedMap);
+      }
+
+      const auth = getAuthSession();
       if (auth && auth.email && auth.refreshToken) {
         const entry = {
           userId: auth.userId,
@@ -321,19 +333,19 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
           updatedAt: Date.now()
         };
         localList = [entry].concat(localList.filter(function(a) { return a && a.email !== entry.email; })).slice(0, 8);
-        localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(localList));
       }
 
-      const res = await fetch('http://127.0.0.1:47831/sync-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accounts: localList })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.accounts)) {
-          window.__SAUDE_SAVED_ACCOUNTS__ = data.accounts;
-          localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(data.accounts));
+      if (localList.length > 0) {
+        window.__SAUDE_SAVED_ACCOUNTS__ = localList;
+        localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(localList));
+        window.dispatchEvent(new Event('saude-accounts-updated'));
+        if (auth) {
+          document.title = '__SAUDE_SAVE_ACCOUNTS__:' + JSON.stringify(localList);
+          setTimeout(function() {
+            if (document.title.indexOf('__SAUDE_SAVE_ACCOUNTS__:') === 0) {
+              document.title = 'Saúde+ - Gestão de Escalas';
+            }
+          }, 100);
         }
       }
     } catch (_) {}
@@ -659,13 +671,17 @@ fn main() {
                                 .to_string();
                             notify_windows(profile_id, t, b);
                         }
+                    } else if let Some(accs_str) = title.strip_prefix(SAVE_ACCOUNTS_PREFIX) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(accs_str) {
+                            let _ = merge_and_save_accounts(&val);
+                        }
                     }
                 })
                 .build()?;
             log_step("STEP 4: window built");
 
             if start_minimized {
-                let _ = main_window.minimize();
+                let _ = main_window.hide();
             } else {
                 let _ = main_window.show();
                 let _ = main_window.set_always_on_top(true);
@@ -688,9 +704,9 @@ fn main() {
             let window_clone = main_window.clone();
             main_window.on_window_event(move |event| {
                 if let WindowEvent::CloseRequested { api, .. } = event {
-                    // Mantém o aplicativo SEMPRE fixo e visível na Barra de Tarefas (minimizado em vez de oculto)
+                    // Ao clicar no X: fecha a janela e mantém rodando na gaveta do relógio e notificando!
                     api.prevent_close();
-                    let _ = window_clone.minimize();
+                    let _ = window_clone.hide();
                 }
             });
 
