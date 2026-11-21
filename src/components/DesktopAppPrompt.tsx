@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUp, MousePointerClick } from 'lucide-react';
+import { Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUp, MousePointerClick, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoSaude from '@/assets/logo-saude.png';
+import {
+  saveCurrentSessionToComputerAccounts,
+  SAVED_ACCOUNTS_STORAGE_KEY,
+} from '@/lib/saved-accounts';
 
 export const DESKTOP_INSTALLER_URL =
   import.meta.env.VITE_DESKTOP_DOWNLOAD_URL ||
@@ -32,6 +36,48 @@ export function isWindowsDesktopBrowser(): boolean {
   return /Windows/i.test(ua);
 }
 
+function getActiveAuthTokenPayload(): { key: string; value: string } | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const v = localStorage.getItem(k);
+        if (v) return { key: k, value: v };
+      }
+    }
+  } catch {}
+  return null;
+}
+
+async function syncAccountsToLocalDesktopApp(bringToFront = false): Promise<boolean> {
+  try {
+    const accounts = saveCurrentSessionToComputerAccounts();
+    const activeToken = getActiveAuthTokenPayload();
+    const res = await fetch(
+      `http://127.0.0.1:47831/sync-auth${bringToFront ? '?show=1' : ''}`,
+      {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accounts,
+          activeToken,
+        }),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && Array.isArray(data.accounts)) {
+        localStorage.setItem(SAVED_ACCOUNTS_STORAGE_KEY, JSON.stringify(data.accounts));
+      }
+      return true;
+    }
+  } catch {
+    // App desktop ainda não iniciado
+  }
+  return false;
+}
+
 interface DesktopAppPromptProps {
   externalOpen?: boolean;
   onExternalOpenChange?: (open: boolean) => void;
@@ -41,8 +87,13 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   const [internalOpen, setInternalOpen] = useState(false);
   const [downloadStarted, setDownloadStarted] = useState(false);
   const [eligible, setEligible] = useState(false);
+  const [appOpenedConfirm, setAppOpenedConfirm] = useState(false);
 
   useEffect(() => {
+    // Salva a conta logada atual na lista de contas deste computador e sincroniza
+    saveCurrentSessionToComputerAccounts();
+    syncAccountsToLocalDesktopApp(false);
+
     const canShowOnThisDevice = isWindowsDesktopBrowser();
     setEligible(canShowOnThisDevice);
 
@@ -63,23 +114,19 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     setDownloadStarted(false);
   };
 
-  // Detecta automaticamente assim que o usuário clica no SaudePlus-Instalador.exe e o app abre
+  // Enquanto estiver aguardando instalar/abrir, sincroniza a conta logada com o App Desktop
+  // assim que o usuário clicar no SaudePlus-Instalador.exe
   useEffect(() => {
     if (!isOpen || !downloadStarted) return;
 
-    const checkLocalApp = async () => {
-      try {
-        const res = await fetch('http://127.0.0.1:47831/ping', { mode: 'cors' });
-        if (res.ok) {
-          sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
-          closePrompt();
-        }
-      } catch {
-        // Ainda aguardando o usuário clicar no arquivo baixado
+    const checkAndSync = async () => {
+      const ok = await syncAccountsToLocalDesktopApp(true);
+      if (ok) {
+        setAppOpenedConfirm(true);
       }
     };
 
-    const interval = setInterval(checkLocalApp, 1500);
+    const interval = setInterval(checkAndSync, 1500);
     return () => clearInterval(interval);
   }, [isOpen, downloadStarted]);
 
@@ -87,6 +134,8 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
 
   const handleDownloadClick = () => {
     setDownloadStarted(true);
+    setAppOpenedConfirm(false);
+    saveCurrentSessionToComputerAccounts();
 
     const link = document.createElement('a');
     link.href = DESKTOP_INSTALLER_URL;
@@ -103,7 +152,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   };
 
   return (
-    /* Fundo 100% opaco cobrindo toda a tela: não mostra nada do sistema atrás e não tem botão X */
+    /* Fundo 100% opaco cobrindo toda a tela: bloqueia uso do sistema web atrás e não tem botão X */
     <div className="fixed inset-0 z-[200] bg-gradient-to-br from-slate-950 via-[#0a1936] to-slate-950 flex flex-col items-center justify-center p-4 select-none overflow-hidden">
       {/* Brilhos decorativos de fundo */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[130px] pointer-events-none" />
@@ -169,7 +218,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                   <Rocket className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-bold text-foreground leading-tight">
-                  Inicia com o PC
+                  Fixa na Barra
                 </span>
               </div>
             </div>
@@ -185,9 +234,8 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
             </Button>
           </div>
         ) : (
-          /* Tela Visual Passo a Passo após clicar em Baixar */
+          /* Enquanto baixa/instala: NÃO libera o uso web, aguarda abrir o aplicativo Desktop */
           <div className="p-6 space-y-5">
-            {/* Ilustração Visual do Arquivo no Navegador */}
             <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-primary/40 flex flex-col items-center gap-3">
               <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl shadow-md border border-primary/30 w-full">
                 <img src={logoSaude} alt="Saúde+" className="w-9 h-9 rounded-lg shrink-0" />
@@ -196,40 +244,37 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                     SaudePlus-Instalador.exe
                   </p>
                   <p className="text-[10px] text-emerald-600 font-semibold">
-                    Clique nele lá em cima para abrir
+                    Clique nele lá em cima para instalar e abrir
                   </p>
                 </div>
                 <MousePointerClick className="w-6 h-6 text-primary animate-bounce shrink-0" />
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Assim que você clicar nele, o Saúde+ abrirá sozinho!</span>
-              </div>
+              {appOpenedConfirm ? (
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Aplicativo Desktop aberto e sincronizado com sua conta!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Aguardando você clicar no arquivo baixado...</span>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Button
-                onClick={handleContinueInBrowser}
-                className="w-full h-12 rounded-2xl font-bold text-sm"
-              >
-                <Monitor className="w-4 h-4 mr-2" />
-                Já abri o aplicativo / Entrar
-              </Button>
-
-              <button
-                type="button"
-                onClick={handleDownloadClick}
-                className="text-[11px] text-primary hover:underline font-medium block mx-auto pt-1"
-              >
-                Baixar novamente
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              className="text-xs text-primary hover:underline font-semibold block mx-auto"
+            >
+              O download não apareceu? Clique aqui para baixar novamente
+            </button>
           </div>
         )}
       </div>
 
-      {/* Botão bem pequeno e discreto fora do card principal para manter pelo navegador */}
+      {/* Botão bem pequeno e discreto fora do card principal (apenas antes de iniciar o download) */}
       {!downloadStarted && (
         <button
           type="button"

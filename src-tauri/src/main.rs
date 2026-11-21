@@ -21,7 +21,6 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 const EMBEDDED_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
 const EMBEDDED_ICON_ICO: &[u8] = include_bytes!("../icons/icon.ico");
 
-/// Identifica qual perfil (1, 2, 3, 4...) foi solicitado via argumento `--profile=N`
 fn get_profile_id() -> u16 {
     let args: Vec<String> = std::env::args().collect();
     for i in 0..args.len() {
@@ -51,8 +50,45 @@ fn get_base_dir() -> PathBuf {
         .join("SaudePlus")
 }
 
-/// Garante que o executável, ícones, registro de identidade de notificação,
-/// atalhos na Área de Trabalho / Menu Iniciar e inicialização com o Windows estejam configurados.
+fn get_saved_accounts_path() -> PathBuf {
+    get_base_dir().join("saved_accounts.json")
+}
+
+fn read_saved_accounts_json() -> serde_json::Value {
+    let path = get_saved_accounts_path();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+            if val.is_array() {
+                return val;
+            }
+        }
+    }
+    serde_json::json!([])
+}
+
+fn merge_and_save_accounts(incoming: &serde_json::Value) -> serde_json::Value {
+    let mut existing = read_saved_accounts_json()
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    if let Some(inc_arr) = incoming.as_array() {
+        for item in inc_arr {
+            if let Some(email) = item.get("email").and_then(|v| v.as_str()) {
+                existing.retain(|x| x.get("email").and_then(|v| v.as_str()) != Some(email));
+                existing.insert(0, item.clone());
+            }
+        }
+    }
+
+    existing.truncate(10);
+    let out = serde_json::Value::Array(existing);
+    if let Ok(serialized) = serde_json::to_string(&out) {
+        let _ = std::fs::write(get_saved_accounts_path(), serialized);
+    }
+    out
+}
+
 fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
     let base_dir = get_base_dir();
     let _ = std::fs::create_dir_all(&base_dir);
@@ -126,8 +162,8 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
 
     if profile_id == 1 && installed_exe_path.exists() {
         let exe_str = installed_exe_path.to_string_lossy().to_string();
+        let ico_str = icon_ico_path.to_string_lossy().to_string();
 
-        // Iniciar junto com o Windows (HKCU\...\Run)
         let run_cmd = format!("\"{}\" --minimized", exe_str);
         let _ = Command::new("reg")
             .args([
@@ -143,6 +179,57 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
             ])
             .creation_flags(CREATE_NO_WINDOW)
             .status();
+
+        // Garante atalho na Área de Trabalho, Menu Iniciar e Barra de Tarefas
+        let ps_script = format!(
+            r#"$WshShell = New-Object -ComObject WScript.Shell;
+$DesktopPath = [Environment]::GetFolderPath('Desktop');
+$StartMenuPath = [Environment]::GetFolderPath('Programs');
+$TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar';
+
+foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
+  if (Test-Path $dir) {{
+    $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+.lnk'));
+    $Shortcut.TargetPath = '{exe}';
+    $Shortcut.IconLocation = '{ico},0';
+    $Shortcut.Description = 'Saúde+ - Gestão de Escalas';
+    $Shortcut.Save();
+  }}
+}}
+
+if (Test-Path $TaskBarPath) {{
+  $existing = Get-ChildItem -Path $TaskBarPath -Filter 'Sa*de+*.lnk' -ErrorAction SilentlyContinue;
+  if ($existing) {{
+    $first = $true;
+    foreach ($item in $existing) {{
+      if ($first) {{
+        $s = $WshShell.CreateShortcut($item.FullName);
+        $s.TargetPath = '{exe}';
+        $s.Arguments = '';
+        $s.IconLocation = '{ico},0';
+        $s.Description = 'Saúde+ - Gestão de Escalas';
+        $s.Save();
+        $first = $false;
+      }} else {{
+        Remove-Item -Force $item.FullName -ErrorAction SilentlyContinue;
+      }}
+    }}
+  }} else {{
+    $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath 'Saúde+ - Gestão de Escalas.lnk'));
+    $s.TargetPath = '{exe}';
+    $s.IconLocation = '{ico},0';
+    $s.Description = 'Saúde+ - Gestão de Escalas';
+    $s.Save();
+  }}
+}}"#,
+            exe = exe_str.replace('\'', "''"),
+            ico = ico_str.replace('\'', "''")
+        );
+
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_script])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn();
     }
 
     Some(icon_png_path)
@@ -159,6 +246,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
 
   const SUPABASE_URL = 'https://qxpqzbswtdfatdrtqhrw.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4cHF6YnN3dGRmYXRkcnRxaHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzYwMjgsImV4cCI6MjA4NTk1MjAyOH0.BYsaBZE_3_doVSbO8D2rF4USqbZ-9_vr4dR-ILjyVlk';
+  const SAVED_ACCOUNTS_KEY = 'saude_computer_accounts_v1';
 
   const seenIds = new Set();
   let initializedFirstCheck = false;
@@ -212,12 +300,57 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
           const parsed = JSON.parse(localStorage.getItem(k) || '{}');
           if (parsed && parsed.user && parsed.user.id && parsed.access_token) {
-            return { userId: parsed.user.id, token: parsed.access_token };
+            return {
+              userId: parsed.user.id,
+              email: parsed.user.email,
+              meta: parsed.user.user_metadata || {},
+              token: parsed.access_token,
+              refreshToken: parsed.refresh_token
+            };
           }
         }
       }
     } catch (_) {}
     return null;
+  }
+
+  // Sincroniza contas reconhecidas neste computador entre navegador e os 4 perfis Desktop
+  async function syncSavedComputerAccounts() {
+    try {
+      const auth = getAuthSession();
+      let localList = [];
+      try {
+        localList = JSON.parse(localStorage.getItem(SAVED_ACCOUNTS_KEY) || '[]');
+        if (!Array.isArray(localList)) localList = [];
+      } catch (_) { localList = []; }
+
+      if (auth && auth.email && auth.refreshToken) {
+        const entry = {
+          userId: auth.userId,
+          email: auth.email,
+          name: auth.meta.full_name || auth.meta.name || auth.email.split('@')[0],
+          avatarUrl: auth.meta.avatar_url || auth.meta.picture,
+          accessToken: auth.token,
+          refreshToken: auth.refreshToken,
+          updatedAt: Date.now()
+        };
+        localList = [entry].concat(localList.filter(function(a) { return a && a.email !== entry.email; })).slice(0, 8);
+        localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(localList));
+      }
+
+      const res = await fetch('http://127.0.0.1:47831/sync-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accounts: localList })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.accounts)) {
+          window.__SAUDE_SAVED_ACCOUNTS__ = data.accounts;
+          localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(data.accounts));
+        }
+      }
+    } catch (_) {}
   }
 
   function handleRecord(record) {
@@ -278,6 +411,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         currentUserId = auth.userId;
         seenIds.clear();
         initializedFirstCheck = false;
+        syncSavedComputerAccounts();
       }
 
       const res = await fetch(
@@ -312,6 +446,8 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     setTimeout(pollLatestNotifications, 500);
   });
 
+  setTimeout(syncSavedComputerAccounts, 800);
+  setInterval(syncSavedComputerAccounts, 10000);
   setInterval(pollLatestNotifications, 3000);
   setTimeout(pollLatestNotifications, 1500);
 })();
@@ -349,7 +485,6 @@ fn notify_windows(profile_id: u16, title: String, body: String) {
     });
 }
 
-/// Força a janela a vir para a frente de todas as janelas do Windows (inclusive navegador maximizado)
 fn restore_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -410,13 +545,83 @@ fn main() {
             std::thread::spawn(move || {
                 for stream in listener.incoming().flatten() {
                     let mut s = stream;
-                    let _ = s.set_read_timeout(Some(StdDuration::from_millis(500)));
-                    let mut buf = [0u8; 256];
+                    let _ = s.set_read_timeout(Some(StdDuration::from_millis(800)));
+                    let mut buf = [0u8; 32768];
                     if let Ok(n) = s.read(&mut buf) {
                         if n > 0 {
                             let req = String::from_utf8_lossy(&buf[..n]);
-                            if req.starts_with("GET ") || req.starts_with("OPTIONS ") {
-                                let resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nAccess-Control-Allow-Methods: GET, OPTIONS\r\nContent-Type: application/json\r\nContent-Length: 18\r\nConnection: close\r\n\r\n{\"installed\":true}";
+                            if req.starts_with("OPTIONS ") {
+                                let resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                                let _ = s.write_all(resp.as_bytes());
+                                let _ = s.flush();
+                            } else if req.starts_with("GET /accounts") || req.starts_with("GET /ping") {
+                                let accounts = read_saved_accounts_json();
+                                let body_str = serde_json::json!({
+                                    "installed": true,
+                                    "accounts": accounts
+                                })
+                                .to_string();
+                                let resp = format!(
+                                    "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                                    body_str.len(),
+                                    body_str
+                                );
+                                let _ = s.write_all(resp.as_bytes());
+                                let _ = s.flush();
+                            } else if req.starts_with("POST /sync-auth") {
+                                let should_show = req.lines().next().unwrap_or("").contains("show=1");
+                                let mut merged = read_saved_accounts_json();
+                                if let Some(body_idx) = req.find("\r\n\r\n") {
+                                    let body_part = &req[body_idx + 4..];
+                                    if let Ok(json_body) = serde_json::from_str::<serde_json::Value>(body_part) {
+                                        if let Some(accs) = json_body.get("accounts") {
+                                            merged = merge_and_save_accounts(accs);
+                                        }
+                                        // Se o navegador mandou a sessão logada ativa, injeta no App Desktop
+                                        if let Some(active_tok) = json_body.get("activeToken") {
+                                            if let (Some(k), Some(v)) = (
+                                                active_tok.get("key").and_then(|x| x.as_str()),
+                                                active_tok.get("value").and_then(|x| x.as_str()),
+                                            ) {
+                                                if let Some(win) = app_handle_for_ipc.get_webview_window("main") {
+                                                    let merged_str = merged.to_string();
+                                                    let js = format!(
+                                                        r#"(function() {{
+                                                          try {{
+                                                            localStorage.setItem('saude_computer_accounts_v1', {accs});
+                                                            window.__SAUDE_SAVED_ACCOUNTS__ = {accs_raw};
+                                                            if (!localStorage.getItem({k})) {{
+                                                              localStorage.setItem({k}, {v});
+                                                              if (window.location.pathname === '/login') {{
+                                                                window.location.replace('/');
+                                                              }}
+                                                            }}
+                                                          }} catch(_) {{}}
+                                                        }})();"#,
+                                                        accs = serde_json::to_string(&merged_str).unwrap_or_else(|_| "\"[]\"".to_string()),
+                                                        accs_raw = merged_str,
+                                                        k = serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string()),
+                                                        v = serde_json::to_string(v).unwrap_or_else(|_| "\"\"".to_string())
+                                                    );
+                                                    let _ = win.eval(&js);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if should_show {
+                                    restore_window(&app_handle_for_ipc);
+                                }
+                                let body_str = serde_json::json!({
+                                    "installed": true,
+                                    "accounts": merged
+                                })
+                                .to_string();
+                                let resp = format!(
+                                    "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                                    body_str.len(),
+                                    body_str
+                                );
                                 let _ = s.write_all(resp.as_bytes());
                                 let _ = s.flush();
                             } else {
@@ -439,6 +644,12 @@ fn main() {
             let _ = std::fs::create_dir_all(&profile_data_dir);
             std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &profile_data_dir);
 
+            let saved_accs_initial = read_saved_accounts_json().to_string();
+            let init_script = format!(
+                "window.__SAUDE_SAVED_ACCOUNTS__ = {};\n{}",
+                saved_accs_initial, DESKTOP_NOTIFICATION_BRIDGE
+            );
+
             let parsed_url = APP_URL.parse().expect("URL inválida");
             let main_window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(parsed_url))
                 .title(&window_title)
@@ -446,7 +657,7 @@ fn main() {
                 .min_inner_size(900.0, 600.0)
                 .center()
                 .additional_browser_args("--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding")
-                .initialization_script(DESKTOP_NOTIFICATION_BRIDGE)
+                .initialization_script(&init_script)
                 .on_document_title_changed(move |_window, title| {
                     if let Some(json_str) = title.strip_prefix(NOTIFY_PREFIX) {
                         if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str) {
@@ -467,8 +678,10 @@ fn main() {
                 .build()?;
             log_step("STEP 4: window built");
 
-            // Desliga o always_on_top 1.5s após abrir na frente do navegador
             if !start_minimized {
+                let _ = main_window.show();
+                let _ = main_window.set_always_on_top(true);
+                let _ = main_window.set_focus();
                 let win_for_top = main_window.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(StdDuration::from_millis(1500));
@@ -480,7 +693,7 @@ fn main() {
                 notify_windows(
                     profile_id,
                     "✅ Saúde+ Instalado com Sucesso!".to_string(),
-                    "O aplicativo foi instalado na sua Área de Trabalho e as notificações já estão ativas.".to_string(),
+                    "O aplicativo foi fixado na Barra de Tarefas, Área de Trabalho e as notificações estão ativas.".to_string(),
                 );
             }
 
