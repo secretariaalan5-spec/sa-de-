@@ -7,8 +7,7 @@ export const DESKTOP_INSTALLER_URL =
   import.meta.env.VITE_DESKTOP_DOWNLOAD_URL ||
   'https://github.com/secretariaalan5-spec/sa-de-/releases/download/v1.0.0/SaudePlus-Instalador.exe';
 
-const STORAGE_DISMISSED_KEY = 'saude_desktop_prompt_dismissed_v2';
-const STORAGE_DOWNLOADED_KEY = 'saude_desktop_app_downloaded_v2';
+const SESSION_DISMISSED_KEY = 'saude_desktop_prompt_session_dismissed';
 
 export function isRunningInsideDesktopApp(): boolean {
   if (typeof window === 'undefined') return false;
@@ -49,10 +48,9 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
 
     if (!canShowOnThisDevice) return;
 
-    const alreadyDismissed = localStorage.getItem(STORAGE_DISMISSED_KEY) === 'true';
-    const alreadyDownloaded = localStorage.getItem(STORAGE_DOWNLOADED_KEY) === 'true';
+    const dismissedInThisSession = sessionStorage.getItem(SESSION_DISMISSED_KEY) === 'true';
 
-    if (!alreadyDismissed && !alreadyDownloaded) {
+    if (!dismissedInThisSession) {
       setInternalOpen(true);
     }
   }, []);
@@ -73,8 +71,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
       try {
         const res = await fetch('http://127.0.0.1:47831/ping', { mode: 'cors' });
         if (res.ok) {
-          localStorage.setItem(STORAGE_DOWNLOADED_KEY, 'true');
-          localStorage.setItem(STORAGE_DISMISSED_KEY, 'true');
+          sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
           closePrompt();
         }
       } catch {
@@ -89,7 +86,6 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   if (!eligible || !isOpen) return null;
 
   const handleDownloadClick = () => {
-    localStorage.setItem(STORAGE_DOWNLOADED_KEY, 'true');
     setDownloadStarted(true);
 
     const link = document.createElement('a');
@@ -102,7 +98,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   };
 
   const handleContinueInBrowser = () => {
-    localStorage.setItem(STORAGE_DISMISSED_KEY, 'true');
+    sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
     closePrompt();
   };
 

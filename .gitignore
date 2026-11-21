@@ -43,3 +43,9 @@ diff.txt
 playwright-report/
 test-results/
 *.test-results/
+
+# Tauri build artifacts & local test folders
+src-tauri/target/
+src-tauri/installer_standalone.rs
+Atalhos-4-Contas-Teste/
+sa-de-/
