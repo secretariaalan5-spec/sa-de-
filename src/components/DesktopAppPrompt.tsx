@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUpRight, MousePointerClick } from 'lucide-react';
+import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUp, MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoSaude from '@/assets/logo-saude.png';
 
@@ -65,6 +65,27 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     setDownloadStarted(false);
   };
 
+  // Detecta automaticamente assim que o usuário clica no SaudePlus-Instalador.exe e o app abre
+  useEffect(() => {
+    if (!isOpen || !downloadStarted) return;
+
+    const checkLocalApp = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:47831/ping', { mode: 'cors' });
+        if (res.ok) {
+          localStorage.setItem(STORAGE_DOWNLOADED_KEY, 'true');
+          localStorage.setItem(STORAGE_DISMISSED_KEY, 'true');
+          closePrompt();
+        }
+      } catch {
+        // Ainda aguardando o usuário clicar no arquivo baixado
+      }
+    };
+
+    const interval = setInterval(checkLocalApp, 1500);
+    return () => clearInterval(interval);
+  }, [isOpen, downloadStarted]);
+
   if (!eligible || !isOpen) return null;
 
   const handleDownloadClick = () => {
@@ -91,14 +112,16 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
       {/* Brilhos decorativos de fundo */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[130px] pointer-events-none" />
 
-      {/* Seta Visual no Canto Superior Direito quando o download começa */}
+      {/* Seta Visual Posicionada Exatamente Abaixo da Caixinha Preta de Download do Navegador */}
       {downloadStarted && (
-        <div className="fixed top-4 right-6 z-[210] flex items-center gap-3 bg-primary text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/25 animate-bounce">
-          <div className="text-right">
-            <p className="text-xs font-extrabold uppercase tracking-wider">1. Clique aqui em cima</p>
-            <p className="text-[11px] text-white/85">Abra o SaudePlus-Instalador.exe</p>
+        <div className="fixed top-[84px] right-[135px] z-[210] flex flex-col items-center animate-bounce pointer-events-none">
+          <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-white -mb-2 z-10">
+            <ArrowUp className="w-6 h-6 stroke-[3]" />
           </div>
-          <ArrowUpRight className="w-7 h-7 stroke-[2.5]" />
+          <div className="bg-primary text-white px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-white/30 text-center">
+            <p className="text-xs font-extrabold uppercase tracking-wider">Clique no arquivo acima</p>
+            <p className="text-[11px] text-white/90">Abra o SaudePlus-Instalador.exe</p>
+          </div>
         </div>
       )}
 
@@ -118,14 +141,14 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
           </h1>
           <p className="text-xs text-white/80 mt-1">
             {downloadStarted
-              ? 'Siga a ilustração abaixo para concluir em 1 clique'
+              ? 'Dê 1 clique no arquivo baixado ali em cima para iniciar'
               : 'Receba notificações mesmo com o sistema fechado'}
           </p>
         </div>
 
         {!downloadStarted ? (
           <div className="p-6 space-y-6">
-            {/* 3 Ícones Visuais Diretos (Sem textos longos) */}
+            {/* 3 Ícones Visuais Diretos */}
             <div className="grid grid-cols-3 gap-2.5">
               <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/15">
                 <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -171,15 +194,13 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
             {/* Ilustração Visual do Arquivo no Navegador */}
             <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-primary/40 flex flex-col items-center gap-3">
               <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl shadow-md border border-primary/30 w-full">
-                <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                  <Monitor className="w-5 h-5" />
-                </div>
+                <img src={logoSaude} alt="Saúde+" className="w-9 h-9 rounded-lg shrink-0" />
                 <div className="text-left flex-1 min-w-0">
                   <p className="text-xs font-extrabold text-foreground truncate">
                     SaudePlus-Instalador.exe
                   </p>
                   <p className="text-[10px] text-emerald-600 font-semibold">
-                    Clique para abrir
+                    Clique nele lá em cima para abrir
                   </p>
                 </div>
                 <MousePointerClick className="w-6 h-6 text-primary animate-bounce shrink-0" />
@@ -187,7 +208,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
 
               <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Ele instala em 1 segundo e abre sozinho!</span>
+                <span>Assim que você clicar nele, o Saúde+ abrirá sozinho!</span>
               </div>
             </div>
 
@@ -196,6 +217,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                 onClick={handleContinueInBrowser}
                 className="w-full h-12 rounded-2xl font-bold text-sm"
               >
+                <Monitor className="w-4 h-4 mr-2" />
                 Já abri o aplicativo / Entrar
               </Button>
 
