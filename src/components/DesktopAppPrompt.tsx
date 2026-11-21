@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Monitor, Download, BellRing, Zap, CheckCircle2, ArrowUpRight, ShieldCheck, Sparkles } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Monitor, Download, BellRing, Zap, Rocket, CheckCircle2, ArrowUpRight, MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logoSaude from '@/assets/logo-saude.png';
 
@@ -8,8 +7,8 @@ export const DESKTOP_INSTALLER_URL =
   import.meta.env.VITE_DESKTOP_DOWNLOAD_URL ||
   'https://github.com/secretariaalan5-spec/sa-de-/releases/download/v1.0.0/SaudePlus-Instalador.exe';
 
-const STORAGE_DISMISSED_KEY = 'saude_desktop_prompt_dismissed_v1';
-const STORAGE_DOWNLOADED_KEY = 'saude_desktop_app_downloaded_v1';
+const STORAGE_DISMISSED_KEY = 'saude_desktop_prompt_dismissed_v2';
+const STORAGE_DOWNLOADED_KEY = 'saude_desktop_app_downloaded_v2';
 
 export function isRunningInsideDesktopApp(): boolean {
   if (typeof window === 'undefined') return false;
@@ -54,31 +53,24 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     const alreadyDownloaded = localStorage.getItem(STORAGE_DOWNLOADED_KEY) === 'true';
 
     if (!alreadyDismissed && !alreadyDownloaded) {
-      const timer = setTimeout(() => {
-        setInternalOpen(true);
-      }, 600);
-      return () => clearTimeout(timer);
+      setInternalOpen(true);
     }
   }, []);
 
   const isOpen = Boolean(externalOpen || internalOpen);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    setInternalOpen(nextOpen);
-    onExternalOpenChange?.(nextOpen);
-    if (!nextOpen) {
-      localStorage.setItem(STORAGE_DISMISSED_KEY, 'true');
-      setDownloadStarted(false);
-    }
+  const closePrompt = () => {
+    setInternalOpen(false);
+    onExternalOpenChange?.(false);
+    setDownloadStarted(false);
   };
 
-  if (!eligible) return null;
+  if (!eligible || !isOpen) return null;
 
   const handleDownloadClick = () => {
     localStorage.setItem(STORAGE_DOWNLOADED_KEY, 'true');
     setDownloadStarted(true);
 
-    // Inicia o download direto do instalador
     const link = document.createElement('a');
     link.href = DESKTOP_INSTALLER_URL;
     link.setAttribute('download', 'SaudePlus-Instalador.exe');
@@ -88,175 +80,147 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     document.body.removeChild(link);
   };
 
-  const handleDismissInBrowser = () => {
+  const handleContinueInBrowser = () => {
     localStorage.setItem(STORAGE_DISMISSED_KEY, 'true');
-    handleOpenChange(false);
+    closePrompt();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="sm:max-w-[460px] p-0 overflow-hidden border-primary/20 shadow-2xl rounded-2xl"
-        onInteractOutside={(e) => {
-          // Evita fechar sem querer clicando fora antes de escolher
-          if (!downloadStarted) e.preventDefault();
-        }}
-      >
-        {/* Cabeçalho Visual com Gradiente Oficial */}
-        <div className="bg-gradient-to-br from-primary via-primary to-blue-700 p-6 text-primary-foreground relative overflow-hidden">
-          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
-          <div className="flex items-center gap-3.5 relative z-10">
-            <img
-              src={logoSaude}
-              alt="Saúde+"
-              className="w-12 h-12 rounded-xl shadow-lg border border-white/20 bg-white/10"
-            />
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-semibold tracking-wide mb-1">
-                <Sparkles className="w-3 h-3" />
-                Versão Oficial para Windows
-              </div>
-              <DialogTitle className="text-lg font-bold leading-snug text-white">
-                {downloadStarted
-                  ? 'Quase lá! Siga os 2 passos abaixo'
-                  : 'Saúde+ para Computador'}
-              </DialogTitle>
+    /* Fundo 100% opaco cobrindo toda a tela: não mostra nada do sistema atrás e não tem botão X */
+    <div className="fixed inset-0 z-[200] bg-gradient-to-br from-slate-950 via-[#0a1936] to-slate-950 flex flex-col items-center justify-center p-4 select-none overflow-hidden">
+      {/* Brilhos decorativos de fundo */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[130px] pointer-events-none" />
+
+      {/* Seta Visual no Canto Superior Direito quando o download começa */}
+      {downloadStarted && (
+        <div className="fixed top-4 right-6 z-[210] flex items-center gap-3 bg-primary text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/25 animate-bounce">
+          <div className="text-right">
+            <p className="text-xs font-extrabold uppercase tracking-wider">1. Clique aqui em cima</p>
+            <p className="text-[11px] text-white/85">Abra o SaudePlus-Instalador.exe</p>
+          </div>
+          <ArrowUpRight className="w-7 h-7 stroke-[2.5]" />
+        </div>
+      )}
+
+      {/* Card Central Simples e Visual */}
+      <div className="relative z-10 w-full max-w-[420px] bg-white dark:bg-slate-900 rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.65)] border border-white/15 overflow-hidden text-center">
+        {/* Topo Visual com Ilustração */}
+        <div className="bg-gradient-to-b from-primary to-blue-700 pt-8 pb-7 px-6 text-white relative">
+          <div className="relative mx-auto w-20 h-20 rounded-2xl bg-white/15 backdrop-blur-md p-2.5 shadow-xl border border-white/30 flex items-center justify-center">
+            <img src={logoSaude} alt="Saúde+" className="w-full h-full object-contain rounded-xl" />
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-md">
+              <BellRing className="w-4 h-4 text-white animate-pulse" />
             </div>
           </div>
-          <DialogDescription className="text-primary-foreground/85 text-xs mt-2.5 leading-relaxed relative z-10">
+
+          <h1 className="text-xl font-extrabold mt-4 tracking-tight">
+            {downloadStarted ? 'Abra o Arquivo Baixado!' : 'Saúde+ para Windows'}
+          </h1>
+          <p className="text-xs text-white/80 mt-1">
             {downloadStarted
-              ? 'O arquivo SaudePlus-Instalador.exe começou a baixar no seu navegador.'
-              : 'Instale o aplicativo oficial para receber alertas de escalas, plantões e folgas na tela do Windows mesmo com o navegador fechado.'}
-          </DialogDescription>
+              ? 'Siga a ilustração abaixo para concluir em 1 clique'
+              : 'Receba notificações mesmo com o sistema fechado'}
+          </p>
         </div>
 
         {!downloadStarted ? (
-          <div className="p-6 space-y-5 bg-card">
-            {/* Benefícios claros */}
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                  <BellRing className="w-4 h-4" />
+          <div className="p-6 space-y-6">
+            {/* 3 Ícones Visuais Diretos (Sem textos longos) */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-primary/5 border border-primary/15">
+                <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+                  <BellRing className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-foreground">
-                    Notificações em Segundo Plano
-                  </p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Fica ativo perto do relógio do Windows e avisa na hora quando houver novidades, mesmo se você fechar a janela no &quot;X&quot;.
-                  </p>
-                </div>
+                <span className="text-[11px] font-bold text-foreground leading-tight">
+                  Notifica Fechado
+                </span>
               </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border border-border/60">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <Zap className="w-4 h-4" />
+              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/15">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center">
+                  <Zap className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-foreground">
-                    Ultra Leve e Automático
-                  </p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Consome 10x menos memória que o navegador, cria o ícone na Área de Trabalho e inicia sozinho com o Windows.
-                  </p>
+                <span className="text-[11px] font-bold text-foreground leading-tight">
+                  10x Mais Leve
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-blue-500/5 border border-blue-500/15">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center">
+                  <Rocket className="w-5 h-5" />
                 </div>
+                <span className="text-[11px] font-bold text-foreground leading-tight">
+                  Inicia com o PC
+                </span>
               </div>
             </div>
 
-            {/* Botão Principal Grande em Destaque */}
-            <div className="pt-1 flex flex-col items-center">
-              <Button
-                onClick={handleDownloadClick}
-                size="lg"
-                className="w-full h-12 text-sm font-bold gap-2.5 rounded-xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all"
-              >
-                <Download className="w-4 h-4 animate-bounce" />
-                Baixar Aplicativo para Windows (Recomendado)
-              </Button>
-
-              {/* Link de escape bem pequeno e discreto */}
-              <button
-                type="button"
-                onClick={handleDismissInBrowser}
-                className="mt-4 text-[10px] text-muted-foreground/45 hover:text-muted-foreground/75 transition-colors underline-offset-2 hover:underline"
-              >
-                continuar usando apenas pelo navegador
-              </button>
-            </div>
+            {/* Botão Principal Grande */}
+            <Button
+              onClick={handleDownloadClick}
+              size="lg"
+              className="w-full h-14 text-base font-extrabold gap-3 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/45 hover:scale-[1.01] transition-all"
+            >
+              <Download className="w-5 h-5 animate-bounce" />
+              Baixar Aplicativo Agora
+            </Button>
           </div>
         ) : (
-          /* Guia Visual Passo a Passo após clicar em Baixar */
-          <div className="p-6 space-y-4 bg-card">
-            <div className="space-y-3">
-              {/* Passo 1 */}
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/25">
-                <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                  1
+          /* Tela Visual Passo a Passo após clicar em Baixar */
+          <div className="p-6 space-y-5">
+            {/* Ilustração Visual do Arquivo no Navegador */}
+            <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-primary/40 flex flex-col items-center gap-3">
+              <div className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-2.5 rounded-xl shadow-md border border-primary/30 w-full">
+                <div className="w-9 h-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <Monitor className="w-5 h-5" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-foreground">
-                      Clique no arquivo baixado no navegador
-                    </p>
-                    <ArrowUpRight className="w-4 h-4 text-primary animate-pulse" />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    Olhe no <strong>canto superior direito</strong> (ou inferior) do seu navegador e clique em{' '}
-                    <code className="px-1.5 py-0.5 rounded bg-background border text-foreground font-semibold">
-                      SaudePlus-Instalador.exe
-                    </code>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-xs font-extrabold text-foreground truncate">
+                    SaudePlus-Instalador.exe
+                  </p>
+                  <p className="text-[10px] text-emerald-600 font-semibold">
+                    Clique para abrir
                   </p>
                 </div>
+                <MousePointerClick className="w-6 h-6 text-primary animate-bounce shrink-0" />
               </div>
 
-              {/* Passo 2 */}
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
-                <div className="w-6 h-6 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                  2
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                    <p className="text-xs font-bold text-foreground">
-                      Se o Windows perguntar ao abrir:
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    Caso apareça a janela azul do Windows, clique em{' '}
-                    <strong className="text-foreground">&quot;Mais informações&quot;</strong> e depois no botão{' '}
-                    <strong className="text-foreground">&quot;Executar assim mesmo&quot;</strong>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Passo 3 */}
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground">Tudo automático:</strong> O Saúde+ vai instalar em 1 segundo, colocar o ícone na sua Área de Trabalho e abrir sozinho na tela!
-                </p>
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Ele instala em 1 segundo e abre sozinho!</span>
               </div>
             </div>
 
-            <div className="pt-2 flex flex-col gap-2">
+            <div className="space-y-2">
               <Button
-                onClick={() => handleOpenChange(false)}
-                className="w-full h-11 rounded-xl font-semibold text-xs"
+                onClick={handleContinueInBrowser}
+                className="w-full h-12 rounded-2xl font-bold text-sm"
               >
-                <Monitor className="w-4 h-4 mr-2" />
-                Entendi, já cliquei para abrir o aplicativo
+                Já abri o aplicativo / Entrar
               </Button>
+
               <button
                 type="button"
                 onClick={handleDownloadClick}
-                className="text-[11px] text-primary hover:underline text-center py-1"
+                className="text-[11px] text-primary hover:underline font-medium block mx-auto pt-1"
               >
-                O download não começou? Clique aqui para baixar novamente
+                Baixar novamente
               </button>
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* Botão bem pequeno e discreto fora do card principal para manter pelo navegador */}
+      {!downloadStarted && (
+        <button
+          type="button"
+          onClick={handleContinueInBrowser}
+          className="relative z-10 mt-6 text-[10px] text-white/25 hover:text-white/55 transition-colors"
+        >
+          manter pelo navegador
+        </button>
+      )}
+    </div>
   );
 }
