@@ -77,30 +77,16 @@ foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
 }}
 
 if (Test-Path $TaskBarPath) {{
-  $existing = Get-ChildItem -Path $TaskBarPath -Filter 'Sa*de+*.lnk' -ErrorAction SilentlyContinue;
-  if ($existing) {{
-    $first = $true;
-    foreach ($item in $existing) {{
-      if ($first) {{
-        $s = $WshShell.CreateShortcut($item.FullName);
-        $s.TargetPath = '{exe}';
-        $s.Arguments = '';
-        $s.IconLocation = '{ico},0';
-        $s.Description = 'Saúde+ - Gestão de Escalas';
-        $s.Save();
-        $first = $false;
-      }} else {{
-        Remove-Item -Force $item.FullName -ErrorAction SilentlyContinue;
-      }}
-    }}
-  }} else {{
-    $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath 'Saúde+ - Gestão de Escalas.lnk'));
+  foreach ($name in @('Saúde+ - Gestão de Escalas.lnk', 'Saúde+ - Gestão de Escalas (1).lnk', 'Saúde+ - Gestão de Escalas (3).lnk')) {{
+    $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath $name));
     $s.TargetPath = '{exe}';
+    $s.Arguments = '';
     $s.IconLocation = '{ico},0';
     $s.Description = 'Saúde+ - Gestão de Escalas';
     $s.Save();
   }}
-}}"#,
+}}
+Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -like 'Sa*de+*Gest*o*' }} | ForEach-Object {{ $_.CloseMainWindow() | Out-Null }};"#,
         exe = exe_str.replace('\'', "''"),
         ico = ico_str.replace('\'', "''")
     );
