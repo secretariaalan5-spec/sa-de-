@@ -6,23 +6,55 @@ use std::net::{TcpListener, TcpStream};
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::time::Duration as StdDuration;
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
     Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
+use windows::{
+    runtime::HSTRING,
+    Data::Xml::Dom::XmlDocument,
+    UI::Notifications::{ToastNotification, ToastNotificationManager},
+};
 use winrt_notification::{Duration, IconCrop, Sound, Toast};
+use xml::escape::escape_str_attribute;
 
 const APP_URL: &str = "https://saude-gules.vercel.app";
 const APP_AUMID: &str = "com.saudeplus.desktop";
 const NOTIFY_PREFIX: &str = "__SAUDE_NOTIFY__:";
+const BADGE_PREFIX: &str = "__SAUDE_BADGE__:";
 const SAVE_ACCOUNTS_PREFIX: &str = "__SAUDE_SAVE_ACCOUNTS__:";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const EMBEDDED_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
 const EMBEDDED_ICON_ICO: &[u8] = include_bytes!("../icons/icon.ico");
 
+/// Verifica se o processo foi invocado pelo clique em uma notificação do Windows (`saudeplus://nav/<profile>/<rota>`)
+fn parse_protocol_launch_arg() -> Option<(u16, String)> {
+    for arg in std::env::args().skip(1) {
+        if let Some(rest) = arg.strip_prefix("saudeplus://nav/") {
+            let trimmed = rest.trim_matches('/');
+            let mut parts = trimmed.splitn(2, '/');
+            let prof = parts
+                .next()
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or(1);
+            let route = match parts.next() {
+                Some(r) if !r.is_empty() => format!("/{}", r),
+                _ => "/".to_string(),
+            };
+            return Some((prof, route));
+        }
+    }
+    None
+}
+
 fn get_profile_id() -> u16 {
+    if let Some((prof, _)) = parse_protocol_launch_arg() {
+        return prof;
+    }
     let args: Vec<String> = std::env::args().collect();
     for i in 0..args.len() {
         if let Some(val) = args[i].strip_prefix("--profile=") {
@@ -88,6 +120,172 @@ fn merge_and_save_accounts(incoming: &serde_json::Value) -> serde_json::Value {
         let _ = std::fs::write(get_saved_accounts_path(), serialized);
     }
     out
+}
+
+/// Mapa de pixels 5x7 para desenhar números nítidos no badge estilo WhatsApp
+fn digit_bitmap(ch: char) -> [u8; 7] {
+    match ch {
+        '0' => [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
+        '1' => [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
+        '2' => [0b01110, 0b10001, 0b00001, 0b00110, 0b01000, 0b10000, 0b11111],
+        '3' => [0b01110, 0b10001, 0b00001, 0b00110, 0b00001, 0b10001, 0b01110],
+        '4' => [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],
+        '5' => [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],
+        '6' => [0b01110, 0b10000, 0b11110, 0b10001, 0b10001, 0b10001, 0b01110],
+        '7' => [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000],
+        '8' => [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],
+        '9' => [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001, 0b01110],
+        '+' => [0b00000, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000],
+        _ => [0; 7],
+    }
+}
+
+/// Desenha um círculo vermelho estilo WhatsApp (#EF4444) com borda branca e o número centralizado
+fn draw_badge_circle_onto_rgba(
+    rgba: &mut [u8],
+    width: u32,
+    height: u32,
+    cx: f32,
+    cy: f32,
+    radius: f32,
+    count: u32,
+) {
+    let label = if count > 9 {
+        "9+".to_string()
+    } else {
+        count.to_string()
+    };
+
+    let border_r = radius;
+    let inner_r = radius * 0.86;
+
+    for y in 0..height {
+        for x in 0..width {
+            let dx = (x as f32 + 0.5) - cx;
+            let dy = (y as f32 + 0.5) - cy;
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist <= border_r {
+                let idx = ((y * width + x) * 4) as usize;
+                if dist <= inner_r {
+                    // Vermelho vibrante estilo WhatsApp/iOS (#EF4444)
+                    rgba[idx] = 239;
+                    rgba[idx + 1] = 68;
+                    rgba[idx + 2] = 68;
+                    rgba[idx + 3] = 255;
+                } else {
+                    // Borda branca nítida
+                    rgba[idx] = 255;
+                    rgba[idx + 1] = 255;
+                    rgba[idx + 2] = 255;
+                    rgba[idx + 3] = 255;
+                }
+            }
+        }
+    }
+
+    let chars: Vec<char> = label.chars().collect();
+    let num_chars = chars.len() as i32;
+    let scale = ((radius * 1.15) / 7.0).max(1.0).round() as i32;
+    let glyph_w = 5 * scale;
+    let glyph_h = 7 * scale;
+    let gap = (scale / 2).max(1);
+    let total_w = num_chars * glyph_w + (num_chars - 1) * gap;
+
+    let start_x = (cx.round() as i32) - (total_w / 2);
+    let start_y = (cy.round() as i32) - (glyph_h / 2);
+
+    for (ci, ch) in chars.into_iter().enumerate() {
+        let bmp = digit_bitmap(ch);
+        let gx0 = start_x + (ci as i32) * (glyph_w + gap);
+        for row in 0..7i32 {
+            let bits = bmp[row as usize];
+            for col in 0..5i32 {
+                if (bits & (1 << (4 - col))) != 0 {
+                    for sy in 0..scale {
+                        for sx in 0..scale {
+                            let px = gx0 + col * scale + sx;
+                            let py = start_y + row * scale + sy;
+                            if px >= 0 && px < width as i32 && py >= 0 && py < height as i32 {
+                                let idx = (((py as u32) * width + (px as u32)) * 4) as usize;
+                                rgba[idx] = 255;
+                                rgba[idx + 1] = 255;
+                                rgba[idx + 2] = 255;
+                                rgba[idx + 3] = 255;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Cria o ícone overlay 64x64 para a Barra de Tarefas do Windows e o ícone com badge para a bandeja
+fn update_app_badge(
+    app: &tauri::AppHandle,
+    tray_holder: &Arc<Mutex<Option<TrayIcon>>>,
+    profile_id: u16,
+    count: u32,
+) {
+    let base_img = match Image::from_bytes(EMBEDDED_ICON_PNG) {
+        Ok(img) => img,
+        Err(_) => return,
+    };
+
+    let base_title = if profile_id == 1 {
+        "Saúde+ - Gestão de Escalas".to_string()
+    } else {
+        format!("Saúde+ - Gestão de Escalas (Conta {})", profile_id)
+    };
+
+    if count == 0 {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_overlay_icon(None);
+            let _ = window.set_icon(base_img.clone());
+            let _ = window.set_title(&base_title);
+        }
+        if let Ok(guard) = tray_holder.lock() {
+            if let Some(ref tray) = *guard {
+                let _ = tray.set_icon(Some(base_img));
+                let _ = tray.set_tooltip(Some(&base_title));
+            }
+        }
+        return;
+    }
+
+    // 1. Ícone Overlay 64x64 exclusivo para a Barra de Tarefas do Windows
+    let ov_w = 64u32;
+    let ov_h = 64u32;
+    let mut ov_rgba = vec![0u8; (ov_w * ov_h * 4) as usize];
+    draw_badge_circle_onto_rgba(&mut ov_rgba, ov_w, ov_h, 32.0, 32.0, 29.0, count);
+    let overlay_img = Image::new_owned(ov_rgba, ov_w, ov_h);
+
+    // 2. Ícone da aplicação + bandeja com o círculo vermelho no canto superior direito
+    let w = base_img.width();
+    let h = base_img.height();
+    let mut app_rgba = base_img.rgba().to_vec();
+    let r = (w.min(h) as f32) * 0.27;
+    let cx = (w as f32) - r - 4.0;
+    let cy = r + 4.0;
+    draw_badge_circle_onto_rgba(&mut app_rgba, w, h, cx, cy, r, count);
+    let badged_app_img = Image::new_owned(app_rgba, w, h);
+
+    let badged_title = format!("({}) {}", count, base_title);
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_overlay_icon(Some(overlay_img));
+        let _ = window.set_icon(badged_app_img.clone());
+        let _ = window.set_title(&badged_title);
+    }
+    if let Ok(guard) = tray_holder.lock() {
+        if let Some(ref tray) = *guard {
+            let _ = tray.set_icon(Some(badged_app_img));
+            let _ = tray.set_tooltip(Some(&format!(
+                "{} — {} notificação(ões) não lida(s)",
+                base_title, count
+            )));
+        }
+    }
 }
 
 fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
@@ -161,6 +359,56 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
         .creation_flags(CREATE_NO_WINDOW)
         .status();
 
+    // Registra o protocolo `saudeplus://` no HKCU (sem precisar de admin) para que
+    // ao clicar na notificação do Windows o app abra direto na aba do que foi notificado!
+    if installed_exe_path.exists() {
+        let exe_str = installed_exe_path.to_string_lossy().to_string();
+        let proto_cmd = format!("\"{}\" \"%1\"", exe_str);
+
+        let _ = Command::new("reg")
+            .args([
+                "add",
+                r"HKCU\Software\Classes\saudeplus",
+                "/ve",
+                "/t",
+                "REG_SZ",
+                "/d",
+                "URL:SaudePlus Protocol",
+                "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+
+        let _ = Command::new("reg")
+            .args([
+                "add",
+                r"HKCU\Software\Classes\saudeplus",
+                "/v",
+                "URL Protocol",
+                "/t",
+                "REG_SZ",
+                "/d",
+                "",
+                "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+
+        let _ = Command::new("reg")
+            .args([
+                "add",
+                r"HKCU\Software\Classes\saudeplus\shell\open\command",
+                "/ve",
+                "/t",
+                "REG_SZ",
+                "/d",
+                &proto_cmd,
+                "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
+
     if profile_id == 1 && installed_exe_path.exists() {
         let exe_str = installed_exe_path.to_string_lossy().to_string();
         let ico_str = icon_ico_path.to_string_lossy().to_string();
@@ -181,7 +429,6 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
 
-        // Garante atalho na Área de Trabalho, Menu Iniciar e Barra de Tarefas
         let ps_script = format!(
             r#"$WshShell = New-Object -ComObject WScript.Shell;
 $DesktopPath = [Environment]::GetFolderPath('Desktop');
@@ -238,14 +485,66 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
   let initializedFirstCheck = false;
   let currentUserId = null;
   let notifySeq = 0;
+  let lastBadgeCount = -1;
 
-  function sendToRustToast(title, body) {
+  // Função global acionada pelo Rust quando o usuário clica na notificação do Windows
+  window.__SAUDE_NAVIGATE_TO__ = function(targetPath) {
+    try {
+      const route = (targetPath && targetPath.startsWith('/')) ? targetPath : '/';
+      if (window.location.pathname === '/login') {
+        sessionStorage.setItem('saude_post_login_redirect', route);
+        return;
+      }
+      if (window.location.pathname !== route) {
+        window.history.pushState({}, '', route);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    } catch (_) {
+      window.location.href = targetPath || '/';
+    }
+  };
+
+  // Deduz automaticamente a aba do sistema correspondente ao título/mensagem da notificação
+  function resolveNotificationRoute(record) {
+    try {
+      if (record && typeof record.link === 'string' && record.link.startsWith('/')) {
+        return record.link;
+      }
+      const text = ((record && record.title ? record.title : '') + ' ' + (record && record.message ? record.message : '')).toLowerCase();
+      if (text.indexOf('folga') !== -1 || text.indexOf('ausência') !== -1 || text.indexOf('licença') !== -1) {
+        return '/folgas';
+      }
+      if (text.indexOf('escala') !== -1 || text.indexOf('plantão') !== -1 || text.indexOf('plantao') !== -1 || text.indexOf('turno') !== -1) {
+        return '/escalas';
+      }
+      if (text.indexOf('transfer') !== -1 || text.indexOf('remanejamento') !== -1) {
+        return '/transferencias';
+      }
+      if (text.indexOf('crédito') !== -1 || text.indexOf('credito') !== -1 || text.indexOf('saldo') !== -1 || text.indexOf('relatório') !== -1) {
+        return '/saldo';
+      }
+      if (text.indexOf('convite') !== -1 || text.indexOf('solicitação de acesso') !== -1 || text.indexOf('solicitou acesso') !== -1) {
+        return '/convites';
+      }
+      if (text.indexOf('profissional') !== -1 || text.indexOf('funcionário') !== -1 || text.indexOf('funcionario') !== -1) {
+        return '/funcionarios';
+      }
+      if (text.indexOf('feriado') !== -1) {
+        return '/feriados';
+      }
+    } catch (_) {}
+    return '/';
+  }
+
+  function sendToRustToast(title, body, route) {
     try {
       notifySeq++;
+      const resolvedRoute = route || resolveNotificationRoute({ title: title, message: body });
       const payload = JSON.stringify({
         seq: notifySeq,
         title: String(title || 'Saúde+'),
-        body: String(body || 'Novo aviso no Saúde+')
+        body: String(body || 'Novo aviso no Saúde+'),
+        route: String(resolvedRoute || '/')
       });
       document.title = '__SAUDE_NOTIFY__:' + payload;
       setTimeout(function() {
@@ -256,10 +555,39 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     } catch (_) {}
   }
 
+  function sendBadgeToRust(count) {
+    try {
+      const n = Math.max(0, parseInt(count, 10) || 0);
+      if (n === lastBadgeCount) return;
+      lastBadgeCount = n;
+      setTimeout(function() {
+        document.title = '__SAUDE_BADGE__:' + String(n);
+        setTimeout(function() {
+          if (document.title.indexOf('__SAUDE_BADGE__:') === 0) {
+            document.title = 'Saúde+ - Gestão de Escalas';
+          }
+        }, 100);
+      }, 150);
+    } catch (_) {}
+  }
+
+  // Conecta navigator.setAppBadge / clearAppBadge (usado pelo NotificationBell) direto no ícone da Barra de Tarefas!
+  try {
+    navigator.setAppBadge = function(count) {
+      sendBadgeToRust(typeof count === 'number' ? count : 1);
+      return Promise.resolve();
+    };
+    navigator.clearAppBadge = function() {
+      sendBadgeToRust(0);
+      return Promise.resolve();
+    };
+  } catch (_) {}
+
   try {
     const NativeNotification = function(title, options) {
       const opts = options || {};
-      sendToRustToast(title, opts.body);
+      const route = (opts.data && opts.data.url) || undefined;
+      sendToRustToast(title, opts.body, route);
       this.close = function() {};
       this.onclick = null;
     };
@@ -273,7 +601,8 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     if ('serviceWorker' in navigator && window.ServiceWorkerRegistration) {
       window.ServiceWorkerRegistration.prototype.showNotification = function(title, options) {
         const opts = options || {};
-        sendToRustToast(title, opts.body);
+        const route = (opts.data && opts.data.url) || undefined;
+        sendToRustToast(title, opts.body, route);
         return Promise.resolve();
       };
     }
@@ -300,7 +629,6 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     return null;
   }
 
-  // Sincroniza contas reconhecidas neste computador via canal interno Tauri (sem pedir permissão de rede no navegador!)
   function syncSavedComputerAccounts() {
     try {
       let localList = [];
@@ -361,9 +689,11 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         if (seenIds.has(record.id)) return;
         seenIds.add(record.id);
       }
+      const route = resolveNotificationRoute(record);
       sendToRustToast(
         record.title || 'Saúde+',
-        record.message || 'Você recebeu um novo aviso no Saúde+.'
+        record.message || 'Você recebeu um novo aviso no Saúde+.',
+        route
       );
     } catch (_) {}
   }
@@ -401,6 +731,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
           currentUserId = null;
           seenIds.clear();
           initializedFirstCheck = false;
+          sendBadgeToRust(0);
         }
         return;
       }
@@ -413,7 +744,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       }
 
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/notifications?select=id,user_id,title,message,is_read,created_at&user_id=eq.' + auth.userId + '&is_read=eq.false&order=created_at.desc&limit=5',
+        SUPABASE_URL + '/rest/v1/notifications?select=id,user_id,title,message,link,type,is_read,created_at&user_id=eq.' + auth.userId + '&is_read=eq.false&order=created_at.desc&limit=50',
         {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -424,6 +755,9 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       if (!res.ok) return;
       const rows = await res.json();
       if (!Array.isArray(rows)) return;
+
+      // Atualiza o contador de mensagens não lidas no ícone (estilo WhatsApp)
+      sendBadgeToRust(rows.length);
 
       if (!initializedFirstCheck) {
         rows.forEach(function(r) { if (r && r.id) seenIds.add(r.id); });
@@ -451,7 +785,9 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
 })();
 "#;
 
-fn notify_windows(profile_id: u16, title: String, body: String) {
+/// Exibe a notificação nativa do Windows com protocolo `saudeplus://nav/<profile><route>`
+/// para que, ao clicar nela, o aplicativo abra e vá direto para a aba do que foi notificado!
+fn notify_windows(profile_id: u16, title: String, body: String, route: String) {
     std::thread::spawn(move || {
         let icon_opt = ensure_windows_app_identity_and_install(profile_id);
         let display_title = if profile_id > 1 {
@@ -460,35 +796,88 @@ fn notify_windows(profile_id: u16, title: String, body: String) {
             title
         };
 
-        let mut toast = Toast::new(APP_AUMID)
-            .title(&display_title)
-            .text1(&body)
-            .sound(Some(Sound::Default))
-            .duration(Duration::Long);
+        let clean_route = if route.starts_with('/') {
+            route
+        } else {
+            format!("/{}", route)
+        };
+        let launch_uri = format!("saudeplus://nav/{}{}", profile_id, clean_route);
 
-        if let Some(ref icon_path) = icon_opt {
+        let image_xml = if let Some(ref icon_path) = icon_opt {
             if icon_path.exists() {
-                toast = toast.icon(icon_path, IconCrop::Square, "Saúde+");
+                format!(
+                    r#"<image placement="appLogoOverride" src="file:///{}" alt="Saúde+" />"#,
+                    escape_str_attribute(&icon_path.display().to_string())
+                )
+            } else {
+                String::new()
             }
-        }
+        } else {
+            String::new()
+        };
 
-        if toast.show().is_err() {
-            let _ = Toast::new(Toast::POWERSHELL_APP_ID)
+        let xml_payload = format!(
+            r#"<toast duration="long" activationType="protocol" launch="{launch}">
+                <visual>
+                    <binding template="ToastGeneric">
+                        {img}
+                        <text id="1">{t}</text>
+                        <text id="2">{b}</text>
+                    </binding>
+                </visual>
+                <actions>
+                    <action content="Abrir no Saúde+" arguments="{launch}" activationType="protocol" />
+                </actions>
+            </toast>"#,
+            launch = escape_str_attribute(&launch_uri),
+            img = image_xml,
+            t = escape_str_attribute(&display_title),
+            b = escape_str_attribute(&body),
+        );
+
+        let shown_ok = (|| -> windows::runtime::Result<()> {
+            let toast_xml = XmlDocument::new()?;
+            toast_xml.LoadXml(HSTRING::from(xml_payload))?;
+            let toast_template = ToastNotification::CreateToastNotification(toast_xml)?;
+            let notifier =
+                ToastNotificationManager::CreateToastNotifierWithId(HSTRING::from(APP_AUMID))?;
+            notifier.Show(&toast_template)?;
+            Ok(())
+        })();
+
+        if shown_ok.is_err() {
+            let mut fallback = Toast::new(APP_AUMID)
                 .title(&display_title)
                 .text1(&body)
                 .sound(Some(Sound::Default))
-                .duration(Duration::Long)
-                .show();
+                .duration(Duration::Long);
+
+            if let Some(ref icon_path) = icon_opt {
+                if icon_path.exists() {
+                    fallback = fallback.icon(icon_path, IconCrop::Square, "Saúde+");
+                }
+            }
+            let _ = fallback.show();
         }
     });
 }
 
-fn restore_window(app: &tauri::AppHandle) {
+fn restore_window_and_navigate(app: &tauri::AppHandle, target_route: Option<&str>) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_always_on_top(true);
         let _ = window.set_focus();
+
+        if let Some(route) = target_route {
+            let safe_route = serde_json::to_string(route).unwrap_or_else(|_| "\"/\"".to_string());
+            let js = format!(
+                "if (window.__SAUDE_NAVIGATE_TO__) {{ window.__SAUDE_NAVIGATE_TO__({}); }} else {{ window.location.href = {}; }}",
+                safe_route, safe_route
+            );
+            let _ = window.eval(&js);
+        }
+
         let win_clone = window.clone();
         std::thread::spawn(move || {
             std::thread::sleep(StdDuration::from_millis(1200));
@@ -514,6 +903,7 @@ fn log_step(msg: &str) {
 }
 
 fn main() {
+    let protocol_nav = parse_protocol_launch_arg();
     let profile_id = get_profile_id();
     let start_minimized = std::env::args().any(|a| a == "--minimized");
     let just_installed = std::env::args().any(|a| a == "--installed");
@@ -527,7 +917,12 @@ fn main() {
                 &std::net::SocketAddr::from(([127, 0, 0, 1], single_instance_port)),
                 StdDuration::from_millis(400),
             ) {
-                let _ = stream.write_all(b"SHOW");
+                if let Some((_, ref route)) = protocol_nav {
+                    let msg = format!("NAV:{}", route);
+                    let _ = stream.write_all(msg.as_bytes());
+                } else {
+                    let _ = stream.write_all(b"SHOW");
+                }
             }
             return;
         }
@@ -544,86 +939,17 @@ fn main() {
                 for stream in listener.incoming().flatten() {
                     let mut s = stream;
                     let _ = s.set_read_timeout(Some(StdDuration::from_millis(800)));
-                    let mut buf = [0u8; 32768];
+                    let mut buf = [0u8; 4096];
                     if let Ok(n) = s.read(&mut buf) {
                         if n > 0 {
                             let req = String::from_utf8_lossy(&buf[..n]);
-                            if req.starts_with("OPTIONS ") {
-                                let resp = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-                                let _ = s.write_all(resp.as_bytes());
-                                let _ = s.flush();
-                            } else if req.starts_with("GET /accounts") || req.starts_with("GET /ping") {
-                                let accounts = read_saved_accounts_json();
-                                let body_str = serde_json::json!({
-                                    "installed": true,
-                                    "accounts": accounts
-                                })
-                                .to_string();
-                                let resp = format!(
-                                    "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                                    body_str.len(),
-                                    body_str
+                            if let Some(route) = req.strip_prefix("NAV:") {
+                                restore_window_and_navigate(
+                                    &app_handle_for_ipc,
+                                    Some(route.trim()),
                                 );
-                                let _ = s.write_all(resp.as_bytes());
-                                let _ = s.flush();
-                            } else if req.starts_with("POST /sync-auth") {
-                                let should_show = req.lines().next().unwrap_or("").contains("show=1");
-                                let mut merged = read_saved_accounts_json();
-                                if let Some(body_idx) = req.find("\r\n\r\n") {
-                                    let body_part = &req[body_idx + 4..];
-                                    if let Ok(json_body) = serde_json::from_str::<serde_json::Value>(body_part) {
-                                        if let Some(accs) = json_body.get("accounts") {
-                                            merged = merge_and_save_accounts(accs);
-                                        }
-                                        // Se o navegador mandou a sessão logada ativa, injeta no App Desktop
-                                        if let Some(active_tok) = json_body.get("activeToken") {
-                                            if let (Some(k), Some(v)) = (
-                                                active_tok.get("key").and_then(|x| x.as_str()),
-                                                active_tok.get("value").and_then(|x| x.as_str()),
-                                            ) {
-                                                if let Some(win) = app_handle_for_ipc.get_webview_window("main") {
-                                                    let merged_str = merged.to_string();
-                                                    let js = format!(
-                                                        r#"(function() {{
-                                                          try {{
-                                                            localStorage.setItem('saude_computer_accounts_v1', {accs});
-                                                            window.__SAUDE_SAVED_ACCOUNTS__ = {accs_raw};
-                                                            if (!localStorage.getItem({k})) {{
-                                                              localStorage.setItem({k}, {v});
-                                                              if (window.location.pathname === '/login') {{
-                                                                window.location.replace('/');
-                                                              }}
-                                                            }}
-                                                          }} catch(_) {{}}
-                                                        }})();"#,
-                                                        accs = serde_json::to_string(&merged_str).unwrap_or_else(|_| "\"[]\"".to_string()),
-                                                        accs_raw = merged_str,
-                                                        k = serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string()),
-                                                        v = serde_json::to_string(v).unwrap_or_else(|_| "\"\"".to_string())
-                                                    );
-                                                    let _ = win.eval(&js);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                if should_show {
-                                    restore_window(&app_handle_for_ipc);
-                                }
-                                let body_str = serde_json::json!({
-                                    "installed": true,
-                                    "accounts": merged
-                                })
-                                .to_string();
-                                let resp = format!(
-                                    "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                                    body_str.len(),
-                                    body_str
-                                );
-                                let _ = s.write_all(resp.as_bytes());
-                                let _ = s.flush();
                             } else {
-                                restore_window(&app_handle_for_ipc);
+                                restore_window_and_navigate(&app_handle_for_ipc, None);
                             }
                         }
                     }
@@ -648,7 +974,17 @@ fn main() {
                 saved_accs_initial, DESKTOP_NOTIFICATION_BRIDGE
             );
 
-            let parsed_url = APP_URL.parse().expect("URL inválida");
+            let initial_url = if let Some((_, ref route)) = protocol_nav {
+                format!("{}{}", APP_URL, route)
+            } else {
+                APP_URL.to_string()
+            };
+
+            let tray_holder: Arc<Mutex<Option<TrayIcon>>> = Arc::new(Mutex::new(None));
+            let tray_holder_for_title = tray_holder.clone();
+            let app_handle_for_title = app.handle().clone();
+
+            let parsed_url = initial_url.parse().expect("URL inválida");
             let main_window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(parsed_url))
                 .title(&window_title)
                 .inner_size(1280.0, 820.0)
@@ -669,7 +1005,21 @@ fn main() {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Novo aviso no Saúde+")
                                 .to_string();
-                            notify_windows(profile_id, t, b);
+                            let r = val
+                                .get("route")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("/")
+                                .to_string();
+                            notify_windows(profile_id, t, b, r);
+                        }
+                    } else if let Some(badge_str) = title.strip_prefix(BADGE_PREFIX) {
+                        if let Ok(count) = badge_str.trim().parse::<u32>() {
+                            update_app_badge(
+                                &app_handle_for_title,
+                                &tray_holder_for_title,
+                                profile_id,
+                                count,
+                            );
                         }
                     } else if let Some(accs_str) = title.strip_prefix(SAVE_ACCOUNTS_PREFIX) {
                         if let Ok(val) = serde_json::from_str::<serde_json::Value>(accs_str) {
@@ -698,13 +1048,13 @@ fn main() {
                     profile_id,
                     "✅ Saúde+ Instalado com Sucesso!".to_string(),
                     "O aplicativo foi fixado na Barra de Tarefas, Área de Trabalho e as notificações estão ativas.".to_string(),
+                    "/".to_string(),
                 );
             }
 
             let window_clone = main_window.clone();
             main_window.on_window_event(move |event| {
                 if let WindowEvent::CloseRequested { api, .. } = event {
-                    // Ao clicar no X: fecha a janela e mantém rodando na gaveta do relógio e notificando!
                     api.prevent_close();
                     let _ = window_clone.hide();
                 }
@@ -739,11 +1089,12 @@ fn main() {
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(move |app, event| match event.id.as_ref() {
-                    "open" => restore_window(app),
+                    "open" => restore_window_and_navigate(app, None),
                     "test" => notify_windows(
                         profile_id,
-                        "🔔 Saúde+ Desktop Ativo".to_string(),
-                        "As notificações em segundo plano na gaveta do Windows estão funcionando!".to_string(),
+                        "🔔 Novo Pedido de Folga".to_string(),
+                        "Clique nesta notificação para abrir o Saúde+ diretamente na aba de Pedidos de Folga!".to_string(),
+                        "/folgas".to_string(),
                     ),
                     "p2" => spawn_profile_instance(2),
                     "p3" => spawn_profile_instance(3),
@@ -758,7 +1109,7 @@ fn main() {
                         ..
                     } = event
                     {
-                        restore_window(tray.app_handle());
+                        restore_window_and_navigate(tray.app_handle(), None);
                     }
                 });
 
@@ -766,7 +1117,10 @@ fn main() {
                 tray_builder = tray_builder.icon(icon.clone());
             }
 
-            let _tray = tray_builder.build(app)?;
+            let built_tray = tray_builder.build(app)?;
+            if let Ok(mut guard) = tray_holder.lock() {
+                *guard = Some(built_tray);
+            }
             log_step("STEP 5: tray built, setup done");
             Ok(())
         })

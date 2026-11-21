@@ -38,7 +38,35 @@ async function getSwRegistration(): Promise<ServiceWorkerRegistration> {
 let inFlight: Promise<boolean> | null = null;
 let lastSync: { userId: string; endpoint: string; at: number } | null = null;
 
+/** No Windows PC, as notificações são exibidas exclusivamente pelo aplicativo Saúde+ Desktop.
+ *  Bloqueamos e removemos qualquer inscrição Web Push do Google Chrome no Windows para nunca duplicar. */
+function isWindowsDesktopEnv(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return false;
+  return /Windows/i.test(ua);
+}
+
+async function disableWindowsBrowserPush(): Promise<void> {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration('/');
+    if (!reg || !reg.pushManager) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const endpoint = sub.endpoint;
+      try { await sub.unsubscribe(); } catch {}
+      try { await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint); } catch {}
+    }
+  } catch {}
+}
+
 async function syncSubscription(userId: string, askPermission: boolean): Promise<boolean> {
+  if (isWindowsDesktopEnv()) {
+    await disableWindowsBrowserPush();
+    return false;
+  }
+
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     return false;
   }
@@ -168,6 +196,7 @@ export function usePushNotifications() {
 
   // Send a local notification via Service Worker
   const showLocalPush = useCallback(async (title: string, body: string, url?: string) => {
+    if (isWindowsDesktopEnv()) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     try {

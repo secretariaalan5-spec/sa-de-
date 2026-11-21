@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -177,6 +177,19 @@ self.addEventListener('fetch', (event) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 self.addEventListener('push', (event) => {
+    // No Windows PC, quem notifica é exclusivamente o aplicativo Saúde+ Desktop.
+    // Bloqueia notificações do Google Chrome no Windows e cancela a inscrição antiga do navegador.
+    const ua = (self.navigator && self.navigator.userAgent) || '';
+    const isWindowsPC = /Windows/i.test(ua) && !/Android|iPhone|iPad|iPod/i.test(ua);
+    if (isWindowsPC) {
+        event.waitUntil(
+            self.registration.pushManager.getSubscription()
+                .then((sub) => (sub ? sub.unsubscribe() : null))
+                .catch(() => {})
+        );
+        return;
+    }
+
     let data = { title: 'Saúde+', body: 'Nova notificação', icon: '/icon-192.png', url: '/' };
 
     if (event.data) {
