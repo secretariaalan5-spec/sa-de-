@@ -1,12 +1,12 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
 import { PushNotificationSync } from "@/components/PushNotificationSync";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, WifiOff, RefreshCw } from "lucide-react";
-import { lazy, Suspense, Component, ErrorInfo, ReactNode } from "react";
+import { lazy, Suspense, Component, ErrorInfo, ReactNode, useEffect } from "react";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AcceptInvite from "./pages/AcceptInvite";
@@ -146,6 +146,22 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// ─── Desktop Deep Link Navigation Listener ────────────────────────────────────
+function DesktopNavigationListener() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    (window as any).__SAUDE_NAVIGATE_TO__ = (path: string) => {
+      if (path && typeof path === 'string') {
+        navigate(path);
+      }
+    };
+    return () => {
+      delete (window as any).__SAUDE_NAVIGATE_TO__;
+    };
+  }, [navigate]);
+  return null;
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 const App = () => (
   <AppErrorBoundary>
@@ -153,6 +169,7 @@ const App = () => (
       <TooltipProvider>
         <Sonner />
         <BrowserRouter>
+          <DesktopNavigationListener />
           <AuthProvider>
             <PushNotificationSync />
             <Routes>

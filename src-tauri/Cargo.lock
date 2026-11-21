@@ -2694,7 +2694,9 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "windows 0.24.0",
  "winrt-notification",
+ "xml-rs",
 ]
 
 [[package]]
