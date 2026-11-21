@@ -39,31 +39,37 @@ let inFlight: Promise<boolean> | null = null;
 let lastSync: { userId: string; endpoint: string; at: number } | null = null;
 
 /** No Windows PC, as notificações são exibidas exclusivamente pelo aplicativo Saúde+ Desktop.
- *  Bloqueamos e removemos qualquer inscrição Web Push do Google Chrome no Windows para nunca duplicar. */
+ *  Apenas dispositivos móveis (Android / iPhone / iPad) usam Web Push no navegador. */
 function isWindowsDesktopEnv(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
   if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return false;
-  return /Windows/i.test(ua);
+  return true;
 }
 
-async function disableWindowsBrowserPush(): Promise<void> {
+async function disableWindowsBrowserPush(userId?: string): Promise<void> {
   try {
-    if (!('serviceWorker' in navigator)) return;
-    const reg = await navigator.serviceWorker.getRegistration('/');
-    if (!reg || !reg.pushManager) return;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      const endpoint = sub.endpoint;
-      try { await sub.unsubscribe(); } catch {}
-      try { await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint); } catch {}
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg && reg.pushManager) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          try { await sub.unsubscribe(); } catch {}
+          try { await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint); } catch {}
+        }
+      }
+    }
+    if (userId) {
+      // Remove inscrições antigas de navegadores desktop (localhost:5173, Chrome PC, PWA PC)
+      try { await supabase.from('push_subscriptions').delete().eq('user_id', userId); } catch {}
     }
   } catch {}
 }
 
 async function syncSubscription(userId: string, askPermission: boolean): Promise<boolean> {
   if (isWindowsDesktopEnv()) {
-    await disableWindowsBrowserPush();
+    await disableWindowsBrowserPush(userId);
     return false;
   }
 
@@ -172,6 +178,10 @@ export function usePushNotifications() {
     if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
 
     const run = () => {
+      if (isWindowsDesktopEnv()) {
+        disableWindowsBrowserPush(user.id);
+        return;
+      }
       if (Notification.permission === 'granted') registerPush(false);
     };
     run();

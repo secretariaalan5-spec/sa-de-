@@ -23,7 +23,7 @@ use winrt_notification::{Duration, IconCrop, Sound, Toast};
 use xml::escape::escape_str_attribute;
 
 const APP_URL: &str = "https://saude-gules.vercel.app";
-const APP_AUMID: &str = "com.saudeplus.desktop";
+const APP_AUMID: &str = "com.saudeplus.escalas.oficial";
 const NOTIFY_PREFIX: &str = "__SAUDE_NOTIFY__:";
 const BADGE_PREFIX: &str = "__SAUDE_BADGE__:";
 const SAVE_ACCOUNTS_PREFIX: &str = "__SAUDE_SAVE_ACCOUNTS__:";
@@ -253,20 +253,20 @@ fn update_app_badge(
         return;
     }
 
-    // 1. Ícone Overlay 64x64 exclusivo para a Barra de Tarefas do Windows
-    let ov_w = 64u32;
-    let ov_h = 64u32;
+    // 1. Ícone Overlay 32x32 nítido exclusivo para a Barra de Tarefas do Windows (canto inferior direito igual WhatsApp)
+    let ov_w = 32u32;
+    let ov_h = 32u32;
     let mut ov_rgba = vec![0u8; (ov_w * ov_h * 4) as usize];
-    draw_badge_circle_onto_rgba(&mut ov_rgba, ov_w, ov_h, 32.0, 32.0, 29.0, count);
+    draw_badge_circle_onto_rgba(&mut ov_rgba, ov_w, ov_h, 16.0, 16.0, 15.0, count);
     let overlay_img = Image::new_owned(ov_rgba, ov_w, ov_h);
 
-    // 2. Ícone da aplicação + bandeja com o círculo vermelho no canto superior direito
+    // 2. Ícone da aplicação + bandeja com o círculo vermelho grande e legível no canto inferior direito
     let w = base_img.width();
     let h = base_img.height();
     let mut app_rgba = base_img.rgba().to_vec();
-    let r = (w.min(h) as f32) * 0.27;
-    let cx = (w as f32) - r - 4.0;
-    let cy = r + 4.0;
+    let r = (w.min(h) as f32) * 0.36;
+    let cx = (w as f32) - r - 2.0;
+    let cy = (h as f32) - r - 2.0;
     draw_badge_circle_onto_rgba(&mut app_rgba, w, h, cx, cy, r, count);
     let badged_app_img = Image::new_owned(app_rgba, w, h);
 
@@ -275,6 +275,7 @@ fn update_app_badge(
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_overlay_icon(Some(overlay_img));
         let _ = window.set_icon(badged_app_img.clone());
+        let _ = window.set_badge_count(Some(count as i64));
         let _ = window.set_title(&badged_title);
     }
     if let Ok(guard) = tray_holder.lock() {
@@ -481,11 +482,45 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4cHF6YnN3dGRmYXRkcnRxaHJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzYwMjgsImV4cCI6MjA4NTk1MjAyOH0.BYsaBZE_3_doVSbO8D2rF4USqbZ-9_vr4dR-ILjyVlk';
   const SAVED_ACCOUNTS_KEY = 'saude_computer_accounts_v1';
 
-  const seenIds = new Set();
+  let seenIds = new Set();
   let initializedFirstCheck = false;
   let currentUserId = null;
   let notifySeq = 0;
   let lastBadgeCount = -1;
+  const cleanedUsers = new Set();
+
+  // Remove do banco do Supabase quaisquer inscrições antigas de push do Google Chrome / localhost:5173 / PWA no PC
+  async function purgeDesktopBrowserPushSubscriptions(auth) {
+    try {
+      const targets = [];
+      if (auth && auth.userId && auth.token) {
+        targets.push({ userId: auth.userId, token: auth.token });
+      }
+      if (Array.isArray(window.__SAUDE_SAVED_ACCOUNTS__)) {
+        window.__SAUDE_SAVED_ACCOUNTS__.forEach(function(a) {
+          if (a && a.userId && a.accessToken) {
+            targets.push({ userId: a.userId, token: a.accessToken });
+          }
+        });
+      }
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        if (!cleanedUsers.has(t.userId)) {
+          cleanedUsers.add(t.userId);
+          await fetch(
+            SUPABASE_URL + '/rest/v1/push_subscriptions?user_id=eq.' + t.userId,
+            {
+              method: 'DELETE',
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: 'Bearer ' + t.token
+              }
+            }
+          ).catch(function() {});
+        }
+      }
+    } catch (_) {}
+  }
 
   // Função global acionada pelo Rust quando o usuário clica na notificação do Windows
   window.__SAUDE_NAVIGATE_TO__ = function(targetPath) {
@@ -536,7 +571,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     return '/';
   }
 
-  function sendToRustToast(title, body, route) {
+  function sendToRustToast(title, body, route, badgeCount) {
     try {
       notifySeq++;
       const resolvedRoute = route || resolveNotificationRoute({ title: title, message: body });
@@ -544,14 +579,15 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         seq: notifySeq,
         title: String(title || 'Saúde+'),
         body: String(body || 'Novo aviso no Saúde+'),
-        route: String(resolvedRoute || '/')
+        route: String(resolvedRoute || '/'),
+        badge: typeof badgeCount === 'number' ? badgeCount : lastBadgeCount
       });
       document.title = '__SAUDE_NOTIFY__:' + payload;
       setTimeout(function() {
         if (document.title.indexOf('__SAUDE_NOTIFY__:') === 0) {
           document.title = 'Saúde+ - Gestão de Escalas';
         }
-      }, 120);
+      }, 150);
     } catch (_) {}
   }
 
@@ -561,13 +597,14 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       if (n === lastBadgeCount) return;
       lastBadgeCount = n;
       setTimeout(function() {
+        if (document.title.indexOf('__SAUDE_NOTIFY__:') === 0) return;
         document.title = '__SAUDE_BADGE__:' + String(n);
         setTimeout(function() {
           if (document.title.indexOf('__SAUDE_BADGE__:') === 0) {
             document.title = 'Saúde+ - Gestão de Escalas';
           }
-        }, 100);
-      }, 150);
+        }, 120);
+      }, 220);
     } catch (_) {}
   }
 
@@ -741,6 +778,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         seenIds.clear();
         initializedFirstCheck = false;
         syncSavedComputerAccounts();
+        purgeDesktopBrowserPushSubscriptions(auth);
       }
 
       const res = await fetch(
@@ -1010,6 +1048,16 @@ fn main() {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("/")
                                 .to_string();
+                            if let Some(badge_num) = val.get("badge").and_then(|v| v.as_i64()) {
+                                if badge_num >= 0 {
+                                    update_app_badge(
+                                        &app_handle_for_title,
+                                        &tray_holder_for_title,
+                                        profile_id,
+                                        badge_num as u32,
+                                    );
+                                }
+                            }
                             notify_windows(profile_id, t, b, r);
                         }
                     } else if let Some(badge_str) = title.strip_prefix(BADGE_PREFIX) {
