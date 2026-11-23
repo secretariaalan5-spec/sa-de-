@@ -90,8 +90,11 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
   };
 
   return (
-    /* Fundo idêntico ao da tela de Login (.auth-bg) cobrindo 100% da tela */
-    <div className="fixed inset-0 z-[200] auth-bg select-none">
+    /* Fundo idêntico ao da tela de Login cobrindo 100% da janela (position fixed real, sem sidebar ao lado) */
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
+      className="fixed inset-0 z-[9999] w-screen h-screen overflow-hidden select-none"
+    >
       <div className="auth-bg__gradient" />
       <div className="auth-bg__pattern" aria-hidden="true" />
 
