@@ -12,7 +12,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use windows::{
     runtime::HSTRING,
@@ -1133,9 +1133,9 @@ fn main() {
             });
 
             let open_label = if profile_id == 1 {
-                "Abrir Saúde+".to_string()
+                "Abrir Saúde+ Escalas".to_string()
             } else {
-                format!("Abrir Saúde+ (Conta {})", profile_id)
+                format!("Abrir Saúde+ Escalas (Conta {})", profile_id)
             };
 
             let open_item = MenuItem::with_id(app, "open", &open_label, true, None::<&str>)?;
@@ -1143,17 +1143,17 @@ fn main() {
             let p2_item = MenuItem::with_id(app, "p2", "Abrir Conta 2 (Teste)", true, None::<&str>)?;
             let p3_item = MenuItem::with_id(app, "p3", "Abrir Conta 3 (Teste)", true, None::<&str>)?;
             let p4_item = MenuItem::with_id(app, "p4", "Abrir Conta 4 (Teste)", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Sair completamente", true, None::<&str>)?;
+            let hide_item = MenuItem::with_id(app, "hide", "Manter em 2º plano na Gaveta", true, None::<&str>)?;
 
             let tray_menu = Menu::with_items(
                 app,
-                &[&open_item, &test_item, &p2_item, &p3_item, &p4_item, &quit_item],
+                &[&open_item, &test_item, &p2_item, &p3_item, &p4_item, &hide_item],
             )?;
 
             let tray_tooltip = if profile_id == 1 {
-                "Saúde+ (Rodando em segundo plano)".to_string()
+                "Saúde+ Escalas (Ativo na gaveta)".to_string()
             } else {
-                format!("Saúde+ - Conta {} (Rodando em segundo plano)", profile_id)
+                format!("Saúde+ Escalas - Conta {} (Ativo na gaveta)", profile_id)
             };
 
             let mut tray_builder = TrayIconBuilder::new()
@@ -1165,13 +1165,17 @@ fn main() {
                     "test" => notify_windows(
                         profile_id,
                         "🔔 Novo Pedido de Folga".to_string(),
-                        "Clique nesta notificação para abrir o Saúde+ diretamente na aba de Pedidos de Folga!".to_string(),
+                        "Clique nesta notificação para abrir o Saúde+ Escalas diretamente na aba de Pedidos de Folga!".to_string(),
                         "/folgas".to_string(),
                     ),
                     "p2" => spawn_profile_instance(2),
                     "p3" => spawn_profile_instance(3),
                     "p4" => spawn_profile_instance(4),
-                    "quit" => app.exit(0),
+                    "hide" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -1185,7 +1189,9 @@ fn main() {
                     }
                 });
 
-            if let Some(icon) = app.default_window_icon() {
+            if let Ok(embedded_img) = Image::from_bytes(EMBEDDED_ICON_PNG) {
+                tray_builder = tray_builder.icon(embedded_img);
+            } else if let Some(icon) = app.default_window_icon() {
                 tray_builder = tray_builder.icon(icon.clone());
             }
 
@@ -1193,9 +1199,16 @@ fn main() {
             if let Ok(mut guard) = tray_holder.lock() {
                 *guard = Some(built_tray);
             }
+            app.manage(tray_holder);
             log_step("STEP 5: tray built, setup done");
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("Erro ao iniciar o aplicativo desktop Saúde+");
+        .build(tauri::generate_context!())
+        .expect("Erro ao construir o aplicativo desktop Saúde+ Escalas")
+        .run(|_app_handle, event| {
+            if let RunEvent::ExitRequested { api, .. } = event {
+                // Garante que o aplicativo nunca saia da gaveta do Windows (System Tray)
+                api.prevent_exit();
+            }
+        });
 }
