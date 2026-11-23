@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, UserPlus, ChevronRight } from 'lucide-react';
 import logoSaude from '@/assets/logo-saude.png';
 import AuthBackground from '@/components/AuthBackground';
+import { DesktopAppPrompt } from '@/components/DesktopAppPrompt';
 import {
   getSavedComputerAccounts,
   SavedComputerAccount,
@@ -84,6 +85,7 @@ export default function Login() {
 
   return (
     <AuthBackground>
+      <DesktopAppPrompt />
       <div className="max-w-[440px] w-full px-4 animate-in fade-in zoom-in-95 duration-500">
         {/* Main Auth Card */}
         <div className="auth-card">
