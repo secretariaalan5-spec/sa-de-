@@ -214,7 +214,7 @@ export default function ReportExportDialog({
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório de Saldo de Folgas por Unidade e Categoria — Saúde+</title>
+  <title>Relatório de Saldo de Folgas por Unidade e Categoria — Saúde+ Escalas</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {

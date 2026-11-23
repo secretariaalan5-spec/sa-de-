@@ -203,7 +203,7 @@ export default function GeneralQrPrintDialog({ open, onOpenChange, unitName }: P
               </span>
             </div>
             <span className="font-mono text-[10px]">
-              Secretaria de Saúde • Sistema Saúde+
+              Secretaria de Saúde • Sistema Saúde+ Escalas
             </span>
           </div>
         </div>

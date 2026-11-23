@@ -145,9 +145,9 @@ export function AppShell() {
         <aside className="static inset-y-0 left-0 z-[70] w-64 bg-sidebar flex-col flex shadow-none">
           <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={logoSaude} alt="Saúde+" className="w-10 h-10 rounded-xl" />
+              <img src={logoSaude} alt="Saúde+ Escalas" className="w-10 h-10 rounded-xl" />
               <div>
-                <h1 className="text-base font-bold text-sidebar-foreground leading-tight">Saúde+</h1>
+                <h1 className="text-base font-bold text-sidebar-foreground leading-tight">Saúde+ Escalas</h1>
                 <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Gestão de Escalas</p>
               </div>
             </div>
@@ -265,9 +265,9 @@ export function AppShell() {
           <header className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             <div className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img src={logoSaude} alt="Saúde+" className="w-8 h-8 rounded-lg" />
+                <img src={logoSaude} alt="Saúde+ Escalas" className="w-8 h-8 rounded-lg" />
                 <div>
-                  <span className="text-primary-foreground font-bold text-sm">Saúde+</span>
+                  <span className="text-primary-foreground font-bold text-sm">Saúde+ Escalas</span>
                   {roleDescription && (
                     <p className="text-primary-foreground/70 text-[9px] leading-tight truncate max-w-[180px]">{roleDescription}</p>
                   )}

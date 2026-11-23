@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Saude+",
+  "productName": "Saúde+ Escalas",
   "version": "1.0.0",
   "identifier": "com.saudeplus.desktop",
   "build": {

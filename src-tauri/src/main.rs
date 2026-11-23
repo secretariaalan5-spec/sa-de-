@@ -233,9 +233,9 @@ fn update_app_badge(
     };
 
     let base_title = if profile_id == 1 {
-        "Saúde+ - Gestão de Escalas".to_string()
+        "Saúde+ Escalas".to_string()
     } else {
-        format!("Saúde+ - Gestão de Escalas (Conta {})", profile_id)
+        format!("Saúde+ Escalas (Conta {})", profile_id)
     };
 
     if count == 0 {
@@ -324,7 +324,7 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
             "/t",
             "REG_SZ",
             "/d",
-            "Saúde+ - Gestão de Escalas",
+            "Saúde+ Escalas",
             "/f",
         ])
         .creation_flags(CREATE_NO_WINDOW)
@@ -441,18 +441,18 @@ foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
     $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+.lnk'));
     $Shortcut.TargetPath = '{exe}';
     $Shortcut.IconLocation = '{ico},0';
-    $Shortcut.Description = 'Saúde+ - Gestão de Escalas';
+    $Shortcut.Description = 'Saúde+ Escalas';
     $Shortcut.Save();
   }}
 }}
 
 if (Test-Path $TaskBarPath) {{
-  foreach ($name in @('Saúde+ - Gestão de Escalas.lnk', 'Saúde+ - Gestão de Escalas (1).lnk', 'Saúde+ - Gestão de Escalas (3).lnk')) {{
+  foreach ($name in @('Saúde+ Escalas.lnk', 'Saúde+ Escalas (1).lnk', 'Saúde+ Escalas (3).lnk')) {{
     $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath $name));
     $s.TargetPath = '{exe}';
     $s.Arguments = '';
     $s.IconLocation = '{ico},0';
-    $s.Description = 'Saúde+ - Gestão de Escalas';
+    $s.Description = 'Saúde+ Escalas';
     $s.Save();
   }}
 }}"#,
@@ -589,7 +589,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       document.title = '__SAUDE_NOTIFY__:' + payload;
       setTimeout(function() {
         if (document.title.indexOf('__SAUDE_NOTIFY__:') === 0) {
-          document.title = 'Saúde+ - Gestão de Escalas';
+          document.title = 'Saúde+ Escalas';
         }
       }, 150);
     } catch (_) {}
@@ -618,7 +618,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         document.title = '__SAUDE_BADGE__:' + String(n);
         setTimeout(function() {
           if (document.title.indexOf('__SAUDE_BADGE__:') === 0) {
-            document.title = 'Saúde+ - Gestão de Escalas';
+            document.title = 'Saúde+ Escalas';
           }
         }, 100);
       };
@@ -727,7 +727,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
           document.title = '__SAUDE_SAVE_ACCOUNTS__:' + JSON.stringify(localList);
           setTimeout(function() {
             if (document.title.indexOf('__SAUDE_SAVE_ACCOUNTS__:') === 0) {
-              document.title = 'Saúde+ - Gestão de Escalas';
+              document.title = 'Saúde+ Escalas';
             }
           }, 100);
         }
@@ -1015,9 +1015,9 @@ fn main() {
             });
 
             let window_title = if profile_id == 1 {
-                "Saúde+ - Gestão de Escalas".to_string()
+                "Saúde+ Escalas".to_string()
             } else {
-                format!("Saúde+ - Gestão de Escalas (Conta {})", profile_id)
+                format!("Saúde+ Escalas (Conta {})", profile_id)
             };
 
             let profile_data_dir = get_base_dir()

@@ -246,7 +246,7 @@ export default function BalancePanel() {
       <div className="hidden print:block pb-4 border-b border-border mb-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Saúde+ • Relatórios Gerais e Individuais</h1>
+            <h1 className="text-xl font-bold text-foreground">Saúde+ Escalas • Relatórios Gerais e Individuais</h1>
             <p className="text-xs text-muted-foreground">Panorama geral organizado por Unidade de Saúde</p>
           </div>
           <div className="text-right text-xs text-muted-foreground">

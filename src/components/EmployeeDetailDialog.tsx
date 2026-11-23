@@ -208,7 +208,7 @@ export default function EmployeeDetailDialog({ employeeId, employeeName, open, o
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório Individual — ${esc(employeeName)} — Saúde+</title>
+  <title>Relatório Individual — ${esc(employeeName)} — Saúde+ Escalas</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {

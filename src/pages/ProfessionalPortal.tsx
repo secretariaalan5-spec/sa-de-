@@ -272,7 +272,7 @@ export default function ProfessionalPortal() {
     }
 
     return () => {
-      document.title = 'Saúde+ - Gestão de Escalas';
+      document.title = 'Saúde+ Escalas';
       if (appleTitle && origAppleTitle) appleTitle.setAttribute('content', origAppleTitle);
       if (manifestLink && origManifest) manifestLink.setAttribute('href', origManifest);
     };

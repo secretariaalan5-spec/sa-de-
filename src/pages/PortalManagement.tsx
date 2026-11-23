@@ -200,7 +200,7 @@ export default function PortalManagement() {
 
       ctx.fillStyle = '#64748b';
       ctx.font = '16px sans-serif';
-      ctx.fillText('Secretaria de Saúde • Sistema Saúde+', size / 2, 90);
+      ctx.fillText('Secretaria de Saúde • Sistema Saúde+ Escalas', size / 2, 90);
 
       // Draw QR Code in center
       const qrSize = size - padding * 2;
