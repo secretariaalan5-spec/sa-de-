@@ -77,6 +77,9 @@ export default function AcceptInvite() {
 
       const inviteData = inviteRpcRes.data.invite;
       setInvite(inviteData);
+      if (inviteData?.token) {
+        localStorage.setItem('pending_category_invite_token', inviteData.token);
+      }
 
       if (inviteData.category_ids && inviteData.category_ids.length > 0) {
         const { data: catsData } = await supabase

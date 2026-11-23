@@ -57,6 +57,9 @@ export default function Register() {
         ({ data, error }) => {
           if (!error && data?.ok && data?.invite) {
             setInvite(data.invite);
+            if (data.invite.token) {
+              localStorage.setItem('pending_invite_token', data.invite.token);
+            }
           } else {
             setInvite(null);
           }

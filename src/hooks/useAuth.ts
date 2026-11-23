@@ -102,44 +102,73 @@ export function useAuth() {
 
   const processPendingInvite = useCallback(
     async (userId: string) => {
-      // Try token from URL path → query string → localStorage
+      // 1. Verifica convite padrão (/registro/:token ou pending_invite_token)
       let token: string | null = null;
+      let isCategoryInvite = false;
 
       if (window.location.pathname.startsWith('/registro/')) {
         token = window.location.pathname.split('/registro/')[1];
+      } else if (window.location.pathname.startsWith('/convite/')) {
+        token = window.location.pathname.split('/convite/')[1];
+        isCategoryInvite = true;
       }
+
       if (!token) {
         const urlParams = new URLSearchParams(window.location.search);
         token = urlParams.get('token');
+        if (token && window.location.pathname.includes('convite')) {
+          isCategoryInvite = true;
+        }
       }
+
+      const storedCategoryToken = localStorage.getItem('pending_category_invite_token');
+      const storedRegularToken = localStorage.getItem('pending_invite_token');
+
       if (!token) {
-        token = localStorage.getItem('pending_invite_token');
+        if (storedCategoryToken) {
+          token = storedCategoryToken;
+          isCategoryInvite = true;
+        } else if (storedRegularToken) {
+          token = storedRegularToken;
+        }
       }
 
       if (!token || processingRef.current) return;
       processingRef.current = true;
 
       try {
-        const { data, error } = await supabase.rpc('accept_invite_by_token', {
-          p_token: token,
-        });
-        if (error) {
-          console.error('RPC Error processing invite:', error);
+        if (isCategoryInvite) {
+          const { data, error } = await supabase.rpc('accept_category_invite', {
+            p_token: token,
+          });
+          if (error) {
+            console.error('RPC Error processing category invite:', error);
+          } else {
+            console.log('Category invite processed:', data);
+          }
         } else {
-          console.log('Invite processed:', data);
+          const { data, error } = await supabase.rpc('accept_invite_by_token', {
+            p_token: token,
+          });
+          // Fallback: caso o token tenha vindo pela URL mas seja um convite de categoria
+          if (error || (data && data.success === false)) {
+            await supabase.rpc('accept_category_invite', {
+              p_token: token,
+            });
+          }
         }
-
-        // We do NOT call fetchRole/fetchPendingStatus here anymore.
-        // We let handleSession do it right after.
       } catch (err) {
         console.error('Error processing invite:', err);
       } finally {
-        // Always clean up to prevent token reuse on account switch
         localStorage.removeItem('pending_invite_token');
+        localStorage.removeItem('pending_category_invite_token');
         if (window.location.search.includes('token=')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
-        if (window.location.pathname.startsWith('/registro/')) {
+        if (
+          window.location.pathname.startsWith('/registro/') ||
+          window.location.pathname.startsWith('/convite/')
+        ) {
           window.history.replaceState({}, '', '/');
         }
         processingRef.current = false;
