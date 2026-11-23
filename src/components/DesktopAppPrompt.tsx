@@ -98,15 +98,15 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
       <div className="auth-bg__gradient" />
       <div className="auth-bg__pattern" aria-hidden="true" />
 
-      {/* Seta Visual Posicionada Abaixo do Download do Navegador */}
+      {/* Seta Visual Alinhada Exatamente com o Download / Ícone de Download do Chrome (72px da direita) */}
       {downloadStarted && (
-        <div className="fixed top-[84px] right-[135px] z-[210] flex flex-col items-center animate-bounce pointer-events-none">
-          <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-white -mb-2 z-10">
-            <ArrowUp className="w-6 h-6 stroke-[3]" />
+        <div className="fixed top-[74px] right-[24px] z-[210] flex flex-col items-end animate-bounce pointer-events-none">
+          <div className="mr-[30px] w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md border-2 border-white -mb-2 z-10">
+            <ArrowUp className="w-5 h-5 stroke-[2.5]" />
           </div>
-          <div className="bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-white/20 text-center">
-            <p className="text-xs font-extrabold uppercase tracking-wider">Clique no arquivo acima</p>
-            <p className="text-[11px] text-white/80">Abra o SaudePlus-Instalador.exe</p>
+          <div className="bg-white text-slate-900 px-4 py-2.5 rounded-2xl shadow-xl border border-slate-200 text-center">
+            <p className="text-xs font-extrabold tracking-tight">Clique no arquivo baixado</p>
+            <p className="text-[11px] text-slate-500 font-medium">Abra o SaudePlus-Instalador.exe</p>
           </div>
         </div>
       )}
@@ -129,7 +129,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
               </h1>
               <p className="text-xs font-semibold text-slate-500 mt-1.5">
                 {downloadStarted
-                  ? 'Abra o instalador baixado acima para entrar no sistema'
+                  ? 'Abra o arquivo baixado acima para entrar'
                   : 'Aplicativo Oficial para Computador (Windows)'}
               </p>
             </div>
@@ -149,64 +149,36 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3.5 text-left">
-                {/* Passo 1: Clicar no arquivo baixado */}
-                <div className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <div className="w-6 h-6 rounded-full bg-primary text-white font-extrabold text-xs flex items-center justify-center shrink-0">
-                    1
-                  </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm text-left">
                   <img
                     src={logoSaude}
                     alt="Saúde+"
-                    className="w-9 h-9 rounded-xl object-contain shrink-0"
+                    className="w-10 h-10 rounded-xl object-contain shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      Abra o SaudePlus-Instalador.exe
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                      SaudePlus-Instalador.exe
                     </p>
-                    <p className="text-[11px] text-emerald-600 font-semibold">
-                      Clique no arquivo baixado no canto superior direito
+                    <p className="text-xs text-slate-500 font-medium">
+                      Clique no arquivo baixado acima para abrir
                     </p>
                   </div>
-                  <MousePointerClick className="w-4 h-4 text-primary animate-bounce shrink-0" />
+                  <MousePointerClick className="w-5 h-5 text-primary animate-bounce shrink-0" />
                 </div>
 
-                {/* Passo 2: Instrução visual do SmartScreen do Windows */}
-                <div className="p-3.5 rounded-2xl border border-blue-200/80 bg-[#005a9e] text-white shadow-sm space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-white text-[#005a9e] font-extrabold text-[11px] flex items-center justify-center shrink-0">
-                      2
-                    </div>
-                    <p className="text-xs font-bold leading-tight">
-                      Se aparecer a janela azul do Windows:
-                    </p>
-                  </div>
-
-                  <div className="pl-7 space-y-2 text-[11px] text-white/95">
-                    <p className="flex items-center gap-1.5">
-                      <span>1º Clique em</span>
-                      <span className="underline font-bold bg-white/15 px-1.5 py-0.5 rounded">
-                        Mais informações
-                      </span>
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span>2º Clique no botão</span>
-                      <span className="bg-white text-slate-900 font-bold px-2.5 py-1 rounded border border-white shadow-sm text-[11px]">
-                        Executar assim mesmo
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-500 pt-0.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Pronto! Ele instala em 1 segundo e fixa na Barra de Tarefas</span>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-center">
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Se o Windows exibir um aviso, clique em{' '}
+                    <span className="font-bold text-slate-900 underline">Mais informações</span> e depois em{' '}
+                    <span className="font-bold text-slate-900">Executar assim mesmo</span>.
+                  </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleDownloadClick}
-                  className="text-xs text-primary hover:underline font-semibold block mx-auto"
+                  className="text-xs text-primary hover:underline font-semibold block mx-auto pt-1"
                 >
                   Baixar novamente
                 </button>
