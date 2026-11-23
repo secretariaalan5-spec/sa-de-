@@ -1,7 +1,7 @@
 {
     "id": "/",
-    "name": "Saúde+ Escalas",
-    "short_name": "Saúde+ Escalas",
+    "name": "Saúde+ - Gestão de Escalas",
+    "short_name": "Saúde+",
     "description": "Sistema de gestão de escalas para equipes de saúde",
     "start_url": "/",
     "scope": "/",

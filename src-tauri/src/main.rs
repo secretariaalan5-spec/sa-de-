@@ -438,7 +438,15 @@ $TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\
 
 foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
   if (Test-Path $dir) {{
-    $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+.lnk'));
+    Get-ChildItem -Path $dir -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+      $s = $WshShell.CreateShortcut($_.FullName);
+      $s.TargetPath = '{exe}';
+      $s.Arguments = '';
+      $s.IconLocation = '{ico},0';
+      $s.Description = 'Saúde+ Escalas';
+      $s.Save();
+    }};
+    $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+ Escalas.lnk'));
     $Shortcut.TargetPath = '{exe}';
     $Shortcut.IconLocation = '{ico},0';
     $Shortcut.Description = 'Saúde+ Escalas';
@@ -447,14 +455,14 @@ foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
 }}
 
 if (Test-Path $TaskBarPath) {{
-  foreach ($name in @('Saúde+ Escalas.lnk', 'Saúde+ Escalas (1).lnk', 'Saúde+ Escalas (3).lnk')) {{
-    $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath $name));
+  Get-ChildItem -Path $TaskBarPath -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+    $s = $WshShell.CreateShortcut($_.FullName);
     $s.TargetPath = '{exe}';
     $s.Arguments = '';
     $s.IconLocation = '{ico},0';
     $s.Description = 'Saúde+ Escalas';
     $s.Save();
-  }}
+  }};
 }}"#,
             exe = exe_str.replace('\'', "''"),
             ico = ico_str.replace('\'', "''")
