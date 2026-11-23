@@ -149,33 +149,64 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="space-y-3.5 text-left">
+                {/* Passo 1: Clicar no arquivo baixado */}
+                <div className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="w-6 h-6 rounded-full bg-primary text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                    1
+                  </div>
                   <img
                     src={logoSaude}
                     alt="Saúde+"
-                    className="w-10 h-10 rounded-xl object-contain shrink-0"
+                    className="w-9 h-9 rounded-xl object-contain shrink-0"
                   />
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">
-                      SaudePlus-Instalador.exe
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      Abra o SaudePlus-Instalador.exe
                     </p>
-                    <p className="text-xs text-emerald-600 font-semibold">
-                      Clique no arquivo baixado acima para abrir
+                    <p className="text-[11px] text-emerald-600 font-semibold">
+                      Clique no arquivo baixado no canto superior direito
                     </p>
                   </div>
-                  <MousePointerClick className="w-5 h-5 text-primary animate-bounce shrink-0" />
+                  <MousePointerClick className="w-4 h-4 text-primary animate-bounce shrink-0" />
                 </div>
 
-                <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Instala em 1 segundo e fixa na Barra de Tarefas</span>
+                {/* Passo 2: Instrução visual do SmartScreen do Windows */}
+                <div className="p-3.5 rounded-2xl border border-blue-200/80 bg-[#005a9e] text-white shadow-sm space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white text-[#005a9e] font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                      2
+                    </div>
+                    <p className="text-xs font-bold leading-tight">
+                      Se aparecer a janela azul do Windows:
+                    </p>
+                  </div>
+
+                  <div className="pl-7 space-y-2 text-[11px] text-white/95">
+                    <p className="flex items-center gap-1.5">
+                      <span>1º Clique em</span>
+                      <span className="underline font-bold bg-white/15 px-1.5 py-0.5 rounded">
+                        Mais informações
+                      </span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span>2º Clique no botão</span>
+                      <span className="bg-white text-slate-900 font-bold px-2.5 py-1 rounded border border-white shadow-sm text-[11px]">
+                        Executar assim mesmo
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-500 pt-0.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Pronto! Ele instala em 1 segundo e fixa na Barra de Tarefas</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleDownloadClick}
-                  className="text-xs text-primary hover:underline font-semibold block mx-auto pt-1"
+                  className="text-xs text-primary hover:underline font-semibold block mx-auto"
                 >
                   Baixar novamente
                 </button>
