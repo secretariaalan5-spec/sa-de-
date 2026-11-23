@@ -150,13 +150,34 @@ function PublicRoute({ children }: { children: ReactNode }) {
 function DesktopNavigationListener() {
   const navigate = useNavigate();
   useEffect(() => {
-    (window as any).__SAUDE_NAVIGATE_TO__ = (path: string) => {
+    const handleNotifNavigate = (path: string) => {
       if (path && typeof path === 'string') {
-        navigate(path);
+        const cleanRoute = path.split('?')[0] || '/';
+        try {
+          sessionStorage.setItem('saude_pending_notif_route', cleanRoute);
+        } catch {}
+        navigate(cleanRoute);
+        window.dispatchEvent(new CustomEvent('saude-notification-clicked', { detail: { route: cleanRoute } }));
       }
     };
+
+    (window as any).__SAUDE_NAVIGATE_TO__ = handleNotifNavigate;
+
+    // Também escuta cliques de notificação vindos do Service Worker (PWA / Mobile)
+    const onSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'SAUDE_NOTIFICATION_CLICKED') {
+        handleNotifNavigate(event.data.route || '/');
+      }
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', onSwMessage);
+    }
+
     return () => {
       delete (window as any).__SAUDE_NAVIGATE_TO__;
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage);
+      }
     };
   }, [navigate]);
   return null;

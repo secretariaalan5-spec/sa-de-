@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Bell, Calendar, FileCheck, FileX, Star, Trash2, Megaphone, Send, Loader2, ClipboardList, ArrowLeftRight, UserPlus, UserCheck, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useDataSubscription } from '@/hooks/useDataSubscription';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -28,6 +28,23 @@ interface Notification {
   batch_id?: string;
   priority?: string;
   type?: string;
+  is_global_banner?: boolean;
+}
+
+// Deduz a rota correspondente à notificação (alinhado com o app Desktop)
+function resolveNotifRoute(n: Pick<Notification, 'link' | 'title' | 'message'>): string {
+  if (n.link && typeof n.link === 'string' && n.link.startsWith('/')) {
+    return n.link.split('?')[0];
+  }
+  const text = `${n.title || ''} ${n.message || ''}`.toLowerCase();
+  if (text.includes('folga') || text.includes('ausência') || text.includes('licença')) return '/folgas';
+  if (text.includes('escala') || text.includes('plantão') || text.includes('plantao') || text.includes('turno')) return '/escalas';
+  if (text.includes('transfer') || text.includes('remanejamento')) return '/transferencias';
+  if (text.includes('crédito') || text.includes('credito') || text.includes('saldo') || text.includes('relatório')) return '/saldo';
+  if (text.includes('convite') || text.includes('solicitação de acesso') || text.includes('solicitou acesso')) return '/convites';
+  if (text.includes('profissional') || text.includes('funcionário') || text.includes('funcionario')) return '/funcionarios';
+  if (text.includes('feriado')) return '/feriados';
+  return '/';
 }
 
 // ─── Ícone por tipo de notificação ───────────────────────────────────────────
@@ -107,6 +124,9 @@ export function NotificationBell({
   const [targetAudience, setTargetAudience] = useState('all');
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const [justReadIds, setJustReadIds] = useState<Set<string>>(() => new Set());
+  const markingIdsRef = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -140,7 +160,9 @@ export function NotificationBell({
     }
   });
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // Conta notificações não lidas normais (banners globais têm botão próprio de Dispensar)
+  const unreadNotifications = notifications.filter(n => !n.is_read && !n.is_global_banner);
+  const unreadCount = unreadNotifications.length;
 
   useEffect(() => {
     // Pede permissão E já cadastra o aparelho no servidor (antes só pedia a permissão,
@@ -162,17 +184,114 @@ export function NotificationBell({
     }
   }, [unreadCount]);
 
+  // Marca uma lista de IDs como lidos com atualização otimista instantânea (zera o contador/badge na hora)
+  const markIdsAsRead = useCallback(async (ids: string[]) => {
+    if (!user || ids.length === 0) return;
+    const toMark = ids.filter(id => !markingIdsRef.current.has(id));
+    if (toMark.length === 0) return;
+
+    toMark.forEach(id => markingIdsRef.current.add(id));
+    const idSet = new Set(toMark);
+
+    // Atualização otimista imediata na tela e no badge
+    setNotifications(prev => prev.map(n => (idSet.has(n.id) ? { ...n, is_read: true } : n)));
+
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .in('id', toMark);
+    } finally {
+      toMark.forEach(id => markingIdsRef.current.delete(id));
+    }
+  }, [user]);
+
   const markAsRead = async (id: string, link: string | null) => {
-    supabase.from('notifications').update({ is_read: true }).eq('id', id).then(() => load());
+    markIdsAsRead([id]);
     setOpen(false);
     if (link) navigate(link);
   };
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     if (!user) return;
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
-    load();
-  };
+    const ids = notifications
+      .filter(n => !n.is_read && !n.is_global_banner)
+      .map(n => n.id);
+    if (ids.length === 0) return;
+    await markIdsAsRead(ids);
+  }, [user, notifications, markIdsAsRead]);
+
+  // 1) Auto-leitura ao clicar na notificação do Windows / Push (deep-link)
+  useEffect(() => {
+    if (!user || unreadNotifications.length === 0) return;
+
+    const consumeClickedRoute = (clickedRoute: string) => {
+      const cleanRoute = (clickedRoute || '/').split('?')[0];
+      const matchingIds = unreadNotifications
+        .filter(n => resolveNotifRoute(n) === cleanRoute)
+        .map(n => n.id);
+
+      // Se a notificação clicada aponta para uma rota específica, marca as daquela rota;
+      // se for '/' ou não casar com nenhuma específica, marca todas as não lidas normais.
+      const idsToClear = matchingIds.length > 0
+        ? matchingIds
+        : unreadNotifications.map(n => n.id);
+
+      if (idsToClear.length > 0) {
+        markIdsAsRead(idsToClear);
+      }
+      try { sessionStorage.removeItem('saude_pending_notif_route'); } catch {}
+    };
+
+    // Verifica se o app acabou de abrir via clique em notificação (deep-link ou ?from_notif=1)
+    try {
+      const pendingRoute = sessionStorage.getItem('saude_pending_notif_route');
+      const params = new URLSearchParams(location.search);
+      if (pendingRoute) {
+        consumeClickedRoute(pendingRoute);
+      } else if (params.get('from_notif') === '1') {
+        consumeClickedRoute(location.pathname);
+      }
+    } catch {}
+
+    const onNotifClicked = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      consumeClickedRoute(detail?.route || location.pathname);
+    };
+
+    window.addEventListener('saude-notification-clicked', onNotifClicked);
+    return () => window.removeEventListener('saude-notification-clicked', onNotifClicked);
+  }, [user, unreadNotifications, location.pathname, location.search, markIdsAsRead]);
+
+  // 2) Auto-leitura ao entrar/visualizar a aba correspondente (ex: abriu /folgas ou /escalas)
+  useEffect(() => {
+    if (!user || unreadNotifications.length === 0) return;
+
+    const checkAndMarkCurrentRoute = () => {
+      if (document.visibilityState !== 'visible') return;
+      const currentPath = location.pathname;
+
+      // Marca notificações cuja aba seja exatamente a aba que o usuário está vendo agora
+      const matchingIds = unreadNotifications
+        .filter(n => resolveNotifRoute(n) === currentPath)
+        .map(n => n.id);
+
+      if (matchingIds.length > 0) {
+        markIdsAsRead(matchingIds);
+      }
+    };
+
+    const timer = setTimeout(checkAndMarkCurrentRoute, 600);
+    window.addEventListener('focus', checkAndMarkCurrentRoute);
+    document.addEventListener('visibilitychange', checkAndMarkCurrentRoute);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', checkAndMarkCurrentRoute);
+      document.removeEventListener('visibilitychange', checkAndMarkCurrentRoute);
+    };
+  }, [user, location.pathname, unreadNotifications, markIdsAsRead]);
 
   const deleteNotification = async (n: Notification, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -228,15 +347,28 @@ export function NotificationBell({
     } finally { setSending(false); }
   };
 
-  // ─── Agrupa notificações: não lidas primeiro, depois lidas ────────────────
-  const unread = notifications.filter(n => !n.is_read);
-  const read   = notifications.filter(n => n.is_read);
+  // ─── Agrupa notificações: não lidas (ou recém-vistas nesta abertura) primeiro, depois anteriores ──
+  const unread = notifications.filter(n => !n.is_read || justReadIds.has(n.id));
+  const read   = notifications.filter(n => n.is_read && !justReadIds.has(n.id));
 
   return (
     <Popover open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen);
-      if (isOpen && typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied') {
-        registerPush(false);
+      if (isOpen) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied') {
+          registerPush(false);
+        }
+        // Ao abrir o sininho, marca automaticamente todas as não lidas normais como lidas
+        // (mantendo o destaque visual enquanto o menu estiver aberto, mas zerando a bolinha/contador na hora!)
+        const pendingIds = notifications
+          .filter(n => !n.is_read && !n.is_global_banner)
+          .map(n => n.id);
+        if (pendingIds.length > 0) {
+          setJustReadIds(new Set(pendingIds));
+          markIdsAsRead(pendingIds);
+        }
+      } else {
+        setJustReadIds(new Set());
       }
     }}>
       <PopoverTrigger asChild>
@@ -318,7 +450,7 @@ export function NotificationBell({
                   {unread.map(n => (
                     <NotifRow
                       key={n.id}
-                      n={n}
+                      n={justReadIds.has(n.id) ? { ...n, is_read: false } : n}
                       userId={user?.id}
                       onRead={markAsRead}
                       onDelete={deleteNotification}

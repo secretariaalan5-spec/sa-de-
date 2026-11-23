@@ -438,7 +438,7 @@ export default function ProfessionalPortal() {
   };
 
   // Notificações: marcar todas como lidas
-  const handleMarkAllNotifsRead = async () => {
+  const handleMarkAllNotifsRead = useCallback(async (silent = false) => {
     if (!sessionToken) return;
     setData((prev) => {
       if (!prev) return prev;
@@ -447,11 +447,16 @@ export default function ProfessionalPortal() {
         notifications: prev.notifications.map((n) => ({ ...n, is_read: true })),
       };
     });
+    if (typeof navigator !== 'undefined' && 'clearAppBadge' in navigator) {
+      try { (navigator as any).clearAppBadge().catch(() => {}); } catch {}
+    }
     await supabase.rpc('portal_mark_all_notifications_read', {
       p_token: sessionToken,
     });
-    toast.success('Todas as notificações marcadas como lidas.');
-  };
+    if (!silent) {
+      toast.success('Todas as notificações marcadas como lidas.');
+    }
+  }, [sessionToken]);
 
   // Manipulador de Login por Código de 3 Dígitos
   const performLogin = useCallback(async (codeToUse: string) => {
@@ -989,7 +994,15 @@ export default function ProfessionalPortal() {
 
             {/* Popover de Notificações Exclusivas do Profissional */}
             <div id="tour-notifications" className="shrink-0 flex items-center">
-              <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+              <Popover
+                open={notifOpen}
+                onOpenChange={(isOpen) => {
+                  setNotifOpen(isOpen);
+                  if (isOpen && unreadNotifsCount > 0) {
+                    handleMarkAllNotifsRead(true);
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <button
                     title="Suas Notificações"
@@ -1017,7 +1030,7 @@ export default function ProfessionalPortal() {
                   </div>
                   {unreadNotifsCount > 0 && (
                     <button
-                      onClick={handleMarkAllNotifsRead}
+                      onClick={() => handleMarkAllNotifsRead(false)}
                       className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-1"
                     >
                       <CheckCheck size={12} />

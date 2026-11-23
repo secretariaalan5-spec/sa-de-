@@ -22,7 +22,7 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 const SHELL_CACHE   = `saude-shell-${CACHE_VERSION}`;
 const ASSETS_CACHE  = `saude-assets-${CACHE_VERSION}`;
 const IMAGE_CACHE   = `saude-images-${CACHE_VERSION}`;
@@ -270,16 +270,18 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const url = event.notification.data?.url || '/';
+    const rawUrl = event.notification.data?.url || '/';
+    const urlWithFlag = rawUrl.includes('?') ? `${rawUrl}&from_notif=1` : `${rawUrl}?from_notif=1`;
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
             for (const client of clients) {
                 if (client.url.includes(self.location.origin) && 'focus' in client) {
-                    client.navigate(url);
+                    client.postMessage({ type: 'SAUDE_NOTIFICATION_CLICKED', route: rawUrl });
+                    client.navigate(urlWithFlag).catch(() => {});
                     return client.focus();
                 }
             }
-            return self.clients.openWindow(url);
+            return self.clients.openWindow(urlWithFlag);
         })
     );
 });

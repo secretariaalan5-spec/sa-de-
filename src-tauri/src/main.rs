@@ -525,7 +525,10 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
   // Função global acionada pelo Rust quando o usuário clica na notificação do Windows
   window.__SAUDE_NAVIGATE_TO__ = function(targetPath) {
     try {
-      const route = (targetPath && targetPath.startsWith('/')) ? targetPath : '/';
+      const route = (targetPath && targetPath.startsWith('/')) ? targetPath.split('?')[0] : '/';
+      try {
+        sessionStorage.setItem('saude_pending_notif_route', route);
+      } catch (_) {}
       if (window.location.pathname === '/login') {
         sessionStorage.setItem('saude_post_login_redirect', route);
         return;
@@ -534,6 +537,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
         window.history.pushState({}, '', route);
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
+      window.dispatchEvent(new CustomEvent('saude-notification-clicked', { detail: { route: route } }));
     } catch (_) {
       window.location.href = targetPath || '/';
     }
@@ -591,20 +595,35 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
     } catch (_) {}
   }
 
+  let pendingBadgeTimer = null;
   function sendBadgeToRust(count) {
     try {
       const n = Math.max(0, parseInt(count, 10) || 0);
-      if (n === lastBadgeCount) return;
-      lastBadgeCount = n;
-      setTimeout(function() {
-        if (document.title.indexOf('__SAUDE_NOTIFY__:') === 0) return;
+      if (n === lastBadgeCount && !pendingBadgeTimer) return;
+      if (pendingBadgeTimer) {
+        clearTimeout(pendingBadgeTimer);
+        pendingBadgeTimer = null;
+      }
+
+      const dispatchBadge = function() {
+        if (
+          document.title.indexOf('__SAUDE_NOTIFY__:') === 0 ||
+          document.title.indexOf('__SAUDE_SAVE_ACCOUNTS__:') === 0
+        ) {
+          pendingBadgeTimer = setTimeout(dispatchBadge, 180);
+          return;
+        }
+        pendingBadgeTimer = null;
+        lastBadgeCount = n;
         document.title = '__SAUDE_BADGE__:' + String(n);
         setTimeout(function() {
           if (document.title.indexOf('__SAUDE_BADGE__:') === 0) {
             document.title = 'Saúde+ - Gestão de Escalas';
           }
-        }, 120);
-      }, 220);
+        }, 100);
+      };
+
+      pendingBadgeTimer = setTimeout(dispatchBadge, 60);
     } catch (_) {}
   }
 
@@ -782,7 +801,7 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       }
 
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/notifications?select=id,user_id,title,message,link,type,is_read,created_at&user_id=eq.' + auth.userId + '&is_read=eq.false&order=created_at.desc&limit=50',
+        SUPABASE_URL + '/rest/v1/notifications?select=id,user_id,title,message,link,type,is_read,is_global_banner,created_at&user_id=eq.' + auth.userId + '&is_read=eq.false&order=created_at.desc&limit=50',
         {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -794,8 +813,9 @@ const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
       const rows = await res.json();
       if (!Array.isArray(rows)) return;
 
-      // Atualiza o contador de mensagens não lidas no ícone (estilo WhatsApp)
-      sendBadgeToRust(rows.length);
+      // Atualiza o contador de mensagens não lidas no ícone (estilo WhatsApp), ignorando banners globais
+      const normalUnreadCount = rows.filter(function(r) { return r && !r.is_global_banner; }).length;
+      sendBadgeToRust(normalUnreadCount);
 
       if (!initializedFirstCheck) {
         rows.forEach(function(r) { if (r && r.id) seenIds.add(r.id); });
@@ -1013,7 +1033,11 @@ fn main() {
             );
 
             let initial_url = if let Some((_, ref route)) = protocol_nav {
-                format!("{}{}", APP_URL, route)
+                if route.contains('?') {
+                    format!("{}{}&from_notif=1", APP_URL, route)
+                } else {
+                    format!("{}{}?from_notif=1", APP_URL, route)
+                }
             } else {
                 APP_URL.to_string()
             };
