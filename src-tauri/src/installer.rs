@@ -70,16 +70,20 @@ $ChromeApps2 = Join-Path $StartMenuPath 'Aplicativos do Chrome';
 $ChromeApps3 = Join-Path $StartMenuPath 'Chrome Apps';
 $TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar';
 
-foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3)) {{
+foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3, $TaskBarPath)) {{
   if (Test-Path $dir) {{
-    Get-ChildItem -Path $dir -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+    Get-ChildItem -Path $dir -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {{
       $s = $WshShell.CreateShortcut($_.FullName);
-      $s.TargetPath = '{exe}';
-      $s.WorkingDirectory = '{base}';
-      $s.Arguments = '';
-      $s.IconLocation = '{ico},0';
-      $s.Description = 'Saúde+ Escalas';
-      $s.Save();
+      $isSaudeName = ($_.Name -like 'Saúde+*') -and ($_.Name -notlike '*Portal*');
+      $isSaudePwaId = ($s.Arguments -like '*iggepbmonebcckgdonbpfcoajdnlijee*');
+      if ($isSaudeName -or $isSaudePwaId) {{
+        $s.TargetPath = '{exe}';
+        $s.WorkingDirectory = '{base}';
+        $s.Arguments = '';
+        $s.IconLocation = '{ico},0';
+        $s.Description = 'Saúde+ Escalas';
+        $s.Save();
+      }}
     }};
   }}
 }}
@@ -93,18 +97,6 @@ foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
     $Shortcut.Description = 'Saúde+ Escalas';
     $Shortcut.Save();
   }}
-}}
-
-if (Test-Path $TaskBarPath) {{
-  Get-ChildItem -Path $TaskBarPath -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
-    $s = $WshShell.CreateShortcut($_.FullName);
-    $s.TargetPath = '{exe}';
-    $s.WorkingDirectory = '{base}';
-    $s.Arguments = '';
-    $s.IconLocation = '{ico},0';
-    $s.Description = 'Saúde+ Escalas';
-    $s.Save();
-  }};
 }}"#,
         exe = exe_str.replace('\'', "''"),
         ico = ico_str.replace('\'', "''"),

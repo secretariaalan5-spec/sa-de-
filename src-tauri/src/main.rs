@@ -28,8 +28,14 @@ const NOTIFY_PREFIX: &str = "__SAUDE_NOTIFY__:";
 const BADGE_PREFIX: &str = "__SAUDE_BADGE__:";
 const SAVE_ACCOUNTS_PREFIX: &str = "__SAUDE_SAVE_ACCOUNTS__:";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+const ASFW_ANY: u32 = 0xFFFFFFFF;
 const EMBEDDED_ICON_PNG: &[u8] = include_bytes!("../icons/icon.png");
 const EMBEDDED_ICON_ICO: &[u8] = include_bytes!("../icons/icon.ico");
+
+#[link(name = "user32")]
+extern "system" {
+    fn AllowSetForegroundWindow(dw_process_id: u32) -> i32;
+}
 
 /// Verifica se o processo foi invocado pelo clique em uma notificação do Windows (`saudeplus://nav/<profile>/<rota>`)
 fn parse_protocol_launch_arg() -> Option<(u16, String)> {
@@ -444,16 +450,20 @@ $ChromeApps2 = Join-Path $StartMenuPath 'Aplicativos do Chrome';
 $ChromeApps3 = Join-Path $StartMenuPath 'Chrome Apps';
 $TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar';
 
-foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3)) {{
+foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3, $TaskBarPath)) {{
   if (Test-Path $dir) {{
-    Get-ChildItem -Path $dir -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+    Get-ChildItem -Path $dir -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {{
       $s = $WshShell.CreateShortcut($_.FullName);
-      $s.TargetPath = '{exe}';
-      $s.WorkingDirectory = '{base}';
-      $s.Arguments = '';
-      $s.IconLocation = '{ico},0';
-      $s.Description = 'Saúde+ Escalas';
-      $s.Save();
+      $isSaudeName = ($_.Name -like 'Saúde+*') -and ($_.Name -notlike '*Portal*');
+      $isSaudePwaId = ($s.Arguments -like '*iggepbmonebcckgdonbpfcoajdnlijee*');
+      if ($isSaudeName -or $isSaudePwaId) {{
+        $s.TargetPath = '{exe}';
+        $s.WorkingDirectory = '{base}';
+        $s.Arguments = '';
+        $s.IconLocation = '{ico},0';
+        $s.Description = 'Saúde+ Escalas';
+        $s.Save();
+      }}
     }};
   }}
 }}
@@ -467,18 +477,6 @@ foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
     $Shortcut.Description = 'Saúde+ Escalas';
     $Shortcut.Save();
   }}
-}}
-
-if (Test-Path $TaskBarPath) {{
-  Get-ChildItem -Path $TaskBarPath -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
-    $s = $WshShell.CreateShortcut($_.FullName);
-    $s.TargetPath = '{exe}';
-    $s.WorkingDirectory = '{base}';
-    $s.Arguments = '';
-    $s.IconLocation = '{ico},0';
-    $s.Description = 'Saúde+ Escalas';
-    $s.Save();
-  }};
 }}"#,
             exe = exe_str.replace('\'', "''"),
             ico = ico_str.replace('\'', "''"),
@@ -949,11 +947,19 @@ fn restore_window_and_navigate(app: &tauri::AppHandle, target_route: Option<&str
     let app_clone = app.clone();
     let route_owned = target_route.map(|s| s.to_string());
     let _ = app.run_on_main_thread(move || {
+        unsafe {
+            AllowSetForegroundWindow(ASFW_ANY);
+        }
         if let Some(window) = app_clone.get_webview_window("main") {
             let _ = window.show();
             let _ = window.unminimize();
             let _ = window.set_always_on_top(true);
             let _ = window.set_focus();
+            log_step(&format!(
+                "RESTORE_WINDOW: visible={:?} minimized={:?}",
+                window.is_visible(),
+                window.is_minimized()
+            ));
 
             if let Some(ref route) = route_owned {
                 let safe_route =
@@ -963,6 +969,8 @@ fn restore_window_and_navigate(app: &tauri::AppHandle, target_route: Option<&str
                     safe_route, safe_route
                 );
                 let _ = window.eval(&js);
+            } else {
+                let _ = window.eval("if (window.__SAUDE_RESTORE_WINDOW__) { window.__SAUDE_RESTORE_WINDOW__(); }");
             }
 
             let win_clone = window.clone();
@@ -970,6 +978,8 @@ fn restore_window_and_navigate(app: &tauri::AppHandle, target_route: Option<&str
                 std::thread::sleep(StdDuration::from_millis(1200));
                 let _ = win_clone.set_always_on_top(false);
             });
+        } else {
+            log_step("RESTORE_WINDOW: main window not found!");
         }
     });
 }
@@ -1004,6 +1014,9 @@ fn main() {
     let listener = match TcpListener::bind(("127.0.0.1", single_instance_port)) {
         Ok(l) => l,
         Err(_) => {
+            unsafe {
+                AllowSetForegroundWindow(ASFW_ANY);
+            }
             let mut handed_off = false;
             if let Ok(mut stream) = TcpStream::connect_timeout(
                 &std::net::SocketAddr::from(([127, 0, 0, 1], single_instance_port)),
