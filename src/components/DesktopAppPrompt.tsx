@@ -13,11 +13,6 @@ const SESSION_DISMISSED_KEY = 'saude_desktop_prompt_session_dismissed';
 export function isRunningInsideDesktopApp(): boolean {
   if (typeof window === 'undefined') return false;
   const w = window as unknown as Record<string, unknown>;
-  // Se estiver rodando a versão 1.0.0 antiga de ontem (que tinha o bug ao clicar no ícone),
-  // retorna false para exibir automaticamente o botão de atualizar o instalador para a 1.0.1!
-  if (w.__SAUDE_DESKTOP_VERSION__ === '1.0.0') {
-    return false;
-  }
   return Boolean(
     w.__SAUDE_DESKTOP_APP__ ||
     w.__IS_TAURI_DESKTOP ||
@@ -89,6 +84,11 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
     document.body.removeChild(link);
   };
 
+  const handleOpenInstalledApp = () => {
+    saveCurrentSessionToComputerAccounts();
+    window.location.href = 'saudeplus://nav/1/';
+  };
+
   const handleContinueInBrowser = () => {
     sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
     closePrompt();
@@ -140,7 +140,7 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
             </div>
 
             {!downloadStarted ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <p className="text-center text-[13px] font-semibold text-slate-400 uppercase tracking-widest">
                   Instalação Rápida
                 </p>
@@ -151,6 +151,15 @@ export function DesktopAppPrompt({ externalOpen, onExternalOpenChange }: Desktop
                 >
                   <Download className="w-5 h-5" />
                   Baixar Aplicativo Windows
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleOpenInstalledApp}
+                  className="w-full h-[46px] text-xs font-bold text-slate-700 rounded-2xl border-slate-200 hover:bg-slate-50 transition-all"
+                >
+                  Já baixou? Abrir Saúde+ Escalas
                 </Button>
               </div>
             ) : (

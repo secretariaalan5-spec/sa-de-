@@ -418,7 +418,7 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
         let exe_str = installed_exe_path.to_string_lossy().to_string();
         let ico_str = icon_ico_path.to_string_lossy().to_string();
 
-        let run_cmd = format!("\"{}\" --minimized", exe_str);
+        let run_cmd = format!("\"{}\"", exe_str);
         let _ = Command::new("reg")
             .args([
                 "add",

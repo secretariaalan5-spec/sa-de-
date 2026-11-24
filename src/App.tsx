@@ -146,11 +146,37 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-// ─── Desktop Deep Link Navigation Listener ────────────────────────────────────
+// ─── Desktop Deep Link Navigation & Window Restore Listener ──────────────────
 function DesktopNavigationListener() {
   const navigate = useNavigate();
   useEffect(() => {
+    const forceShowDesktopWindow = async () => {
+      try {
+        const w = window as any;
+        if (w.__TAURI__?.window?.getCurrentWindow) {
+          const win = w.__TAURI__.window.getCurrentWindow();
+          await win.show().catch(() => {});
+          await win.unminimize().catch(() => {});
+          await win.setFocus().catch(() => {});
+        } else if (w.__TAURI_INTERNALS__?.invoke) {
+          await w.__TAURI_INTERNALS__.invoke('plugin:window|show', { label: 'main' }).catch(() => {});
+          await w.__TAURI_INTERNALS__.invoke('plugin:window|unminimize', { label: 'main' }).catch(() => {});
+          await w.__TAURI_INTERNALS__.invoke('plugin:window|set_focus', { label: 'main' }).catch(() => {});
+        }
+      } catch {}
+    };
+
+    // Ao iniciar o aplicativo Desktop (inclusive versão 1.0.0 que já foi baixada antes),
+    // garante pela Main Thread do Tauri que a janela fique visível e em foco na tela!
+    const w = window as any;
+    if (w.__SAUDE_DESKTOP_APP__ || w.__IS_TAURI_DESKTOP || w.__TAURI__ || w.__TAURI_INTERNALS__) {
+      forceShowDesktopWindow();
+    }
+
+    w.__SAUDE_RESTORE_WINDOW__ = forceShowDesktopWindow;
+
     const handleNotifNavigate = (path: string) => {
+      forceShowDesktopWindow();
       if (path && typeof path === 'string') {
         const cleanRoute = path.split('?')[0] || '/';
         try {
@@ -175,6 +201,7 @@ function DesktopNavigationListener() {
 
     return () => {
       delete (window as any).__SAUDE_NAVIGATE_TO__;
+      delete (window as any).__SAUDE_RESTORE_WINDOW__;
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', onSwMessage);
       }
