@@ -227,66 +227,70 @@ fn update_app_badge(
     profile_id: u16,
     count: u32,
 ) {
-    let base_img = match Image::from_bytes(EMBEDDED_ICON_PNG) {
-        Ok(img) => img,
-        Err(_) => return,
-    };
+    let app_clone = app.clone();
+    let tray_clone = tray_holder.clone();
+    let _ = app.run_on_main_thread(move || {
+        let base_img = match Image::from_bytes(EMBEDDED_ICON_PNG) {
+            Ok(img) => img,
+            Err(_) => return,
+        };
 
-    let base_title = if profile_id == 1 {
-        "Saúde+ Escalas".to_string()
-    } else {
-        format!("Saúde+ Escalas (Conta {})", profile_id)
-    };
+        let base_title = if profile_id == 1 {
+            "Saúde+ Escalas".to_string()
+        } else {
+            format!("Saúde+ Escalas (Conta {})", profile_id)
+        };
 
-    if count == 0 {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_overlay_icon(None);
-            let _ = window.set_icon(base_img.clone());
-            let _ = window.set_title(&base_title);
+        if count == 0 {
+            if let Some(window) = app_clone.get_webview_window("main") {
+                let _ = window.set_overlay_icon(None);
+                let _ = window.set_icon(base_img.clone());
+                let _ = window.set_title(&base_title);
+            }
+            if let Ok(guard) = tray_clone.lock() {
+                if let Some(ref tray) = *guard {
+                    let _ = tray.set_icon(Some(base_img));
+                    let _ = tray.set_tooltip(Some(&base_title));
+                }
+            }
+            return;
         }
-        if let Ok(guard) = tray_holder.lock() {
+
+        // 1. Ícone Overlay 32x32 nítido exclusivo para a Barra de Tarefas do Windows (canto inferior direito igual WhatsApp)
+        let ov_w = 32u32;
+        let ov_h = 32u32;
+        let mut ov_rgba = vec![0u8; (ov_w * ov_h * 4) as usize];
+        draw_badge_circle_onto_rgba(&mut ov_rgba, ov_w, ov_h, 16.0, 16.0, 15.0, count);
+        let overlay_img = Image::new_owned(ov_rgba, ov_w, ov_h);
+
+        // 2. Ícone da aplicação + bandeja com o círculo vermelho grande e legível no canto inferior direito
+        let w = base_img.width();
+        let h = base_img.height();
+        let mut app_rgba = base_img.rgba().to_vec();
+        let r = (w.min(h) as f32) * 0.36;
+        let cx = (w as f32) - r - 2.0;
+        let cy = (h as f32) - r - 2.0;
+        draw_badge_circle_onto_rgba(&mut app_rgba, w, h, cx, cy, r, count);
+        let badged_app_img = Image::new_owned(app_rgba, w, h);
+
+        let badged_title = format!("({}) {}", count, base_title);
+
+        if let Some(window) = app_clone.get_webview_window("main") {
+            let _ = window.set_overlay_icon(Some(overlay_img));
+            let _ = window.set_icon(badged_app_img.clone());
+            let _ = window.set_badge_count(Some(count as i64));
+            let _ = window.set_title(&badged_title);
+        }
+        if let Ok(guard) = tray_clone.lock() {
             if let Some(ref tray) = *guard {
-                let _ = tray.set_icon(Some(base_img));
-                let _ = tray.set_tooltip(Some(&base_title));
+                let _ = tray.set_icon(Some(badged_app_img));
+                let _ = tray.set_tooltip(Some(&format!(
+                    "{} — {} notificação(ões) não lida(s)",
+                    base_title, count
+                )));
             }
         }
-        return;
-    }
-
-    // 1. Ícone Overlay 32x32 nítido exclusivo para a Barra de Tarefas do Windows (canto inferior direito igual WhatsApp)
-    let ov_w = 32u32;
-    let ov_h = 32u32;
-    let mut ov_rgba = vec![0u8; (ov_w * ov_h * 4) as usize];
-    draw_badge_circle_onto_rgba(&mut ov_rgba, ov_w, ov_h, 16.0, 16.0, 15.0, count);
-    let overlay_img = Image::new_owned(ov_rgba, ov_w, ov_h);
-
-    // 2. Ícone da aplicação + bandeja com o círculo vermelho grande e legível no canto inferior direito
-    let w = base_img.width();
-    let h = base_img.height();
-    let mut app_rgba = base_img.rgba().to_vec();
-    let r = (w.min(h) as f32) * 0.36;
-    let cx = (w as f32) - r - 2.0;
-    let cy = (h as f32) - r - 2.0;
-    draw_badge_circle_onto_rgba(&mut app_rgba, w, h, cx, cy, r, count);
-    let badged_app_img = Image::new_owned(app_rgba, w, h);
-
-    let badged_title = format!("({}) {}", count, base_title);
-
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_overlay_icon(Some(overlay_img));
-        let _ = window.set_icon(badged_app_img.clone());
-        let _ = window.set_badge_count(Some(count as i64));
-        let _ = window.set_title(&badged_title);
-    }
-    if let Ok(guard) = tray_holder.lock() {
-        if let Some(ref tray) = *guard {
-            let _ = tray.set_icon(Some(badged_app_img));
-            let _ = tray.set_tooltip(Some(&format!(
-                "{} — {} notificação(ões) não lida(s)",
-                base_title, count
-            )));
-        }
-    }
+    });
 }
 
 fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
@@ -430,24 +434,35 @@ fn ensure_windows_app_identity_and_install(profile_id: u16) -> Option<PathBuf> {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
 
+        let base_str = base_dir.to_string_lossy().to_string();
         let ps_script = format!(
             r#"$WshShell = New-Object -ComObject WScript.Shell;
 $DesktopPath = [Environment]::GetFolderPath('Desktop');
 $StartMenuPath = [Environment]::GetFolderPath('Programs');
+$ChromeApps1 = Join-Path $StartMenuPath 'apps do Chrome';
+$ChromeApps2 = Join-Path $StartMenuPath 'Aplicativos do Chrome';
+$ChromeApps3 = Join-Path $StartMenuPath 'Chrome Apps';
 $TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar';
 
-foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
+foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3)) {{
   if (Test-Path $dir) {{
     Get-ChildItem -Path $dir -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
       $s = $WshShell.CreateShortcut($_.FullName);
       $s.TargetPath = '{exe}';
+      $s.WorkingDirectory = '{base}';
       $s.Arguments = '';
       $s.IconLocation = '{ico},0';
       $s.Description = 'Saúde+ Escalas';
       $s.Save();
     }};
+  }}
+}}
+
+foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
+  if (Test-Path $dir) {{
     $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+ Escalas.lnk'));
     $Shortcut.TargetPath = '{exe}';
+    $Shortcut.WorkingDirectory = '{base}';
     $Shortcut.IconLocation = '{ico},0';
     $Shortcut.Description = 'Saúde+ Escalas';
     $Shortcut.Save();
@@ -458,6 +473,7 @@ if (Test-Path $TaskBarPath) {{
   Get-ChildItem -Path $TaskBarPath -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
     $s = $WshShell.CreateShortcut($_.FullName);
     $s.TargetPath = '{exe}';
+    $s.WorkingDirectory = '{base}';
     $s.Arguments = '';
     $s.IconLocation = '{ico},0';
     $s.Description = 'Saúde+ Escalas';
@@ -465,7 +481,8 @@ if (Test-Path $TaskBarPath) {{
   }};
 }}"#,
             exe = exe_str.replace('\'', "''"),
-            ico = ico_str.replace('\'', "''")
+            ico = ico_str.replace('\'', "''"),
+            base = base_str.replace('\'', "''")
         );
 
         let _ = Command::new("powershell")
@@ -929,27 +946,32 @@ fn notify_windows(profile_id: u16, title: String, body: String, route: String) {
 }
 
 fn restore_window_and_navigate(app: &tauri::AppHandle, target_route: Option<&str>) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_focus();
+    let app_clone = app.clone();
+    let route_owned = target_route.map(|s| s.to_string());
+    let _ = app.run_on_main_thread(move || {
+        if let Some(window) = app_clone.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_always_on_top(true);
+            let _ = window.set_focus();
 
-        if let Some(route) = target_route {
-            let safe_route = serde_json::to_string(route).unwrap_or_else(|_| "\"/\"".to_string());
-            let js = format!(
-                "if (window.__SAUDE_NAVIGATE_TO__) {{ window.__SAUDE_NAVIGATE_TO__({}); }} else {{ window.location.href = {}; }}",
-                safe_route, safe_route
-            );
-            let _ = window.eval(&js);
+            if let Some(ref route) = route_owned {
+                let safe_route =
+                    serde_json::to_string(route).unwrap_or_else(|_| "\"/\"".to_string());
+                let js = format!(
+                    "if (window.__SAUDE_NAVIGATE_TO__) {{ window.__SAUDE_NAVIGATE_TO__({}); }} else {{ window.location.href = {}; }}",
+                    safe_route, safe_route
+                );
+                let _ = window.eval(&js);
+            }
+
+            let win_clone = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(StdDuration::from_millis(1200));
+                let _ = win_clone.set_always_on_top(false);
+            });
         }
-
-        let win_clone = window.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(StdDuration::from_millis(1200));
-            let _ = win_clone.set_always_on_top(false);
-        });
-    }
+    });
 }
 
 fn spawn_profile_instance(target_profile: u16) {
@@ -969,6 +991,9 @@ fn log_step(msg: &str) {
 }
 
 fn main() {
+    let base_dir = get_base_dir();
+    let _ = std::fs::create_dir_all(&base_dir);
+    let _ = std::env::set_current_dir(&base_dir);
     let protocol_nav = parse_protocol_launch_arg();
     let profile_id = get_profile_id();
     let start_minimized = std::env::args().any(|a| a == "--minimized");
@@ -979,18 +1004,37 @@ fn main() {
     let listener = match TcpListener::bind(("127.0.0.1", single_instance_port)) {
         Ok(l) => l,
         Err(_) => {
+            let mut handed_off = false;
             if let Ok(mut stream) = TcpStream::connect_timeout(
                 &std::net::SocketAddr::from(([127, 0, 0, 1], single_instance_port)),
-                StdDuration::from_millis(400),
+                StdDuration::from_millis(500),
             ) {
-                if let Some((_, ref route)) = protocol_nav {
+                let _ = stream.set_read_timeout(Some(StdDuration::from_millis(800)));
+                let write_res = if let Some((_, ref route)) = protocol_nav {
                     let msg = format!("NAV:{}", route);
-                    let _ = stream.write_all(msg.as_bytes());
+                    stream.write_all(msg.as_bytes())
                 } else {
-                    let _ = stream.write_all(b"SHOW");
+                    stream.write_all(b"SHOW")
+                };
+                if write_res.is_ok() {
+                    let _ = stream.flush();
+                    let mut ack = [0u8; 8];
+                    if let Ok(n) = stream.read(&mut ack) {
+                        if n > 0 {
+                            handed_off = true;
+                        }
+                    }
                 }
             }
-            return;
+            if handed_off {
+                return;
+            }
+            // Se a instância anterior estava travada e não respondeu ACK, libera a porta e abre normalmente
+            std::thread::sleep(StdDuration::from_millis(200));
+            match TcpListener::bind(("127.0.0.1", single_instance_port)) {
+                Ok(l) => l,
+                Err(_) => return,
+            }
         }
     };
 
@@ -1017,6 +1061,8 @@ fn main() {
                             } else {
                                 restore_window_and_navigate(&app_handle_for_ipc, None);
                             }
+                            let _ = s.write_all(b"OK");
+                            let _ = s.flush();
                         }
                     }
                 }
