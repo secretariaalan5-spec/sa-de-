@@ -10,14 +10,9 @@ export function PushNotificationSync() {
   const [showPrompt, setShowPrompt] = useState(false);
   const registeredUserIdRef = useRef<string | null>(null);
 
-  // Sincronização automática para usuários que já concederam permissão no navegador (apenas Mobile/Mac, no Windows usa o App Desktop)
+  // Sincronização automática para usuários que já concederam permissão no navegador
   useEffect(() => {
     if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
-    const ua = navigator.userAgent || '';
-    if (/Windows/i.test(ua) && !/Android|iPhone|iPad|iPod/i.test(ua)) {
-      registerPush(false, false);
-      return;
-    }
 
     // Garante que, ao trocar de usuário ou recarregar, o usuário atual seja registrado
     if (registeredUserIdRef.current !== user.id) {

@@ -1,28 +1,24 @@
 /**
- * Login — Google OAuth + Contas Reconhecidas no Computador (1 clique).
+ * Login — Google OAuth.
  * Premium login screen with animated particle background.
  */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/untyped-client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, UserPlus, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import logoSaude from '@/assets/logo-saude.png';
 import AuthBackground from '@/components/AuthBackground';
-import { DesktopAppPrompt } from '@/components/DesktopAppPrompt';
-import {
-  getSavedComputerAccounts,
-  SavedComputerAccount,
-  SAVED_ACCOUNTS_STORAGE_KEY,
-} from '@/lib/saved-accounts';
+import { SAVED_ACCOUNTS_STORAGE_KEY } from '@/lib/saved-accounts';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
-  const [loadingEmail, setLoadingEmail] = useState<string | null>(null);
-  const [savedAccounts, setSavedAccounts] = useState<SavedComputerAccount[]>([]);
 
   useEffect(() => {
     try {
+      // Remove qualquer cache legado de tokens brutos do modo desktop para máxima segurança
+      localStorage.removeItem(SAVED_ACCOUNTS_STORAGE_KEY);
+
       const hasPortalToken = localStorage.getItem('saude_portal_token');
       const hasPortalCode = localStorage.getItem('saude_portal_saved_code');
       if (hasPortalToken || (hasPortalCode && hasPortalCode.length === 3)) {
@@ -30,30 +26,18 @@ export default function Login() {
         return;
       }
     } catch {}
-
-    const loadAccounts = () => {
-      setSavedAccounts(getSavedComputerAccounts());
-    };
-    loadAccounts();
-    window.addEventListener('saude-accounts-updated', loadAccounts);
-    return () => window.removeEventListener('saude-accounts-updated', loadAccounts);
   }, []);
 
-  const handleGoogleLogin = async (loginHint?: string) => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const queryParams: Record<string, string> = {
-        prompt: 'select_account',
-      };
-      if (loginHint) {
-        queryParams.login_hint = loginHint;
-      }
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
-          queryParams,
+          queryParams: {
+            prompt: 'select_account',
+          },
         },
       });
       if (error) throw error;
@@ -63,29 +47,8 @@ export default function Login() {
     }
   };
 
-  const handleQuickAccountLogin = async (acc: SavedComputerAccount) => {
-    setLoadingEmail(acc.email);
-    try {
-      const { data, error } = await supabase.auth.setSession({
-        access_token: acc.accessToken,
-        refresh_token: acc.refreshToken,
-      });
-      if (error || !data.session) {
-        // Se o token antigo expirou, abre o Google já pré-selecionado nessa conta
-        await handleGoogleLogin(acc.email);
-        return;
-      }
-      window.location.replace('/');
-    } catch {
-      await handleGoogleLogin(acc.email);
-    } finally {
-      setLoadingEmail(null);
-    }
-  };
-
   return (
     <AuthBackground>
-      <DesktopAppPrompt />
       <div className="max-w-[440px] w-full px-4 animate-in fade-in zoom-in-95 duration-500">
         {/* Main Auth Card */}
         <div className="auth-card">
@@ -104,71 +67,19 @@ export default function Login() {
           </div>
 
           <div className="space-y-4">
-            {savedAccounts.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-center text-[12px] font-bold text-slate-500 uppercase tracking-wider">
-                  Escolha uma conta deste computador
-                </p>
-                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
-                  {savedAccounts.map((acc) => {
-                    const isThisLoading = loadingEmail === acc.email;
-                    const initials = (acc.name || acc.email || 'U')
-                      .substring(0, 2)
-                      .toUpperCase();
-                    return (
-                      <button
-                        key={acc.email}
-                        type="button"
-                        disabled={Boolean(loadingEmail) || loading}
-                        onClick={() => handleQuickAccountLogin(acc)}
-                        className="w-full flex items-center gap-3 p-3 rounded-2xl border border-slate-200 bg-white hover:bg-blue-50/60 hover:border-primary/40 transition-all text-left group shadow-sm"
-                      >
-                        {acc.avatarUrl ? (
-                          <img
-                            src={acc.avatarUrl}
-                            alt={acc.name || acc.email}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {initials}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-900 truncate">
-                            {acc.name || acc.email.split('@')[0]}
-                          </p>
-                          <p className="text-xs text-slate-500 truncate">{acc.email}</p>
-                        </div>
-                        {isThisLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col gap-3 pt-1">
-              {savedAccounts.length === 0 && (
-                <p className="text-center text-[13px] font-semibold text-slate-400 uppercase tracking-widest">
-                  Acesso Seguro
-                </p>
-              )}
+              <p className="text-center text-[13px] font-semibold text-slate-400 uppercase tracking-widest">
+                Acesso Seguro
+              </p>
 
               <Button
-                onClick={() => handleGoogleLogin()}
-                disabled={loading || Boolean(loadingEmail)}
+                onClick={handleGoogleLogin}
+                disabled={loading}
                 variant="outline"
                 className="auth-google-btn"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
-                ) : savedAccounts.length > 0 ? (
-                  <UserPlus className="w-4 h-4 text-slate-600" />
                 ) : (
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -189,11 +100,7 @@ export default function Login() {
                     />
                   </svg>
                 )}
-                {loading
-                  ? 'Validando...'
-                  : savedAccounts.length > 0
-                    ? 'Usar outra conta Google'
-                    : 'Entrar com Google'}
+                {loading ? 'Validando...' : 'Entrar com Google'}
               </Button>
             </div>
           </div>
