@@ -38,38 +38,16 @@ async function getSwRegistration(): Promise<ServiceWorkerRegistration> {
 let inFlight: Promise<boolean> | null = null;
 let lastSync: { userId: string; endpoint: string; at: number } | null = null;
 
-/** No Windows PC, as notificações são exibidas exclusivamente pelo aplicativo Saúde+ Desktop.
- *  Apenas dispositivos móveis (Android / iPhone / iPad) usam Web Push no navegador. */
-function isWindowsDesktopEnv(): boolean {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return false;
-  return true;
-}
-
-async function disableWindowsBrowserPush(userId?: string): Promise<void> {
-  try {
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration('/');
-      if (reg && reg.pushManager) {
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          const endpoint = sub.endpoint;
-          try { await sub.unsubscribe(); } catch {}
-          try { await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint); } catch {}
-        }
-      }
-    }
-    if (userId) {
-      // Remove inscrições antigas de navegadores desktop (localhost:5173, Chrome PC, PWA PC)
-      try { await supabase.from('push_subscriptions').delete().eq('user_id', userId); } catch {}
-    }
-  } catch {}
+/** Verifica se está rodando dentro do wrapper Tauri Desktop (para não duplicar se alguém abrir o .exe).
+ *  No Google Chrome / PWA no Windows e no celular, o Web Push fica 100% ativo normalmente! */
+function isInsideTauriWrapper(): boolean {
+  if (typeof window === 'undefined') return false;
+  const w = window as any;
+  return Boolean(w.__SAUDE_DESKTOP_APP__ || w.__IS_TAURI_DESKTOP || w.__TAURI__ || w.__TAURI_INTERNALS__);
 }
 
 async function syncSubscription(userId: string, askPermission: boolean): Promise<boolean> {
-  if (isWindowsDesktopEnv()) {
-    await disableWindowsBrowserPush(userId);
+  if (isInsideTauriWrapper()) {
     return false;
   }
 
@@ -178,10 +156,7 @@ export function usePushNotifications() {
     if (!user || typeof window === 'undefined' || !('Notification' in window)) return;
 
     const run = () => {
-      if (isWindowsDesktopEnv()) {
-        disableWindowsBrowserPush(user.id);
-        return;
-      }
+      if (isInsideTauriWrapper()) return;
       if (Notification.permission === 'granted') registerPush(false);
     };
     run();
@@ -206,7 +181,7 @@ export function usePushNotifications() {
 
   // Send a local notification via Service Worker
   const showLocalPush = useCallback(async (title: string, body: string, url?: string) => {
-    if (isWindowsDesktopEnv()) return;
+    if (isInsideTauriWrapper()) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     try {
