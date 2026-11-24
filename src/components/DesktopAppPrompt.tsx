@@ -13,6 +13,11 @@ const SESSION_DISMISSED_KEY = 'saude_desktop_prompt_session_dismissed';
 export function isRunningInsideDesktopApp(): boolean {
   if (typeof window === 'undefined') return false;
   const w = window as unknown as Record<string, unknown>;
+  // Se estiver rodando a versão 1.0.0 antiga de ontem (que tinha o bug ao clicar no ícone),
+  // retorna false para exibir automaticamente o botão de atualizar o instalador para a 1.0.1!
+  if (w.__SAUDE_DESKTOP_VERSION__ === '1.0.0') {
+    return false;
+  }
   return Boolean(
     w.__SAUDE_DESKTOP_APP__ ||
     w.__IS_TAURI_DESKTOP ||

@@ -497,7 +497,7 @@ if (Test-Path $TaskBarPath) {{
 const DESKTOP_NOTIFICATION_BRIDGE: &str = r#"
 (function() {
   window.__SAUDE_DESKTOP_APP__ = true;
-  window.__SAUDE_DESKTOP_VERSION__ = '1.0.0';
+  window.__SAUDE_DESKTOP_VERSION__ = '1.0.1';
   window.__IS_TAURI_DESKTOP = true;
 
   if (window.__SAUDE_TAURI_BRIDGE__) return;

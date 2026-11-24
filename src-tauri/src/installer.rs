@@ -57,41 +57,62 @@ fn main() {
         .current_dir(&base_dir)
         .spawn();
 
-    // Cria atalho na Área de Trabalho, Menu Iniciar e fixa/atualiza na Barra de Tarefas do Windows
+    // Cria atalho na Área de Trabalho, Menu Iniciar e converte na Barra de Tarefas os atalhos existentes com WorkingDirectory correto
     let exe_str = exe_path.to_string_lossy().to_string();
     let ico_str = ico_path.to_string_lossy().to_string();
+    let base_str = base_dir.to_string_lossy().to_string();
     let ps_script = format!(
         r#"$WshShell = New-Object -ComObject WScript.Shell;
 $DesktopPath = [Environment]::GetFolderPath('Desktop');
 $StartMenuPath = [Environment]::GetFolderPath('Programs');
+$ChromeApps1 = Join-Path $StartMenuPath 'apps do Chrome';
+$ChromeApps2 = Join-Path $StartMenuPath 'Aplicativos do Chrome';
+$ChromeApps3 = Join-Path $StartMenuPath 'Chrome Apps';
 $TaskBarPath = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar';
+
+foreach ($dir in @($DesktopPath, $StartMenuPath, $ChromeApps1, $ChromeApps2, $ChromeApps3)) {{
+  if (Test-Path $dir) {{
+    Get-ChildItem -Path $dir -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+      $s = $WshShell.CreateShortcut($_.FullName);
+      $s.TargetPath = '{exe}';
+      $s.WorkingDirectory = '{base}';
+      $s.Arguments = '';
+      $s.IconLocation = '{ico},0';
+      $s.Description = 'Saúde+ Escalas';
+      $s.Save();
+    }};
+  }}
+}}
 
 foreach ($dir in @($DesktopPath, $StartMenuPath)) {{
   if (Test-Path $dir) {{
-    $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+.lnk'));
+    $Shortcut = $WshShell.CreateShortcut((Join-Path $dir 'Saúde+ Escalas.lnk'));
     $Shortcut.TargetPath = '{exe}';
+    $Shortcut.WorkingDirectory = '{base}';
     $Shortcut.IconLocation = '{ico},0';
-    $Shortcut.Description = 'Saúde+ - Gestão de Escalas';
+    $Shortcut.Description = 'Saúde+ Escalas';
     $Shortcut.Save();
   }}
 }}
 
 if (Test-Path $TaskBarPath) {{
-  foreach ($name in @('Saúde+ - Gestão de Escalas.lnk', 'Saúde+ - Gestão de Escalas (1).lnk', 'Saúde+ - Gestão de Escalas (3).lnk')) {{
-    $s = $WshShell.CreateShortcut((Join-Path $TaskBarPath $name));
+  Get-ChildItem -Path $TaskBarPath -Filter 'Saúde+*.lnk' -ErrorAction SilentlyContinue | Where-Object {{ $_.Name -notlike '*Portal*' }} | ForEach-Object {{
+    $s = $WshShell.CreateShortcut($_.FullName);
     $s.TargetPath = '{exe}';
+    $s.WorkingDirectory = '{base}';
     $s.Arguments = '';
     $s.IconLocation = '{ico},0';
-    $s.Description = 'Saúde+ - Gestão de Escalas';
+    $s.Description = 'Saúde+ Escalas';
     $s.Save();
-  }}
+  }};
 }}"#,
         exe = exe_str.replace('\'', "''"),
-        ico = ico_str.replace('\'', "''")
+        ico = ico_str.replace('\'', "''"),
+        base = base_str.replace('\'', "''")
     );
 
     let _ = Command::new("powershell")
         .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_script])
         .creation_flags(CREATE_NO_WINDOW)
-        .spawn();
+        .status();
 }
